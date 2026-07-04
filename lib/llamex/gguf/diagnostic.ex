@@ -10,7 +10,8 @@ defmodule Llamex.GGUF.Diagnostic do
     3 => "Q4_1",
     6 => "Q5_0",
     7 => "Q5_1",
-    8 => "Q8_0"
+    8 => "Q8_0",
+    9 => "Q8_1"
   }
 
   def inspect_file(path) when is_binary(path) do
