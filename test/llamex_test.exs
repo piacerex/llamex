@@ -565,6 +565,27 @@ defmodule LlamexTest do
     end
   end
 
+  test "reads q4_k gguf tensor data into dequantized named tensor schema" do
+    gguf = tiny_gguf(:with_q4_k_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+
+    assert tensors["token_embd.weight"]["shape"] == [256]
+    assert tensors["token_embd.weight"]["dtype"] == "f32"
+    assert Enum.take(tensors["token_embd.weight"]["data"], 4) == [-2.0, -1.0, 6.0, 13.0]
+    assert Enum.drop(tensors["token_embd.weight"]["data"], 4) == List.duplicate(6.0, 252)
+  end
+
+  test "rejects q4_k tensors whose element count is not block-aligned" do
+    gguf = tiny_gguf(:with_unaligned_q4_k_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    assert_raise ArgumentError, ~r/Q4_K tensor element count/, fn ->
+      Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+    end
+  end
+
   test "reads q6_k gguf tensor data into dequantized named tensor schema" do
     gguf = tiny_gguf(:with_q6_k_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(gguf)
@@ -817,6 +838,8 @@ defmodule LlamexTest do
         :with_unaligned_q8_0_tensor_data -> {[31], 8, [0, 2, -4, 6 | List.duplicate(0, 28)]}
         :with_q8_1_tensor_data -> {[32], 9, [0, 2, -4, 6 | List.duplicate(0, 28)]}
         :with_unaligned_q8_1_tensor_data -> {[31], 9, [0, 2, -4, 6 | List.duplicate(0, 28)]}
+        :with_q4_k_tensor_data -> {[256], 12, [0, 1, 8, 15 | List.duplicate(8, 252)]}
+        :with_unaligned_q4_k_tensor_data -> {[255], 12, [0, 1, 8, 15 | List.duplicate(8, 252)]}
         :with_q6_k_tensor_data -> {[256], 14, [32, 33, 16, 63 | List.duplicate(0, 252)]}
         :with_unaligned_q6_k_tensor_data -> {[255], 14, [32, 33, 16, 63 | List.duplicate(0, 252)]}
         :with_q8_k_tensor_data -> {[256], 15, [0, 2, -4, 6 | List.duplicate(0, 252)]}
@@ -846,6 +869,8 @@ defmodule LlamexTest do
       :with_unaligned_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
       :with_q8_1_tensor_data -> with_aligned_q8_1_tensor_data(without_data, values)
       :with_unaligned_q8_1_tensor_data -> with_aligned_q8_1_tensor_data(without_data, values)
+      :with_q4_k_tensor_data -> with_aligned_q4_k_tensor_data(without_data, values)
+      :with_unaligned_q4_k_tensor_data -> with_aligned_q4_k_tensor_data(without_data, values)
       :with_q6_k_tensor_data -> with_aligned_q6_k_tensor_data(without_data, values)
       :with_unaligned_q6_k_tensor_data -> with_aligned_q6_k_tensor_data(without_data, values)
       :with_q8_k_tensor_data -> with_aligned_q8_k_tensor_data(without_data, values)
@@ -947,6 +972,65 @@ defmodule LlamexTest do
     ]
 
     IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp with_aligned_q4_k_tensor_data(binary, values) do
+    padding = rem(32 - rem(byte_size(binary), 32), 32)
+
+    tensor_data = [
+      <<0x3C00::little-unsigned-integer-size(16)>>,
+      <<0x3C00::little-unsigned-integer-size(16)>>,
+      q4_k_scales(List.duplicate(1, 8), List.duplicate(2, 8)),
+      q4_k_quantized(values)
+    ]
+
+    IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp q4_k_scales(scales, minimums) do
+    first =
+      0..3
+      |> Enum.map(fn index ->
+        scale = Enum.at(scales, index)
+        high_scale = Enum.at(scales, index + 4) |> Bitwise.bsr(4)
+
+        scale |> Bitwise.band(0x3F) |> Bitwise.bor(Bitwise.bsl(high_scale, 6))
+      end)
+
+    second =
+      0..3
+      |> Enum.map(fn index ->
+        minimum = Enum.at(minimums, index)
+        high_minimum = Enum.at(minimums, index + 4) |> Bitwise.bsr(4)
+
+        minimum |> Bitwise.band(0x3F) |> Bitwise.bor(Bitwise.bsl(high_minimum, 6))
+      end)
+
+    third =
+      4..7
+      |> Enum.map(fn index ->
+        scale = Enum.at(scales, index)
+        minimum = Enum.at(minimums, index)
+
+        Bitwise.bor(Bitwise.band(scale, 0x0F), Bitwise.bsl(Bitwise.band(minimum, 0x0F), 4))
+      end)
+
+    Enum.map(first ++ second ++ third, &<<&1>>)
+  end
+
+  defp q4_k_quantized(values) do
+    values
+    |> Enum.chunk_every(64)
+    |> Enum.flat_map(fn chunk ->
+      0..31
+      |> Enum.map(fn index ->
+        low = chunk |> Enum.at(index) |> Bitwise.band(0x0F)
+        high = chunk |> Enum.at(index + 32) |> Bitwise.band(0x0F)
+
+        Bitwise.bor(low, Bitwise.bsl(high, 4))
+      end)
+    end)
+    |> Enum.map(&<<&1>>)
   end
 
   defp with_aligned_q6_k_tensor_data(binary, values) do
