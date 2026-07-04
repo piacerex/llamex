@@ -56,6 +56,84 @@ defmodule LlamexTest do
     assert [{_key, _value}] = Llamex.KVCache.entries(context.kv_cache, 0)
   end
 
+  test "applies RoPE without changing vectors at position zero" do
+    assert Llamex.Layers.RoPE.apply([1.0, 2.0], 0, 10_000.0) == [1.0, 2.0]
+  end
+
+  test "runs a transformer block with SwiGLU feed-forward weights" do
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 2, embedding_size: 2},
+        token_embeddings: %{
+          0 => [1.0, 0.0],
+          1 => [0.0, 1.0]
+        },
+        layers: [
+          %{
+            attention_norm: [1.0, 1.0],
+            feed_forward_norm: [1.0, 1.0],
+            wq: [[1.0, 0.0], [0.0, 1.0]],
+            wk: [[1.0, 0.0], [0.0, 1.0]],
+            wv: [[1.0, 0.0], [0.0, 1.0]],
+            wo: [[1.0, 0.0], [0.0, 1.0]],
+            w_gate: [[1.0, 0.0], [0.0, 1.0]],
+            w_up: [[1.0, 0.0], [0.0, 1.0]],
+            w_down: [[1.0, 0.0], [0.0, 1.0]]
+          }
+        ],
+        output: %{weight: [[1.0, 0.0], [0.0, 1.0]]}
+      })
+
+    context = Llamex.new_context(model, Llamex.Backend.List)
+
+    {context, next_token} = Llamex.next_token(context, 0)
+
+    assert next_token == 0
+    assert context.tokens == [0]
+    assert [{_key, _value}] = Llamex.KVCache.entries(context.kv_cache, 0)
+  end
+
+  test "runs multi-head attention" do
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 2, embedding_size: 4},
+        token_embeddings: %{
+          0 => [1.0, 0.0, 0.0, 1.0],
+          1 => [0.0, 1.0, 1.0, 0.0]
+        },
+        layers: [
+          %{
+            head_count: 2,
+            attention_norm: [1.0, 1.0, 1.0, 1.0],
+            wq: identity4(),
+            wk: identity4(),
+            wv: identity4(),
+            wo: identity4()
+          }
+        ],
+        output: %{weight: identity4() |> Enum.take(2)}
+      })
+
+    context = Llamex.new_context(model, Llamex.Backend.List)
+
+    {context, _next_token} = Llamex.next_token(context, 0)
+
+    assert context.tokens == [0]
+    assert [{keys, values}] = Llamex.KVCache.entries(context.kv_cache, 0)
+    assert length(keys) == 2
+    assert length(values) == 2
+  end
+
+  test "samples with temperature and top-k" do
+    logits = Llamex.Backend.List.from_list([0.0, 1.0, 2.0])
+
+    assert Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+             temperature: 1.0,
+             top_k: 1,
+             random: 0.0
+           }) == 2
+  end
+
   test "generates ordinary text from a prompt" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -81,5 +159,14 @@ defmodule LlamexTest do
     assert result.generated_tokens == [2]
     assert result.text == "world"
     assert result.context.tokens == [1]
+  end
+
+  defp identity4 do
+    [
+      [1.0, 0.0, 0.0, 0.0],
+      [0.0, 1.0, 0.0, 0.0],
+      [0.0, 0.0, 1.0, 0.0],
+      [0.0, 0.0, 0.0, 1.0]
+    ]
   end
 end

@@ -10,6 +10,7 @@ defmodule Llamex.Generation do
     backend = Map.fetch!(opts, :backend)
     max_new_tokens = Map.fetch!(opts, :max_new_tokens)
     stop_token = Map.get(opts, :stop_token)
+    sampler = Map.get(opts, :sampler, :greedy)
 
     if max_new_tokens < 0 do
       raise ArgumentError, "max_new_tokens must be zero or positive"
@@ -20,7 +21,7 @@ defmodule Llamex.Generation do
     context = ingest_prompt(context, prompt_tokens)
 
     {context, generated_tokens} =
-      generate_tokens(context, seed_token(prompt_tokens), max_new_tokens, stop_token)
+      generate_tokens(context, seed_token(prompt_tokens), max_new_tokens, stop_token, sampler)
 
     %{
       text: Llamex.decode(model, generated_tokens),
@@ -45,16 +46,20 @@ defmodule Llamex.Generation do
   defp seed_token([]), do: raise(ArgumentError, "prompt must encode to at least one token")
   defp seed_token(prompt_tokens), do: List.last(prompt_tokens)
 
-  defp generate_tokens(context, _current_token, 0, _stop_token), do: {context, []}
+  defp generate_tokens(context, _current_token, 0, _stop_token, _sampler), do: {context, []}
 
-  defp generate_tokens(context, current_token, remaining, stop_token) do
-    {context, next_token} = Engine.next_token(context, current_token, &Sampler.greedy/2)
+  defp generate_tokens(context, current_token, remaining, stop_token, sampler) do
+    {context, logits} = Engine.eval(context, current_token)
+    next_token = sample(logits, context.backend, sampler)
 
     if next_token == stop_token do
       {context, [next_token]}
     else
-      {context, rest} = generate_tokens(context, next_token, remaining - 1, stop_token)
+      {context, rest} = generate_tokens(context, next_token, remaining - 1, stop_token, sampler)
       {context, [next_token | rest]}
     end
   end
+
+  defp sample(logits, backend, :greedy), do: Sampler.greedy(logits, backend)
+  defp sample(logits, backend, opts) when is_map(opts), do: Sampler.sample(logits, backend, opts)
 end

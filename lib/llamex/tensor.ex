@@ -22,6 +22,17 @@ defmodule Llamex.Tensor do
     Enum.map(values, &(&1 * factor))
   end
 
+  def multiply(left, right)
+      when is_list(left) and is_list(right) and length(left) == length(right) do
+    left
+    |> Enum.zip(right)
+    |> Enum.map(fn {a, b} -> a * b end)
+  end
+
+  def silu(values) when is_list(values) do
+    Enum.map(values, fn value -> value / (1.0 + :math.exp(-value)) end)
+  end
+
   def softmax(values) when is_list(values) do
     max = Enum.max(values)
     exps = Enum.map(values, &:math.exp(&1 - max))
@@ -43,4 +54,12 @@ defmodule Llamex.Tensor do
   end
 
   def zero_like(values) when is_list(values), do: Enum.map(values, fn _ -> 0.0 end)
+
+  def split_every(values, size) when is_list(values) and is_integer(size) and size > 0 do
+    if rem(length(values), size) != 0 do
+      raise ArgumentError, "vector length must be divisible by split size"
+    end
+
+    Enum.chunk_every(values, size)
+  end
 end

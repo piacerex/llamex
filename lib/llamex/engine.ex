@@ -4,12 +4,13 @@ defmodule Llamex.Engine do
   """
 
   alias Llamex.Context
-  alias Llamex.Layers.{Attention, Linear, RMSNorm}
+  alias Llamex.Layers.{Attention, Linear, RMSNorm, SwiGLU}
   alias Llamex.Tensor
 
   def eval(%Context{} = context, token) when is_integer(token) and token >= 0 do
     hidden = Map.fetch!(context.model.token_embeddings, token)
-    {context, hidden} = run_layers(context, hidden)
+    position = length(context.tokens)
+    {context, hidden} = run_layers(context, hidden, position)
 
     logits =
       if context.model.output do
@@ -27,21 +28,43 @@ defmodule Llamex.Engine do
     {context, sampler.(logits, context.backend)}
   end
 
-  defp run_layers(%Context{model: %{layers: []}} = context, hidden), do: {context, hidden}
+  defp run_layers(%Context{model: %{layers: []}} = context, hidden, _position),
+    do: {context, hidden}
 
-  defp run_layers(%Context{} = context, hidden) do
+  defp run_layers(%Context{} = context, hidden, position) do
     context.model.layers
     |> Enum.with_index()
     |> Enum.reduce({context, hidden}, fn {layer, layer_index}, {context, hidden} ->
       normalized =
         RMSNorm.forward(hidden, Map.fetch!(layer, :attention_norm), context.model.config.epsilon)
 
-      {kv_cache, attention} = Attention.forward(normalized, layer, context.kv_cache, layer_index)
+      {kv_cache, attention} =
+        Attention.forward(
+          normalized,
+          layer,
+          context.kv_cache,
+          layer_index,
+          position,
+          context.model.config.rope_theta
+        )
+
       hidden = Tensor.add(hidden, attention)
+      hidden = maybe_apply_mlp(hidden, layer, context.model.config.epsilon)
 
       {%{context | kv_cache: kv_cache}, hidden}
     end)
   end
+
+  defp maybe_apply_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon) do
+    feed_forward =
+      hidden
+      |> RMSNorm.forward(feed_forward_norm, epsilon)
+      |> SwiGLU.forward(layer)
+
+    Tensor.add(hidden, feed_forward)
+  end
+
+  defp maybe_apply_mlp(hidden, _layer, _epsilon), do: hidden
 
   defp embedding_logits(context, hidden) do
     0..(context.model.config.vocab_size - 1)
