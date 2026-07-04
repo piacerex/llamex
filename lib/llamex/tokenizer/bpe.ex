@@ -57,9 +57,15 @@ defmodule Llamex.Tokenizer.BPE do
 
   @impl true
   def decode(%__MODULE__{} = tokenizer, tokens) when is_list(tokens) do
-    tokens
-    |> Enum.map(&Map.fetch!(tokenizer.id_to_token, &1))
-    |> Enum.join(" ")
+    if has_byte_tokens?(tokenizer, tokens) do
+      tokens
+      |> Enum.map(&decode_token(tokenizer, &1))
+      |> IO.iodata_to_binary()
+    else
+      tokens
+      |> Enum.map(&Map.fetch!(tokenizer.id_to_token, &1))
+      |> Enum.join(" ")
+    end
   end
 
   defp encode_word(tokenizer, word) do
@@ -95,5 +101,32 @@ defmodule Llamex.Tokenizer.BPE do
       [left, right] -> {left, right}
       _other -> raise ArgumentError, "merge strings must contain exactly two tokens"
     end
+  end
+
+  defp has_byte_tokens?(tokenizer, tokens) do
+    byte_token_ids = byte_token_ids(tokenizer)
+
+    Enum.any?(tokens, &MapSet.member?(byte_token_ids, &1))
+  end
+
+  defp decode_token(tokenizer, id) do
+    if MapSet.member?(byte_token_ids(tokenizer), id) do
+      <<byte_value(Map.fetch!(tokenizer.id_to_token, id))>>
+    else
+      Map.fetch!(tokenizer.id_to_token, id)
+    end
+  end
+
+  defp byte_token_ids(tokenizer) do
+    tokenizer.token_types
+    |> Enum.filter(&(&1.type == :byte))
+    |> Enum.map(& &1.id)
+    |> MapSet.new()
+  end
+
+  defp byte_value("<0x" <> rest) do
+    rest
+    |> String.trim_trailing(">")
+    |> String.to_integer(16)
   end
 end
