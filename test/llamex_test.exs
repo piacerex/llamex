@@ -507,6 +507,36 @@ defmodule LlamexTest do
     end
   end
 
+  test "loads a transformer layer from gguf tensors and runs attention" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-transformer-model-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf_with_transformer_tensors())
+
+      model = Llamex.GGUF.ModelLoader.load(path)
+
+      assert [layer] = model.layers
+      assert layer.attention_norm == [1.0, 1.0]
+      assert layer.wq == [[1.0, 0.0], [0.0, 1.0]]
+      assert layer.wk == [[1.0, 0.0], [0.0, 1.0]]
+      assert layer.wv == [[1.0, 0.0], [0.0, 1.0]]
+      assert layer.wo == [[1.0, 0.0], [0.0, 1.0]]
+
+      context = Llamex.new_context(model, Llamex.Backend.List)
+      {context, next_token} = Llamex.next_token(context, 0)
+
+      assert context.tokens == [0]
+      assert next_token == 0
+      assert [{_key, _value}] = Llamex.KVCache.entries(context.kv_cache, 0)
+    after
+      File.rm(path)
+    end
+  end
+
   defp identity4 do
     [
       [1.0, 0.0, 0.0, 0.0],
@@ -592,10 +622,42 @@ defmodule LlamexTest do
   end
 
   defp tiny_gguf_with_output_tensors do
+    tiny_multi_tensor_gguf(
+      block_count: 0,
+      tensors: [
+        {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]},
+        {"output_norm.weight", [2], [1.0, 1.0]},
+        {"output.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+      ]
+    )
+  end
+
+  defp tiny_gguf_with_transformer_tensors do
+    identity = [1.0, 0.0, 0.0, 1.0]
+
+    tiny_multi_tensor_gguf(
+      block_count: 1,
+      tensors: [
+        {"token_embd.weight", [2, 2], identity},
+        {"blk.0.attn_norm.weight", [2], [1.0, 1.0]},
+        {"blk.0.attn_q.weight", [2, 2], identity},
+        {"blk.0.attn_k.weight", [2, 2], identity},
+        {"blk.0.attn_v.weight", [2, 2], identity},
+        {"blk.0.attn_output.weight", [2, 2], identity},
+        {"output_norm.weight", [2], [1.0, 1.0]},
+        {"output.weight", [2, 2], identity}
+      ]
+    )
+  end
+
+  defp tiny_multi_tensor_gguf(opts) do
+    tensors = Keyword.fetch!(opts, :tensors)
+    block_count = Keyword.fetch!(opts, :block_count)
+
     header = [
       "GGUF",
       u32(3),
-      u64(3),
+      u64(length(tensors)),
       u64(9)
     ]
 
@@ -604,35 +666,19 @@ defmodule LlamexTest do
       kv_u32("general.alignment", 32),
       kv_u32("llama.embedding_length", 2),
       kv_u32("llama.context_length", 16),
-      kv_u32("llama.block_count", 0),
+      kv_u32("llama.block_count", block_count),
       kv_u32("llama.attention.head_count", 2),
       kv_u32("llama.attention.head_count_kv", 1),
       kv_u32("llama.feed_forward_length", 8),
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
     ]
 
-    tensor_infos = [
-      tensor_info("token_embd.weight", [2, 2], 0, 0),
-      tensor_info("output_norm.weight", [2], 0, 32),
-      tensor_info("output.weight", [2, 2], 0, 64)
-    ]
+    {tensor_infos, tensor_data} = f32_tensor_sections(tensors)
 
     without_data = IO.iodata_to_binary([header, metadata, tensor_infos])
     padding = rem(32 - rem(byte_size(without_data), 32), 32)
 
-    token_embeddings = f32_values([1.0, 0.0, 0.0, 1.0])
-    output_norm = f32_values([1.0, 1.0])
-    output = f32_values([1.0, 0.0, 0.0, 1.0])
-
-    IO.iodata_to_binary([
-      without_data,
-      :binary.copy(<<0>>, padding),
-      token_embeddings,
-      :binary.copy(<<0>>, 32 - byte_size(token_embeddings)),
-      output_norm,
-      :binary.copy(<<0>>, 32 - byte_size(output_norm)),
-      output
-    ])
+    IO.iodata_to_binary([without_data, :binary.copy(<<0>>, padding), tensor_data])
   end
 
   defp tensor_info(name, dimensions, tensor_type, offset) do
@@ -649,6 +695,22 @@ defmodule LlamexTest do
     values
     |> Enum.map(fn value -> <<value::little-float-size(32)>> end)
     |> IO.iodata_to_binary()
+  end
+
+  defp f32_tensor_sections(tensors) do
+    {infos, data, _offset} =
+      Enum.reduce(tensors, {[], [], 0}, fn {name, dimensions, values}, {infos, data, offset} ->
+        binary = f32_values(values)
+        padding = rem(32 - rem(byte_size(binary), 32), 32)
+
+        {
+          [tensor_info(name, dimensions, 0, offset) | infos],
+          [data, binary, :binary.copy(<<0>>, padding)],
+          offset + byte_size(binary) + padding
+        }
+      end)
+
+    {Enum.reverse(infos), data}
   end
 
   defp q4_0_bytes(values) do
