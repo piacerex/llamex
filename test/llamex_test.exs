@@ -389,6 +389,27 @@ defmodule LlamexTest do
            }
   end
 
+  test "reads q8_0 gguf tensor data into dequantized named tensor schema" do
+    gguf = tiny_gguf(:with_q8_0_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+
+    assert tensors["token_embd.weight"]["shape"] == [32]
+    assert tensors["token_embd.weight"]["dtype"] == "f32"
+    assert Enum.take(tensors["token_embd.weight"]["data"], 4) == [0.0, 1.0, -2.0, 3.0]
+    assert tensors["token_embd.weight"]["data"] |> Enum.drop(4) |> Enum.all?(&(&1 == 0.0))
+  end
+
+  test "rejects q8_0 tensors whose element count is not block-aligned" do
+    gguf = tiny_gguf(:with_unaligned_q8_0_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    assert_raise ArgumentError, ~r/Q8_0 tensor element count/, fn ->
+      Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+    end
+  end
+
   test "reads f32 gguf tensor data from a file path" do
     path =
       Path.join(System.tmp_dir!(), "llamex-tensor-#{System.unique_integer([:positive])}.gguf")
@@ -498,6 +519,8 @@ defmodule LlamexTest do
       case mode do
         :with_rectangular_tensor_data -> {[3, 2], 0, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}
         :with_f16_tensor_data -> {[2, 2], 1, [0x3C00, 0x0000, 0x0000, 0xC000]}
+        :with_q8_0_tensor_data -> {[32], 8, [0, 2, -4, 6 | List.duplicate(0, 28)]}
+        :with_unaligned_q8_0_tensor_data -> {[31], 8, [0, 2, -4, 6 | List.duplicate(0, 28)]}
         _other -> {[2, 2], 0, [1.0, 0.0, 0.0, 1.0]}
       end
 
@@ -510,6 +533,8 @@ defmodule LlamexTest do
       :with_tensor_data -> with_aligned_f32_tensor_data(without_data, values)
       :with_rectangular_tensor_data -> with_aligned_f32_tensor_data(without_data, values)
       :with_f16_tensor_data -> with_aligned_f16_tensor_data(without_data, values)
+      :with_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
+      :with_unaligned_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
     end
   end
 
@@ -523,6 +548,13 @@ defmodule LlamexTest do
   defp with_aligned_f16_tensor_data(binary, values) do
     padding = rem(32 - rem(byte_size(binary), 32), 32)
     tensor_data = Enum.map(values, fn value -> <<value::little-unsigned-integer-size(16)>> end)
+
+    IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp with_aligned_q8_0_tensor_data(binary, values) do
+    padding = rem(32 - rem(byte_size(binary), 32), 32)
+    tensor_data = [<<0x3800::little-unsigned-integer-size(16)>>, Enum.map(values, &i8/1)]
 
     IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
   end
@@ -618,4 +650,5 @@ defmodule LlamexTest do
 
   defp u32(value), do: <<value::little-unsigned-integer-size(32)>>
   defp u64(value), do: <<value::little-unsigned-integer-size(64)>>
+  defp i8(value), do: <<value::signed-integer-size(8)>>
 end

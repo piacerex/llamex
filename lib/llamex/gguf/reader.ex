@@ -2,10 +2,11 @@ defmodule Llamex.GGUF.Reader do
   @moduledoc """
   Reads GGUF header, metadata, and tensor directory.
 
-  Tensor data is intentionally not loaded yet.
+  Supported tensor payloads are decoded into Llamex's flat named tensor schema.
   """
 
   @default_alignment 32
+  @q8_0_block_size 32
 
   defstruct [:version, :tensor_count, :metadata_count, :metadata, :tensors, :tensor_data_offset]
 
@@ -221,6 +222,21 @@ defmodule Llamex.GGUF.Reader do
     }
   end
 
+  defp tensor_to_schema(gguf, %{type: 8} = tensor, binary) do
+    data =
+      read_q8_0_tensor(
+        binary,
+        gguf.tensor_data_offset + tensor.offset,
+        Enum.product(tensor.dimensions)
+      )
+
+    %{
+      "shape" => schema_shape(tensor.dimensions),
+      "dtype" => "f32",
+      "data" => data
+    }
+  end
+
   defp tensor_to_schema(_gguf, tensor, _binary) do
     raise ArgumentError, "unsupported GGUF tensor type #{tensor.type} for #{tensor.name}"
   end
@@ -248,6 +264,37 @@ defmodule Llamex.GGUF.Reader do
   defp read_f16_values(<<bits::little-unsigned-integer-size(16), rest::binary>>, values) do
     read_f16_values(rest, [f16_to_float(bits) | values])
   end
+
+  defp read_q8_0_tensor(_binary, _offset, count) when rem(count, @q8_0_block_size) != 0 do
+    raise ArgumentError, "Q8_0 tensor element count must be divisible by #{@q8_0_block_size}"
+  end
+
+  defp read_q8_0_tensor(binary, offset, count) do
+    byte_size = div(count, @q8_0_block_size) * (2 + @q8_0_block_size)
+    <<_prefix::binary-size(offset), tensor_data::binary-size(byte_size), _rest::binary>> = binary
+    read_q8_0_blocks(tensor_data, [])
+  end
+
+  defp read_q8_0_blocks(<<>>, values), do: values |> Enum.reverse() |> List.flatten()
+
+  defp read_q8_0_blocks(
+         <<scale_bits::little-unsigned-integer-size(16), quantized::binary-size(@q8_0_block_size),
+           rest::binary>>,
+         values
+       ) do
+    scale = f16_to_float(scale_bits)
+
+    block =
+      quantized
+      |> :binary.bin_to_list()
+      |> Enum.map(&signed_i8/1)
+      |> Enum.map(&(&1 * scale))
+
+    read_q8_0_blocks(rest, [block | values])
+  end
+
+  defp signed_i8(value) when value < 128, do: value
+  defp signed_i8(value), do: value - 256
 
   defp f16_to_float(bits) do
     sign = if Bitwise.band(bits, 0x8000) == 0, do: 1.0, else: -1.0
