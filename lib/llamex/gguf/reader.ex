@@ -12,6 +12,7 @@ defmodule Llamex.GGUF.Reader do
   @q5_1_block_size 32
   @q8_0_block_size 32
   @q8_1_block_size 32
+  @q8_k_block_size 256
 
   defstruct [:version, :tensor_count, :metadata_count, :metadata, :tensors, :tensor_data_offset]
 
@@ -317,6 +318,21 @@ defmodule Llamex.GGUF.Reader do
     }
   end
 
+  defp tensor_to_schema(gguf, %{type: 15} = tensor, binary) do
+    data =
+      read_q8_k_tensor(
+        binary,
+        gguf.tensor_data_offset + tensor.offset,
+        Enum.product(tensor.dimensions)
+      )
+
+    %{
+      "shape" => schema_shape(tensor.dimensions),
+      "dtype" => "f32",
+      "data" => data
+    }
+  end
+
   defp tensor_to_schema(_gguf, tensor, _binary) do
     raise ArgumentError, "unsupported GGUF tensor type #{tensor.type} for #{tensor.name}"
   end
@@ -561,6 +577,32 @@ defmodule Llamex.GGUF.Reader do
       |> Enum.map(&(&1 * scale))
 
     read_q8_1_blocks(rest, [block | values])
+  end
+
+  defp read_q8_k_tensor(_binary, _offset, count) when rem(count, @q8_k_block_size) != 0 do
+    raise ArgumentError, "Q8_K tensor element count must be divisible by #{@q8_k_block_size}"
+  end
+
+  defp read_q8_k_tensor(binary, offset, count) do
+    byte_size = div(count, @q8_k_block_size) * (4 + @q8_k_block_size + 32)
+    <<_prefix::binary-size(offset), tensor_data::binary-size(byte_size), _rest::binary>> = binary
+    read_q8_k_blocks(tensor_data, [])
+  end
+
+  defp read_q8_k_blocks(<<>>, values), do: values |> Enum.reverse() |> List.flatten()
+
+  defp read_q8_k_blocks(
+         <<scale::little-float-size(32), quantized::binary-size(@q8_k_block_size),
+           _sums::binary-size(32), rest::binary>>,
+         values
+       ) do
+    block =
+      quantized
+      |> :binary.bin_to_list()
+      |> Enum.map(&signed_i8/1)
+      |> Enum.map(&(&1 * scale))
+
+    read_q8_k_blocks(rest, [block | values])
   end
 
   defp f16_to_float(bits) do
