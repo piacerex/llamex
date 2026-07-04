@@ -136,7 +136,7 @@ building the JSON-style tensor map. Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5
 dequantized to F32 values while loading. Other quantized tensor types are not
 loaded yet.
 
-Small F32 GGUF files can be loaded as Llamex models:
+Small GGUF files can be loaded as Llamex models:
 
 ```elixir
 Llamex.GGUF.ModelLoader.load("model.gguf")
@@ -149,6 +149,19 @@ GGUF compatibility can be inspected without loading tensor data:
 
 ```bash
 mix llamex.gguf.inspect model.gguf
+```
+
+An existing tiny GGUF model can be smoke-tested without checking the model file
+into the repository:
+
+```bash
+mkdir -p /tmp/llamex-models
+curl -L --fail \
+  -o /tmp/llamex-models/test-gguf-trainer.Q8_0.gguf \
+  https://huggingface.co/ybelkada/test-gguf-trainer-Q8_0-GGUF/resolve/main/test-gguf-trainer.Q8_0.gguf
+
+mix llamex.gguf.inspect /tmp/llamex-models/test-gguf-trainer.Q8_0.gguf
+mix run -e 'model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/test-gguf-trainer.Q8_0.gguf"); IO.inspect(%{vocab_size: model.config.vocab_size, embedding_size: model.config.embedding_size, layers: length(model.layers), token_embeddings: map_size(model.token_embeddings)})'
 ```
 
 Tokenizer metadata can be converted into a Llamex tokenizer:
