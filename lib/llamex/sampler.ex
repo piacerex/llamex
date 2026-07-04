@@ -17,11 +17,34 @@ defmodule Llamex.Sampler do
     end
 
     values
+    |> apply_repetition_penalty(Map.get(opts, :history, []), Map.get(opts, :repetition_penalty))
     |> apply_temperature(temperature)
     |> apply_top_k(Map.get(opts, :top_k))
     |> probabilities()
+    |> apply_top_p(Map.get(opts, :top_p))
+    |> normalize()
     |> draw(random)
   end
+
+  defp apply_repetition_penalty(values, _history, nil), do: values
+
+  defp apply_repetition_penalty(values, history, penalty)
+       when is_list(history) and is_number(penalty) and penalty > 0.0 do
+    repeated = MapSet.new(history)
+
+    values
+    |> Enum.with_index()
+    |> Enum.map(fn {value, index} ->
+      if MapSet.member?(repeated, index) do
+        penalize(value, penalty)
+      else
+        value
+      end
+    end)
+  end
+
+  defp penalize(value, penalty) when value >= 0.0, do: value / penalty
+  defp penalize(value, penalty), do: value * penalty
 
   defp apply_temperature(values, temperature) do
     Enum.map(values, &(&1 / temperature))
@@ -57,6 +80,45 @@ defmodule Llamex.Sampler do
     total = Enum.sum(weighted)
 
     Enum.map(weighted, &(&1 / total))
+  end
+
+  defp apply_top_p(probabilities, nil), do: probabilities
+
+  defp apply_top_p(probabilities, top_p) when is_number(top_p) and top_p > 0.0 and top_p <= 1.0 do
+    kept =
+      probabilities
+      |> Enum.with_index()
+      |> Enum.sort_by(fn {probability, _index} -> probability end, :desc)
+      |> keep_until_top_p(top_p, 0.0, MapSet.new())
+
+    probabilities
+    |> Enum.with_index()
+    |> Enum.map(fn {probability, index} ->
+      if MapSet.member?(kept, index), do: probability, else: 0.0
+    end)
+  end
+
+  defp keep_until_top_p([], _top_p, _total, kept), do: kept
+
+  defp keep_until_top_p([{probability, index} | rest], top_p, total, kept) do
+    kept = MapSet.put(kept, index)
+    total = total + probability
+
+    if total >= top_p do
+      kept
+    else
+      keep_until_top_p(rest, top_p, total, kept)
+    end
+  end
+
+  defp normalize(probabilities) do
+    total = Enum.sum(probabilities)
+
+    if total == 0.0 do
+      raise ArgumentError, "sampling filters removed all probabilities"
+    end
+
+    Enum.map(probabilities, &(&1 / total))
   end
 
   defp draw(probabilities, random) when is_float(random) and random >= 0.0 and random < 1.0 do

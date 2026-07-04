@@ -1,6 +1,14 @@
 # Llamex
 
-**TODO: Add description**
+Minimal Elixir LLM engine experiment.
+
+## Run
+
+```bash
+mix test
+mix llamex.generate priv/models/tiny.json hello 2
+mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --top-p 0.9 --seed 42
+```
 
 ## Installation
 
@@ -18,4 +26,3 @@ end
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
 be found at <https://hexdocs.pm/llamex>.
-

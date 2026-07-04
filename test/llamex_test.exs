@@ -134,6 +134,58 @@ defmodule LlamexTest do
            }) == 2
   end
 
+  test "samples with top-p" do
+    logits = Llamex.Backend.List.from_list([0.0, 1.0, 2.0])
+
+    assert Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+             temperature: 1.0,
+             top_p: 0.5,
+             random: 0.0
+           }) == 2
+  end
+
+  test "applies repetition penalty before sampling" do
+    logits = Llamex.Backend.List.from_list([3.0, 2.9, 0.0])
+
+    assert Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+             temperature: 1.0,
+             top_k: 1,
+             repetition_penalty: 2.0,
+             history: [0],
+             random: 0.0
+           }) == 1
+  end
+
+  test "generates with seed-based sampling" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 2,
+        stop_token: 2,
+        sampler: %{
+          temperature: 1.0,
+          top_k: 1,
+          seed: 42
+        }
+      })
+
+    assert result.generated_tokens == [2]
+    assert result.text == "world"
+  end
+
   test "generates ordinary text from a prompt" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -159,6 +211,21 @@ defmodule LlamexTest do
     assert result.generated_tokens == [2]
     assert result.text == "world"
     assert result.context.tokens == [1]
+  end
+
+  test "loads a tiny model from json" do
+    model = Llamex.ModelLoader.load_json("priv/models/tiny.json")
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 2,
+        stop_token: model.tokenizer.token_to_id["world"]
+      })
+
+    assert result.text == "world"
+    assert result.prompt_tokens == [1]
+    assert result.generated_tokens == [2]
   end
 
   defp identity4 do

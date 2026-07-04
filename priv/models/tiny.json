@@ -1,0 +1,19 @@
+{
+  "config": {
+    "vocab_size": 3,
+    "embedding_size": 2
+  },
+  "tokenizer": {
+    "unknown_token": "<unk>",
+    "vocab": {
+      "<unk>": 0,
+      "hello": 1,
+      "world": 2
+    }
+  },
+  "token_embeddings": {
+    "0": [0.0, 0.0],
+    "1": [1.0, 0.0],
+    "2": [2.0, 0.0]
+  }
+}

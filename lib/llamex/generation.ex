@@ -19,9 +19,19 @@ defmodule Llamex.Generation do
     prompt_tokens = Llamex.encode(model, prompt)
     context = Context.new(model, backend)
     context = ingest_prompt(context, prompt_tokens)
+    sampler_state = new_sampler_state(sampler)
 
     {context, generated_tokens} =
-      generate_tokens(context, seed_token(prompt_tokens), max_new_tokens, stop_token, sampler)
+      generate_tokens(
+        context,
+        seed_token(prompt_tokens),
+        max_new_tokens,
+        stop_token,
+        sampler,
+        sampler_state,
+        prompt_tokens,
+        []
+      )
 
     %{
       text: Llamex.decode(model, generated_tokens),
@@ -46,20 +56,84 @@ defmodule Llamex.Generation do
   defp seed_token([]), do: raise(ArgumentError, "prompt must encode to at least one token")
   defp seed_token(prompt_tokens), do: List.last(prompt_tokens)
 
-  defp generate_tokens(context, _current_token, 0, _stop_token, _sampler), do: {context, []}
+  defp generate_tokens(
+         context,
+         _current_token,
+         0,
+         _stop_token,
+         _sampler,
+         _sampler_state,
+         _prompt_tokens,
+         generated_tokens
+       ) do
+    {context, Enum.reverse(generated_tokens)}
+  end
 
-  defp generate_tokens(context, current_token, remaining, stop_token, sampler) do
+  defp generate_tokens(
+         context,
+         current_token,
+         remaining,
+         stop_token,
+         sampler,
+         sampler_state,
+         prompt_tokens,
+         generated_tokens
+       ) do
     {context, logits} = Engine.eval(context, current_token)
-    next_token = sample(logits, context.backend, sampler)
+
+    {next_token, sampler_state} =
+      sample(
+        logits,
+        context.backend,
+        sampler,
+        sampler_state,
+        prompt_tokens ++ Enum.reverse(generated_tokens)
+      )
 
     if next_token == stop_token do
-      {context, [next_token]}
+      {context, Enum.reverse([next_token | generated_tokens])}
     else
-      {context, rest} = generate_tokens(context, next_token, remaining - 1, stop_token, sampler)
-      {context, [next_token | rest]}
+      generate_tokens(
+        context,
+        next_token,
+        remaining - 1,
+        stop_token,
+        sampler,
+        sampler_state,
+        prompt_tokens,
+        [next_token | generated_tokens]
+      )
     end
   end
 
-  defp sample(logits, backend, :greedy), do: Sampler.greedy(logits, backend)
-  defp sample(logits, backend, opts) when is_map(opts), do: Sampler.sample(logits, backend, opts)
+  defp new_sampler_state(:greedy), do: nil
+
+  defp new_sampler_state(opts) when is_map(opts) do
+    seed = Map.get(opts, :seed)
+
+    if seed do
+      :rand.seed_s(:exsss, {seed, seed + 1, seed + 2})
+    end
+  end
+
+  defp sample(logits, backend, :greedy, sampler_state, _history) do
+    {Sampler.greedy(logits, backend), sampler_state}
+  end
+
+  defp sample(logits, backend, opts, sampler_state, history) when is_map(opts) do
+    {random, sampler_state} = next_random(opts, sampler_state)
+
+    token =
+      logits
+      |> Sampler.sample(backend, opts |> Map.put(:random, random) |> Map.put(:history, history))
+
+    {token, sampler_state}
+  end
+
+  defp next_random(%{random: random}, sampler_state) when is_float(random),
+    do: {random, sampler_state}
+
+  defp next_random(_opts, sampler_state) do
+    :rand.uniform_s(sampler_state)
+  end
 end
