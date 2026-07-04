@@ -58,9 +58,7 @@ defmodule Llamex.Tokenizer.BPE do
   @impl true
   def decode(%__MODULE__{} = tokenizer, tokens) when is_list(tokens) do
     Llamex.Tokenizer.ByteTokens.decode(tokenizer, tokens, fn tokenizer, tokens ->
-      tokens
-      |> Enum.map(&Map.fetch!(tokenizer.id_to_token, &1))
-      |> Enum.join(" ")
+      Llamex.Tokenizer.TextDecoder.decode(tokenizer, tokens)
     end)
   end
 
