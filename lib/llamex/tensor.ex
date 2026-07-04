@@ -12,11 +12,15 @@ defmodule Llamex.Tensor do
     |> Enum.map(fn {a, b} -> a + b end)
   end
 
-  def dot(left, right) when is_list(left) and is_list(right) and length(left) == length(right) do
-    left
-    |> Enum.zip(right)
-    |> Enum.reduce(0.0, fn {a, b}, acc -> acc + a * b end)
+  def dot(left, right) when is_list(left) and is_list(right), do: dot(left, right, 0.0)
+
+  defp dot([], [], acc), do: acc
+
+  defp dot([left | left_rest], [right | right_rest], acc) do
+    dot(left_rest, right_rest, acc + left * right)
   end
+
+  defp dot(_left, _right, _acc), do: raise(ArgumentError, "vectors must have matching lengths")
 
   def scale(values, factor) when is_list(values) and is_number(factor) do
     Enum.map(values, &(&1 * factor))
