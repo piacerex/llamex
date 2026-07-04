@@ -51,7 +51,26 @@ The current schema is intentionally small:
 ```
 
 Required fields are `config.vocab_size`, `config.embedding_size`, and
-`token_embeddings`. `tokenizer`, `layers`, and `output` are optional.
+either `token_embeddings` or `tensors.token_embd.weight`. `tokenizer`, `layers`,
+and `output` are optional.
+
+Named tensors use this shape:
+
+```json
+{
+  "tensors": {
+    "token_embd.weight": {
+      "shape": [3, 2],
+      "dtype": "f32",
+      "data": [0.0, 0.0, 1.0, 0.0, 2.0, 0.0]
+    }
+  }
+}
+```
+
+The current tensor reader validates `shape`, `dtype`, and flat `data`, then maps
+`token_embd.weight` into Llamex token embeddings. Supported dtypes are `f32` and
+`f16`; values are still represented as Elixir numbers after loading.
 
 Supported tokenizer types:
 

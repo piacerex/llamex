@@ -260,6 +260,20 @@ defmodule LlamexTest do
     assert Llamex.encode(model, "low") == [5]
   end
 
+  test "loads token embeddings from named tensors" do
+    model = Llamex.ModelLoader.load_json("priv/models/tiny_tensors.json")
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 2,
+        stop_token: model.tokenizer.token_to_id["world"]
+      })
+
+    assert result.text == "world"
+    assert result.generated_tokens == [2]
+  end
+
   defp identity4 do
     [
       [1.0, 0.0, 0.0, 0.0],

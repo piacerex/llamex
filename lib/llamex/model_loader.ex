@@ -14,7 +14,7 @@ defmodule Llamex.ModelLoader do
   defp atomize_model(attrs) when is_map(attrs) do
     %{
       config: atomize_keys(Map.fetch!(attrs, "config")),
-      token_embeddings: Map.fetch!(attrs, "token_embeddings")
+      token_embeddings: token_embeddings(attrs)
     }
     |> put_optional(attrs, "layers", :layers)
     |> put_optional(attrs, "output", :output)
@@ -63,6 +63,16 @@ defmodule Llamex.ModelLoader do
     else
       attrs
     end
+  end
+
+  defp token_embeddings(%{"token_embeddings" => token_embeddings}), do: token_embeddings
+
+  defp token_embeddings(%{"tensors" => tensors}) do
+    tensors
+    |> Llamex.TensorStore.decode()
+    |> Llamex.TensorStore.fetch_matrix("token_embd.weight")
+    |> Enum.with_index()
+    |> Map.new(fn {embedding, token_id} -> {token_id, embedding} end)
   end
 
   defp integer_key_embeddings(%{token_embeddings: token_embeddings} = attrs) do
