@@ -12,6 +12,7 @@ defmodule Llamex.GGUF.Diagnostic do
     7 => "Q5_1",
     8 => "Q8_0",
     9 => "Q8_1",
+    14 => "Q6_K",
     15 => "Q8_K"
   }
 

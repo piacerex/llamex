@@ -565,6 +565,27 @@ defmodule LlamexTest do
     end
   end
 
+  test "reads q6_k gguf tensor data into dequantized named tensor schema" do
+    gguf = tiny_gguf(:with_q6_k_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+
+    assert tensors["token_embd.weight"]["shape"] == [256]
+    assert tensors["token_embd.weight"]["dtype"] == "f32"
+    assert Enum.take(tensors["token_embd.weight"]["data"], 4) == [0.0, 1.0, -16.0, 31.0]
+    assert tensors["token_embd.weight"]["data"] |> Enum.drop(4) |> Enum.all?(&(&1 == -32.0))
+  end
+
+  test "rejects q6_k tensors whose element count is not block-aligned" do
+    gguf = tiny_gguf(:with_unaligned_q6_k_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    assert_raise ArgumentError, ~r/Q6_K tensor element count/, fn ->
+      Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+    end
+  end
+
   test "reads q8_k gguf tensor data into dequantized named tensor schema" do
     gguf = tiny_gguf(:with_q8_k_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(gguf)
@@ -796,6 +817,8 @@ defmodule LlamexTest do
         :with_unaligned_q8_0_tensor_data -> {[31], 8, [0, 2, -4, 6 | List.duplicate(0, 28)]}
         :with_q8_1_tensor_data -> {[32], 9, [0, 2, -4, 6 | List.duplicate(0, 28)]}
         :with_unaligned_q8_1_tensor_data -> {[31], 9, [0, 2, -4, 6 | List.duplicate(0, 28)]}
+        :with_q6_k_tensor_data -> {[256], 14, [32, 33, 16, 63 | List.duplicate(0, 252)]}
+        :with_unaligned_q6_k_tensor_data -> {[255], 14, [32, 33, 16, 63 | List.duplicate(0, 252)]}
         :with_q8_k_tensor_data -> {[256], 15, [0, 2, -4, 6 | List.duplicate(0, 252)]}
         :with_unaligned_q8_k_tensor_data -> {[255], 15, [0, 2, -4, 6 | List.duplicate(0, 252)]}
         :with_unsupported_tensor_type -> {[2, 2], 99, []}
@@ -823,6 +846,8 @@ defmodule LlamexTest do
       :with_unaligned_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
       :with_q8_1_tensor_data -> with_aligned_q8_1_tensor_data(without_data, values)
       :with_unaligned_q8_1_tensor_data -> with_aligned_q8_1_tensor_data(without_data, values)
+      :with_q6_k_tensor_data -> with_aligned_q6_k_tensor_data(without_data, values)
+      :with_unaligned_q6_k_tensor_data -> with_aligned_q6_k_tensor_data(without_data, values)
       :with_q8_k_tensor_data -> with_aligned_q8_k_tensor_data(without_data, values)
       :with_unaligned_q8_k_tensor_data -> with_aligned_q8_k_tensor_data(without_data, values)
       :with_unsupported_tensor_type -> without_data
@@ -922,6 +947,40 @@ defmodule LlamexTest do
     ]
 
     IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp with_aligned_q6_k_tensor_data(binary, values) do
+    padding = rem(32 - rem(byte_size(binary), 32), 32)
+    {high_bits, low_bits} = q6_k_bits(values)
+
+    tensor_data = [
+      q4_0_bytes(low_bits),
+      high_bits,
+      List.duplicate(1, 16) |> Enum.map(&i8/1),
+      <<0x3C00::little-unsigned-integer-size(16)>>
+    ]
+
+    IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp q6_k_bits(values) do
+    values
+    |> Enum.with_index()
+    |> Enum.reduce({List.duplicate(0, 64), []}, fn {value, index}, {high_bytes, low_bits} ->
+      high_value = value |> Bitwise.bsr(4) |> Bitwise.band(0x03)
+      high_index = div(index, 4)
+      shift = rem(index, 4) * 2
+
+      high_bytes =
+        List.update_at(high_bytes, high_index, fn byte ->
+          Bitwise.bor(byte, Bitwise.bsl(high_value, shift))
+        end)
+
+      {high_bytes, [Bitwise.band(value, 0x0F) | low_bits]}
+    end)
+    |> then(fn {high_bytes, low_bits} ->
+      {Enum.map(high_bytes, &<<&1>>), Enum.reverse(low_bits)}
+    end)
   end
 
   defp with_aligned_q8_k_tensor_data(binary, values) do
