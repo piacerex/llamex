@@ -44,8 +44,22 @@ defmodule Llamex.GGUF.Reader do
   end
 
   def read_tensor_data(%__MODULE__{} = gguf, binary) when is_binary(binary) do
-    Map.new(gguf.tensors, fn tensor ->
-      {tensor.name, tensor_to_schema(gguf, tensor, binary)}
+    gguf.tensors
+    |> Task.async_stream(
+      fn tensor ->
+        try do
+          {:ok, {tensor.name, tensor_to_schema(gguf, tensor, binary)}}
+        rescue
+          exception -> {:error, exception}
+        end
+      end,
+      ordered: false,
+      timeout: :infinity,
+      max_concurrency: System.schedulers_online()
+    )
+    |> Map.new(fn
+      {:ok, {:ok, tensor}} -> tensor
+      {:ok, {:error, exception}} -> raise exception
     end)
   end
 
