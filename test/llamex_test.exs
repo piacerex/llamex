@@ -303,6 +303,29 @@ defmodule LlamexTest do
     assert step.context.tokens == [1]
   end
 
+  test "profiles one generation step" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    profile = Llamex.Profile.generation_step(model, "hello", %{backend: Llamex.Backend.List})
+
+    assert profile.prompt_tokens == 1
+    assert profile.token == 2
+    assert profile.text == "world"
+    assert Enum.map(profile.timings, & &1.label) == ["prefill", "step"]
+    assert Enum.all?(profile.timings, &is_integer(&1.milliseconds))
+  end
+
   test "loads a tiny model from json" do
     model = Llamex.ModelLoader.load_json("priv/models/tiny.json")
 
