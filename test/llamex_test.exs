@@ -537,6 +537,36 @@ defmodule LlamexTest do
     end
   end
 
+  test "loads feed-forward tensors from gguf and runs swiglu" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-ffn-model-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf_with_feed_forward_tensors())
+
+      model = Llamex.GGUF.ModelLoader.load(path)
+
+      assert [layer] = model.layers
+      assert layer.feed_forward_norm == [1.0, 1.0]
+      assert layer.w_gate == [[1.0, 0.0], [0.0, 1.0]]
+      assert layer.w_up == [[1.0, 0.0], [0.0, 1.0]]
+      assert layer.w_down == [[1.0, 0.0], [0.0, 1.0]]
+      assert model.config.feed_forward_size == 2
+
+      context = Llamex.new_context(model, Llamex.Backend.List)
+      {context, next_token} = Llamex.next_token(context, 0)
+
+      assert context.tokens == [0]
+      assert next_token == 0
+      assert [{_key, _value}] = Llamex.KVCache.entries(context.kv_cache, 0)
+    after
+      File.rm(path)
+    end
+  end
+
   defp identity4 do
     [
       [1.0, 0.0, 0.0, 0.0],
@@ -650,9 +680,33 @@ defmodule LlamexTest do
     )
   end
 
+  defp tiny_gguf_with_feed_forward_tensors do
+    identity = [1.0, 0.0, 0.0, 1.0]
+
+    tiny_multi_tensor_gguf(
+      block_count: 1,
+      feed_forward_size: 2,
+      tensors: [
+        {"token_embd.weight", [2, 2], identity},
+        {"blk.0.attn_norm.weight", [2], [1.0, 1.0]},
+        {"blk.0.attn_q.weight", [2, 2], identity},
+        {"blk.0.attn_k.weight", [2, 2], identity},
+        {"blk.0.attn_v.weight", [2, 2], identity},
+        {"blk.0.attn_output.weight", [2, 2], identity},
+        {"blk.0.ffn_norm.weight", [2], [1.0, 1.0]},
+        {"blk.0.ffn_gate.weight", [2, 2], identity},
+        {"blk.0.ffn_up.weight", [2, 2], identity},
+        {"blk.0.ffn_down.weight", [2, 2], identity},
+        {"output_norm.weight", [2], [1.0, 1.0]},
+        {"output.weight", [2, 2], identity}
+      ]
+    )
+  end
+
   defp tiny_multi_tensor_gguf(opts) do
     tensors = Keyword.fetch!(opts, :tensors)
     block_count = Keyword.fetch!(opts, :block_count)
+    feed_forward_size = Keyword.get(opts, :feed_forward_size, 8)
 
     header = [
       "GGUF",
@@ -669,7 +723,7 @@ defmodule LlamexTest do
       kv_u32("llama.block_count", block_count),
       kv_u32("llama.attention.head_count", 2),
       kv_u32("llama.attention.head_count_kv", 1),
-      kv_u32("llama.feed_forward_length", 8),
+      kv_u32("llama.feed_forward_length", feed_forward_size),
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
     ]
 
