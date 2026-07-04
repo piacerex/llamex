@@ -200,8 +200,23 @@ defmodule Llamex.GGUF.Reader do
       )
 
     %{
-      "shape" => tensor.dimensions,
+      "shape" => schema_shape(tensor.dimensions),
       "dtype" => "f32",
+      "data" => data
+    }
+  end
+
+  defp tensor_to_schema(gguf, %{type: 1} = tensor, binary) do
+    data =
+      read_f16_tensor(
+        binary,
+        gguf.tensor_data_offset + tensor.offset,
+        Enum.product(tensor.dimensions)
+      )
+
+    %{
+      "shape" => schema_shape(tensor.dimensions),
+      "dtype" => "f16",
       "data" => data
     }
   end
@@ -221,4 +236,42 @@ defmodule Llamex.GGUF.Reader do
   defp read_f32_values(<<value::little-float-size(32), rest::binary>>, values) do
     read_f32_values(rest, [value | values])
   end
+
+  defp read_f16_tensor(binary, offset, count) do
+    byte_size = count * 2
+    <<_prefix::binary-size(offset), tensor_data::binary-size(byte_size), _rest::binary>> = binary
+    read_f16_values(tensor_data, [])
+  end
+
+  defp read_f16_values(<<>>, values), do: Enum.reverse(values)
+
+  defp read_f16_values(<<bits::little-unsigned-integer-size(16), rest::binary>>, values) do
+    read_f16_values(rest, [f16_to_float(bits) | values])
+  end
+
+  defp f16_to_float(bits) do
+    sign = if Bitwise.band(bits, 0x8000) == 0, do: 1.0, else: -1.0
+    exponent = bits |> Bitwise.bsr(10) |> Bitwise.band(0x1F)
+    fraction = Bitwise.band(bits, 0x03FF)
+
+    cond do
+      exponent == 0 and fraction == 0 ->
+        sign * 0.0
+
+      exponent == 0 ->
+        sign * :math.pow(2, -14) * (fraction / 1024)
+
+      exponent == 31 and fraction == 0 ->
+        if sign > 0.0, do: :positive_infinity, else: :negative_infinity
+
+      exponent == 31 ->
+        :nan
+
+      true ->
+        sign * :math.pow(2, exponent - 15) * (1 + fraction / 1024)
+    end
+  end
+
+  defp schema_shape([_size] = dimensions), do: dimensions
+  defp schema_shape(dimensions), do: Enum.reverse(dimensions)
 end

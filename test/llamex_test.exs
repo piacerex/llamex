@@ -363,6 +363,31 @@ defmodule LlamexTest do
            }
   end
 
+  test "normalizes rank-2 gguf dimensions into llamex schema shape" do
+    gguf = tiny_gguf(:with_rectangular_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+
+    assert tensors["token_embd.weight"]["shape"] == [2, 3]
+    assert tensors["token_embd.weight"]["data"] == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+  end
+
+  test "reads f16 gguf tensor data into named tensor schema" do
+    gguf = tiny_gguf(:with_f16_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+
+    assert tensors == %{
+             "token_embd.weight" => %{
+               "shape" => [2, 2],
+               "dtype" => "f16",
+               "data" => [1.0, 0.0, 0.0, -2.0]
+             }
+           }
+  end
+
   test "reads f32 gguf tensor data from a file path" do
     path =
       Path.join(System.tmp_dir!(), "llamex-tensor-#{System.unique_integer([:positive])}.gguf")
@@ -429,12 +454,18 @@ defmodule LlamexTest do
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
     ]
 
+    {dimensions, tensor_type, values} =
+      case mode do
+        :with_rectangular_tensor_data -> {[3, 2], 0, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}
+        :with_f16_tensor_data -> {[2, 2], 1, [0x3C00, 0x0000, 0x0000, 0xC000]}
+        _other -> {[2, 2], 0, [1.0, 0.0, 0.0, 1.0]}
+      end
+
     tensor_infos = [
       gguf_string("token_embd.weight"),
-      u32(2),
-      u64(2),
-      u64(2),
-      u32(0),
+      u32(length(dimensions)),
+      Enum.map(dimensions, &u64/1),
+      u32(tensor_type),
       u64(0)
     ]
 
@@ -442,13 +473,22 @@ defmodule LlamexTest do
 
     case mode do
       :without_tensor_data -> without_data
-      :with_tensor_data -> with_aligned_tensor_data(without_data, [1.0, 0.0, 0.0, 1.0])
+      :with_tensor_data -> with_aligned_f32_tensor_data(without_data, values)
+      :with_rectangular_tensor_data -> with_aligned_f32_tensor_data(without_data, values)
+      :with_f16_tensor_data -> with_aligned_f16_tensor_data(without_data, values)
     end
   end
 
-  defp with_aligned_tensor_data(binary, values) do
+  defp with_aligned_f32_tensor_data(binary, values) do
     padding = rem(32 - rem(byte_size(binary), 32), 32)
     tensor_data = Enum.map(values, fn value -> <<value::little-float-size(32)>> end)
+
+    IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp with_aligned_f16_tensor_data(binary, values) do
+    padding = rem(32 - rem(byte_size(binary), 32), 32)
+    tensor_data = Enum.map(values, fn value -> <<value::little-unsigned-integer-size(16)>> end)
 
     IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
   end
