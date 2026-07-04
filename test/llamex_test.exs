@@ -317,6 +317,22 @@ defmodule LlamexTest do
     assert rem(parsed.tensor_data_offset, 32) == 0
   end
 
+  test "diagnoses unsupported gguf tensor types without reading tensor data" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:with_unsupported_tensor_type))
+
+    assert diagnostic.version == 3
+    assert diagnostic.tensor_count == 1
+    assert diagnostic.supported_tensor_types == %{}
+    assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
+
+    assert diagnostic.unsupported_tensors == [
+             %{name: "token_embd.weight", type: 99, dimensions: [2, 2]}
+           ]
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "unsupported tensors:\n- token_embd.weight: type_99 [2, 2]"
+  end
+
   test "builds a tokenizer from gguf metadata" do
     parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
 
@@ -667,6 +683,7 @@ defmodule LlamexTest do
         :with_unaligned_q4_0_tensor_data -> {[31], 2, [0, 1, 8, 15 | List.duplicate(8, 28)]}
         :with_q8_0_tensor_data -> {[32], 8, [0, 2, -4, 6 | List.duplicate(0, 28)]}
         :with_unaligned_q8_0_tensor_data -> {[31], 8, [0, 2, -4, 6 | List.duplicate(0, 28)]}
+        :with_unsupported_tensor_type -> {[2, 2], 99, []}
         _other -> {[2, 2], 0, [1.0, 0.0, 0.0, 1.0]}
       end
 
@@ -683,6 +700,7 @@ defmodule LlamexTest do
       :with_unaligned_q4_0_tensor_data -> with_aligned_q4_0_tensor_data(without_data, values)
       :with_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
       :with_unaligned_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
+      :with_unsupported_tensor_type -> without_data
     end
   end
 

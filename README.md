@@ -144,6 +144,12 @@ Llamex.GGUF.ModelLoader.load("model.gguf")
 The `mix llamex.generate` task accepts `.gguf` paths and uses the GGUF loader
 for them.
 
+GGUF compatibility can be inspected without loading tensor data:
+
+```bash
+mix llamex.gguf.inspect model.gguf
+```
+
 Tokenizer metadata can be converted into a Llamex tokenizer:
 
 ```elixir
