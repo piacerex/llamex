@@ -460,6 +460,27 @@ defmodule LlamexTest do
     end
   end
 
+  test "reads q4_1 gguf tensor data into dequantized named tensor schema" do
+    gguf = tiny_gguf(:with_q4_1_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+
+    assert tensors["token_embd.weight"]["shape"] == [32]
+    assert tensors["token_embd.weight"]["dtype"] == "f32"
+    assert Enum.take(tensors["token_embd.weight"]["data"], 4) == [10.0, 11.0, 18.0, 25.0]
+    assert tensors["token_embd.weight"]["data"] |> Enum.drop(4) |> Enum.all?(&(&1 == 18.0))
+  end
+
+  test "rejects q4_1 tensors whose element count is not block-aligned" do
+    gguf = tiny_gguf(:with_unaligned_q4_1_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    assert_raise ArgumentError, ~r/Q4_1 tensor element count/, fn ->
+      Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+    end
+  end
+
   test "reads q8_0 gguf tensor data into dequantized named tensor schema" do
     gguf = tiny_gguf(:with_q8_0_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(gguf)
@@ -681,6 +702,8 @@ defmodule LlamexTest do
         :with_f16_tensor_data -> {[2, 2], 1, [0x3C00, 0x0000, 0x0000, 0xC000]}
         :with_q4_0_tensor_data -> {[32], 2, [0, 1, 8, 15 | List.duplicate(8, 28)]}
         :with_unaligned_q4_0_tensor_data -> {[31], 2, [0, 1, 8, 15 | List.duplicate(8, 28)]}
+        :with_q4_1_tensor_data -> {[32], 3, [0, 1, 8, 15 | List.duplicate(8, 28)]}
+        :with_unaligned_q4_1_tensor_data -> {[31], 3, [0, 1, 8, 15 | List.duplicate(8, 28)]}
         :with_q8_0_tensor_data -> {[32], 8, [0, 2, -4, 6 | List.duplicate(0, 28)]}
         :with_unaligned_q8_0_tensor_data -> {[31], 8, [0, 2, -4, 6 | List.duplicate(0, 28)]}
         :with_unsupported_tensor_type -> {[2, 2], 99, []}
@@ -698,6 +721,8 @@ defmodule LlamexTest do
       :with_f16_tensor_data -> with_aligned_f16_tensor_data(without_data, values)
       :with_q4_0_tensor_data -> with_aligned_q4_0_tensor_data(without_data, values)
       :with_unaligned_q4_0_tensor_data -> with_aligned_q4_0_tensor_data(without_data, values)
+      :with_q4_1_tensor_data -> with_aligned_q4_1_tensor_data(without_data, values)
+      :with_unaligned_q4_1_tensor_data -> with_aligned_q4_1_tensor_data(without_data, values)
       :with_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
       :with_unaligned_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
       :with_unsupported_tensor_type -> without_data
@@ -721,6 +746,18 @@ defmodule LlamexTest do
   defp with_aligned_q4_0_tensor_data(binary, values) do
     padding = rem(32 - rem(byte_size(binary), 32), 32)
     tensor_data = [<<0x3C00::little-unsigned-integer-size(16)>>, q4_0_bytes(values)]
+
+    IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp with_aligned_q4_1_tensor_data(binary, values) do
+    padding = rem(32 - rem(byte_size(binary), 32), 32)
+
+    tensor_data = [
+      <<0x3C00::little-unsigned-integer-size(16)>>,
+      <<0x4900::little-unsigned-integer-size(16)>>,
+      q4_0_bytes(values)
+    ]
 
     IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
   end

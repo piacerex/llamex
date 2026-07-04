@@ -7,6 +7,7 @@ defmodule Llamex.GGUF.Reader do
 
   @default_alignment 32
   @q4_0_block_size 32
+  @q4_1_block_size 32
   @q8_0_block_size 32
 
   defstruct [:version, :tensor_count, :metadata_count, :metadata, :tensors, :tensor_data_offset]
@@ -238,6 +239,21 @@ defmodule Llamex.GGUF.Reader do
     }
   end
 
+  defp tensor_to_schema(gguf, %{type: 3} = tensor, binary) do
+    data =
+      read_q4_1_tensor(
+        binary,
+        gguf.tensor_data_offset + tensor.offset,
+        Enum.product(tensor.dimensions)
+      )
+
+    %{
+      "shape" => schema_shape(tensor.dimensions),
+      "dtype" => "f32",
+      "data" => data
+    }
+  end
+
   defp tensor_to_schema(gguf, %{type: 8} = tensor, binary) do
     data =
       read_q8_0_tensor(
@@ -309,6 +325,38 @@ defmodule Llamex.GGUF.Reader do
     high = byte |> Bitwise.bsr(4) |> Bitwise.band(0x0F)
 
     [(low - 8) * scale, (high - 8) * scale]
+  end
+
+  defp read_q4_1_tensor(_binary, _offset, count) when rem(count, @q4_1_block_size) != 0 do
+    raise ArgumentError, "Q4_1 tensor element count must be divisible by #{@q4_1_block_size}"
+  end
+
+  defp read_q4_1_tensor(binary, offset, count) do
+    byte_size = div(count, @q4_1_block_size) * (4 + div(@q4_1_block_size, 2))
+    <<_prefix::binary-size(offset), tensor_data::binary-size(byte_size), _rest::binary>> = binary
+    read_q4_1_blocks(tensor_data, [])
+  end
+
+  defp read_q4_1_blocks(<<>>, values), do: values |> Enum.reverse() |> List.flatten()
+
+  defp read_q4_1_blocks(
+         <<scale_bits::little-unsigned-integer-size(16),
+           min_bits::little-unsigned-integer-size(16),
+           quantized::binary-size(div(@q4_1_block_size, 2)), rest::binary>>,
+         values
+       ) do
+    scale = f16_to_float(scale_bits)
+    minimum = f16_to_float(min_bits)
+    block = quantized |> :binary.bin_to_list() |> Enum.flat_map(&q4_1_values(&1, scale, minimum))
+
+    read_q4_1_blocks(rest, [block | values])
+  end
+
+  defp q4_1_values(byte, scale, minimum) do
+    low = Bitwise.band(byte, 0x0F)
+    high = byte |> Bitwise.bsr(4) |> Bitwise.band(0x0F)
+
+    [low * scale + minimum, high * scale + minimum]
   end
 
   defp read_q8_0_tensor(_binary, _offset, count) when rem(count, @q8_0_block_size) != 0 do

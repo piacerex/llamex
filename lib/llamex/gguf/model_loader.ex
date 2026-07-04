@@ -2,7 +2,7 @@ defmodule Llamex.GGUF.ModelLoader do
   @moduledoc """
   Loads Llamex models from GGUF files.
 
-  F32, F16, and dequantized Q4_0/Q8_0 tensor data are supported at this stage.
+  F32, F16, and dequantized Q4_0/Q4_1/Q8_0 tensor data are supported at this stage.
   """
 
   def load(path) when is_binary(path) do
