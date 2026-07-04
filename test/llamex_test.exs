@@ -280,6 +280,29 @@ defmodule LlamexTest do
     assert result.context.tokens == [1]
   end
 
+  test "prefills and steps generation with a loaded model" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    state = Llamex.prefill(model, "hello", %{backend: Llamex.Backend.List})
+    step = Llamex.step(state.context, state.current_token, %{sampler: :greedy})
+
+    assert state.prompt_tokens == [1]
+    assert step.token == 2
+    assert step.text == "world"
+    assert step.context.tokens == [1]
+  end
+
   test "loads a tiny model from json" do
     model = Llamex.ModelLoader.load_json("priv/models/tiny.json")
 

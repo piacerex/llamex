@@ -5,6 +5,35 @@ defmodule Llamex.Generation do
 
   alias Llamex.{Context, Engine, Model, Sampler}
 
+  def prefill(%Model{} = model, prompt, opts) when is_binary(prompt) and is_map(opts) do
+    backend = Map.fetch!(opts, :backend)
+    prompt_tokens = Llamex.encode(model, prompt)
+    context = Context.new(model, backend)
+    context = ingest_prompt(context, prompt_tokens)
+
+    %{
+      context: context,
+      prompt_tokens: prompt_tokens,
+      current_token: seed_token(prompt_tokens)
+    }
+  end
+
+  def step(%Context{} = context, current_token, opts)
+      when is_integer(current_token) and current_token >= 0 and is_map(opts) do
+    sampler = Map.get(opts, :sampler, :greedy)
+    history = Map.get(opts, :history, context.tokens)
+    sampler_state = Map.get(opts, :sampler_state, new_sampler_state(sampler))
+    {context, logits} = Engine.eval(context, current_token)
+    {next_token, sampler_state} = sample(logits, context.backend, sampler, sampler_state, history)
+
+    %{
+      context: context,
+      token: next_token,
+      text: Llamex.decode(context.model, [next_token]),
+      sampler_state: sampler_state
+    }
+  end
+
   def generate(%Model{} = model, prompt, opts)
       when is_binary(prompt) and is_map(opts) do
     backend = Map.fetch!(opts, :backend)
@@ -16,15 +45,15 @@ defmodule Llamex.Generation do
       raise ArgumentError, "max_new_tokens must be zero or positive"
     end
 
-    prompt_tokens = Llamex.encode(model, prompt)
-    context = Context.new(model, backend)
-    context = ingest_prompt(context, prompt_tokens)
+    %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} =
+      prefill(model, prompt, %{backend: backend})
+
     sampler_state = new_sampler_state(sampler)
 
     {context, generated_tokens} =
       generate_tokens(
         context,
-        seed_token(prompt_tokens),
+        current_token,
         max_new_tokens,
         stop_token,
         sampler,

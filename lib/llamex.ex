@@ -43,4 +43,14 @@ defmodule Llamex do
       when is_binary(prompt) and is_map(opts) do
     Generation.generate(model, prompt, opts)
   end
+
+  def prefill(%Model{} = model, prompt, opts)
+      when is_binary(prompt) and is_map(opts) do
+    Generation.prefill(model, prompt, opts)
+  end
+
+  def step(%Context{} = context, current_token, opts)
+      when is_integer(current_token) and current_token >= 0 and is_map(opts) do
+    Generation.step(context, current_token, opts)
+  end
 end
