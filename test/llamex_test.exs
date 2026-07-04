@@ -290,7 +290,7 @@ defmodule LlamexTest do
   end
 
   test "reads gguf metadata and tensor directory" do
-    gguf = tiny_gguf()
+    gguf = tiny_gguf(:without_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(gguf)
 
     assert parsed.version == 3
@@ -317,7 +317,7 @@ defmodule LlamexTest do
   end
 
   test "builds a tokenizer from gguf metadata" do
-    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf())
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
 
     tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
 
@@ -338,11 +338,41 @@ defmodule LlamexTest do
     path = Path.join(System.tmp_dir!(), "llamex-#{System.unique_integer([:positive])}.gguf")
 
     try do
-      File.write!(path, tiny_gguf())
+      File.write!(path, tiny_gguf(:without_tensor_data))
 
       parsed = Llamex.GGUF.Reader.read_metadata(path)
 
       assert parsed.metadata["general.architecture"].value == "llama"
+    after
+      File.rm(path)
+    end
+  end
+
+  test "reads f32 gguf tensor data into named tensor schema" do
+    gguf = tiny_gguf(:with_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+
+    assert tensors == %{
+             "token_embd.weight" => %{
+               "shape" => [2, 2],
+               "dtype" => "f32",
+               "data" => [1.0, 0.0, 0.0, 1.0]
+             }
+           }
+  end
+
+  test "reads f32 gguf tensor data from a file path" do
+    path =
+      Path.join(System.tmp_dir!(), "llamex-tensor-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_gguf(:with_tensor_data))
+
+      tensors = Llamex.GGUF.Reader.read_tensors(path)
+
+      assert tensors["token_embd.weight"]["data"] == [1.0, 0.0, 0.0, 1.0]
     after
       File.rm(path)
     end
@@ -357,7 +387,7 @@ defmodule LlamexTest do
     ]
   end
 
-  defp tiny_gguf do
+  defp tiny_gguf(mode) do
     header = [
       "GGUF",
       u32(3),
@@ -380,7 +410,19 @@ defmodule LlamexTest do
       u64(0)
     ]
 
-    IO.iodata_to_binary([header, metadata, tensor_infos])
+    without_data = IO.iodata_to_binary([header, metadata, tensor_infos])
+
+    case mode do
+      :without_tensor_data -> without_data
+      :with_tensor_data -> with_aligned_tensor_data(without_data, [1.0, 0.0, 0.0, 1.0])
+    end
+  end
+
+  defp with_aligned_tensor_data(binary, values) do
+    padding = rem(32 - rem(byte_size(binary), 32), 32)
+    tensor_data = Enum.map(values, fn value -> <<value::little-float-size(32)>> end)
+
+    IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
   end
 
   defp tiny_bpe_gguf do

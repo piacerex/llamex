@@ -123,6 +123,14 @@ magic, reads v3-style header counts, metadata values, tensor names, tensor
 dimensions, tensor types, and tensor data offsets. This is the first step toward
 GGUF-to-Llamex conversion.
 
+F32 tensor data can be read into Llamex's named tensor schema:
+
+```elixir
+Llamex.GGUF.Reader.read_tensors("model.gguf")
+```
+
+Quantized tensor types and F16 decoding are not loaded yet.
+
 Tokenizer metadata can be converted into a Llamex tokenizer:
 
 ```elixir

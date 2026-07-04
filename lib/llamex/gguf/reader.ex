@@ -24,6 +24,18 @@ defmodule Llamex.GGUF.Reader do
     |> read_binary()
   end
 
+  def read_tensors(path) when is_binary(path) do
+    binary = File.read!(path)
+
+    read_tensor_data(read_binary(binary), binary)
+  end
+
+  def read_tensor_data(%__MODULE__{} = gguf, binary) when is_binary(binary) do
+    Map.new(gguf.tensors, fn tensor ->
+      {tensor.name, tensor_to_schema(gguf, tensor, binary)}
+    end)
+  end
+
   def read_binary(
         <<"GGUF", version::little-unsigned-integer-size(32),
           tensor_count::little-unsigned-integer-size(64),
@@ -177,5 +189,36 @@ defmodule Llamex.GGUF.Reader do
       {:ok, %{value: value}} -> value
       :error -> default
     end
+  end
+
+  defp tensor_to_schema(gguf, %{type: 0} = tensor, binary) do
+    data =
+      read_f32_tensor(
+        binary,
+        gguf.tensor_data_offset + tensor.offset,
+        Enum.product(tensor.dimensions)
+      )
+
+    %{
+      "shape" => tensor.dimensions,
+      "dtype" => "f32",
+      "data" => data
+    }
+  end
+
+  defp tensor_to_schema(_gguf, tensor, _binary) do
+    raise ArgumentError, "unsupported GGUF tensor type #{tensor.type} for #{tensor.name}"
+  end
+
+  defp read_f32_tensor(binary, offset, count) do
+    byte_size = count * 4
+    <<_prefix::binary-size(offset), tensor_data::binary-size(byte_size), _rest::binary>> = binary
+    read_f32_values(tensor_data, [])
+  end
+
+  defp read_f32_values(<<>>, values), do: Enum.reverse(values)
+
+  defp read_f32_values(<<value::little-float-size(32), rest::binary>>, values) do
+    read_f32_values(rest, [value | values])
   end
 end
