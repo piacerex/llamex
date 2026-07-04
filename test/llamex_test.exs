@@ -89,6 +89,14 @@ defmodule LlamexTest do
     assert Llamex.Layers.RoPE.apply([1.0, 2.0], 0, 10_000.0) == [1.0, 2.0]
   end
 
+  test "backend list dot checks vector lengths in one pass" do
+    assert Llamex.Backend.List.dot([1.0, 2.0], [3.0, 4.0]) == 11.0
+
+    assert_raise ArgumentError, ~r/vectors must have matching lengths/, fn ->
+      Llamex.Backend.List.dot([1.0], [1.0, 2.0])
+    end
+  end
+
   test "runs large matvec with the same row order" do
     vector = List.duplicate(1.0, 1000)
     rows = Enum.map(1..1001, fn value -> [value / 1000.0 | List.duplicate(0.0, 999)] end)

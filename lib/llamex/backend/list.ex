@@ -12,11 +12,15 @@ defmodule Llamex.Backend.List do
   def from_list(values) when is_list(values), do: values
 
   @impl true
-  def dot(left, right) when is_list(left) and is_list(right) and length(left) == length(right) do
-    left
-    |> Enum.zip(right)
-    |> Enum.reduce(0.0, fn {a, b}, acc -> acc + a * b end)
+  def dot(left, right) when is_list(left) and is_list(right), do: dot(left, right, 0.0)
+
+  defp dot([], [], acc), do: acc
+
+  defp dot([left | left_rest], [right | right_rest], acc) do
+    dot(left_rest, right_rest, acc + left * right)
   end
+
+  defp dot(_left, _right, _acc), do: raise(ArgumentError, "vectors must have matching lengths")
 
   @impl true
   def add(left, right) when is_list(left) and is_list(right) and length(left) == length(right) do
