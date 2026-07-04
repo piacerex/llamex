@@ -154,6 +154,18 @@ Currently recognized tokenizer keys:
 - `tokenizer.ggml.merges`
 - `tokenizer.ggml.unknown_token_id`
 
+Currently mapped Llama config keys:
+
+- `llama.vocab_size`
+- `llama.embedding_length`
+- `llama.context_length`
+- `llama.block_count`
+- `llama.attention.head_count`
+- `llama.attention.head_count_kv`
+- `llama.feed_forward_length`
+- `llama.attention.layer_norm_rms_epsilon`
+- `llama.rope.freq_base`
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed

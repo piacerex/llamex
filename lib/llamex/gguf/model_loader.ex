@@ -28,7 +28,11 @@ defmodule Llamex.GGUF.ModelLoader do
       "embedding_size" => metadata_value!(metadata, "llama.embedding_length"),
       "context_size" => metadata_value(metadata, "llama.context_length", nil),
       "epsilon" => metadata_value(metadata, "llama.attention.layer_norm_rms_epsilon", 1.0e-6),
-      "rope_theta" => metadata_value(metadata, "llama.rope.freq_base", 10_000.0)
+      "rope_theta" => metadata_value(metadata, "llama.rope.freq_base", 10_000.0),
+      "block_count" => metadata_value(metadata, "llama.block_count", nil),
+      "attention_head_count" => metadata_value(metadata, "llama.attention.head_count", nil),
+      "attention_head_count_kv" => metadata_value(metadata, "llama.attention.head_count_kv", nil),
+      "feed_forward_size" => metadata_value(metadata, "llama.feed_forward_length", nil)
     }
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
     |> Map.new()

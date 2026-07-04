@@ -295,7 +295,7 @@ defmodule LlamexTest do
 
     assert parsed.version == 3
     assert parsed.tensor_count == 1
-    assert parsed.metadata_count == 4
+    assert parsed.metadata_count == 9
     assert parsed.metadata["general.architecture"] == %{type: :string, value: "llama"}
     assert parsed.metadata["general.alignment"] == %{type: :uint32, value: 32}
 
@@ -415,6 +415,11 @@ defmodule LlamexTest do
       assert Llamex.encode(model, "hello") == [1]
       assert model.config.vocab_size == 2
       assert model.config.embedding_size == 2
+      assert model.config.context_size == 16
+      assert model.config.block_count == 1
+      assert model.config.attention_head_count == 2
+      assert model.config.attention_head_count_kv == 1
+      assert model.config.feed_forward_size == 8
       assert model.token_embeddings == %{0 => [1.0, 0.0], 1 => [0.0, 1.0]}
 
       result =
@@ -444,13 +449,18 @@ defmodule LlamexTest do
       "GGUF",
       u32(3),
       u64(1),
-      u64(4)
+      u64(9)
     ]
 
     metadata = [
       kv_string("general.architecture", "llama"),
       kv_u32("general.alignment", 32),
       kv_u32("llama.embedding_length", 2),
+      kv_u32("llama.context_length", 16),
+      kv_u32("llama.block_count", 1),
+      kv_u32("llama.attention.head_count", 2),
+      kv_u32("llama.attention.head_count_kv", 1),
+      kv_u32("llama.feed_forward_length", 8),
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
     ]
 

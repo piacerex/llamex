@@ -4,14 +4,28 @@ defmodule Llamex.Config do
   """
 
   @enforce_keys [:vocab_size, :embedding_size]
-  defstruct [:vocab_size, :embedding_size, :context_size, :epsilon, :rope_theta]
+  defstruct [
+    :vocab_size,
+    :embedding_size,
+    :context_size,
+    :epsilon,
+    :rope_theta,
+    :block_count,
+    :attention_head_count,
+    :attention_head_count_kv,
+    :feed_forward_size
+  ]
 
   @type t :: %__MODULE__{
           vocab_size: pos_integer(),
           embedding_size: pos_integer(),
           context_size: pos_integer() | nil,
           epsilon: number() | nil,
-          rope_theta: number() | nil
+          rope_theta: number() | nil,
+          block_count: pos_integer() | nil,
+          attention_head_count: pos_integer() | nil,
+          attention_head_count_kv: pos_integer() | nil,
+          feed_forward_size: pos_integer() | nil
         }
 
   def new(attrs) when is_map(attrs) do
@@ -27,7 +41,11 @@ defmodule Llamex.Config do
       embedding_size: embedding_size,
       context_size: Map.get(attrs, :context_size),
       epsilon: Map.get(attrs, :epsilon, 1.0e-6),
-      rope_theta: Map.get(attrs, :rope_theta, 10_000.0)
+      rope_theta: Map.get(attrs, :rope_theta, 10_000.0),
+      block_count: Map.get(attrs, :block_count),
+      attention_head_count: Map.get(attrs, :attention_head_count),
+      attention_head_count_kv: Map.get(attrs, :attention_head_count_kv),
+      feed_forward_size: Map.get(attrs, :feed_forward_size)
     }
   end
 end
