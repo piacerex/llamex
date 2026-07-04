@@ -54,7 +54,21 @@ defmodule Llamex.Tensor do
   end
 
   def matvec(rows, vector) when is_list(rows) and is_list(vector) do
-    Enum.map(rows, &dot(&1, vector))
+    if parallel_matvec?(rows, vector) do
+      rows
+      |> Task.async_stream(&dot(&1, vector),
+        ordered: true,
+        timeout: :infinity,
+        max_concurrency: System.schedulers_online()
+      )
+      |> Enum.map(fn {:ok, value} -> value end)
+    else
+      Enum.map(rows, &dot(&1, vector))
+    end
+  end
+
+  defp parallel_matvec?(rows, vector) do
+    length(rows) * length(vector) >= 1_000_000 and System.schedulers_online() > 1
   end
 
   def zero_like(values) when is_list(values), do: Enum.map(values, fn _ -> 0.0 end)

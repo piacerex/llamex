@@ -89,6 +89,13 @@ defmodule LlamexTest do
     assert Llamex.Layers.RoPE.apply([1.0, 2.0], 0, 10_000.0) == [1.0, 2.0]
   end
 
+  test "runs large matvec with the same row order" do
+    vector = List.duplicate(1.0, 1000)
+    rows = Enum.map(1..1001, fn value -> [value / 1000.0 | List.duplicate(0.0, 999)] end)
+
+    assert Llamex.Tensor.matvec(rows, vector) == Enum.map(1..1001, &(&1 / 1000.0))
+  end
+
   test "runs a transformer block with SwiGLU feed-forward weights" do
     model =
       Llamex.new_model(%{
