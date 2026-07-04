@@ -174,6 +174,12 @@ step = Llamex.step(state.context, state.current_token, %{sampler: :greedy})
 step.text
 ```
 
+The same loaded model can be profiled for one prefill and generation step:
+
+```elixir
+Llamex.Profile.generation_step(model, "hello", %{backend: Llamex.Backend.List})
+```
+
 Tokenizer metadata can be converted into a Llamex tokenizer:
 
 ```elixir
