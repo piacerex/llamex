@@ -289,6 +289,47 @@ defmodule LlamexTest do
     assert next_token == 0
   end
 
+  test "reads gguf metadata and tensor directory" do
+    gguf = tiny_gguf()
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    assert parsed.version == 3
+    assert parsed.tensor_count == 1
+    assert parsed.metadata_count == 3
+    assert parsed.metadata["general.architecture"] == %{type: :string, value: "llama"}
+    assert parsed.metadata["general.alignment"] == %{type: :uint32, value: 32}
+
+    assert parsed.metadata["tokenizer.ggml.tokens"] == %{
+             type: :array,
+             value: %{type: :string, values: ["<unk>", "hello"]}
+           }
+
+    assert [
+             %{
+               name: "token_embd.weight",
+               dimensions: [2, 2],
+               type: 0,
+               offset: 0
+             }
+           ] = parsed.tensors
+
+    assert rem(parsed.tensor_data_offset, 32) == 0
+  end
+
+  test "reads gguf metadata from a file path" do
+    path = Path.join(System.tmp_dir!(), "llamex-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_gguf())
+
+      parsed = Llamex.GGUF.Reader.read_metadata(path)
+
+      assert parsed.metadata["general.architecture"].value == "llama"
+    after
+      File.rm(path)
+    end
+  end
+
   defp identity4 do
     [
       [1.0, 0.0, 0.0, 0.0],
@@ -297,4 +338,44 @@ defmodule LlamexTest do
       [0.0, 0.0, 0.0, 1.0]
     ]
   end
+
+  defp tiny_gguf do
+    header = [
+      "GGUF",
+      u32(3),
+      u64(1),
+      u64(3)
+    ]
+
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_u32("general.alignment", 32),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
+    ]
+
+    tensor_infos = [
+      gguf_string("token_embd.weight"),
+      u32(2),
+      u64(2),
+      u64(2),
+      u32(0),
+      u64(0)
+    ]
+
+    IO.iodata_to_binary([header, metadata, tensor_infos])
+  end
+
+  defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]
+  defp kv_u32(key, value), do: [gguf_string(key), u32(4), u32(value)]
+
+  defp kv_array_string(key, values) do
+    [gguf_string(key), u32(9), u32(8), u64(length(values)), Enum.map(values, &gguf_string/1)]
+  end
+
+  defp gguf_string(value) do
+    [u64(byte_size(value)), value]
+  end
+
+  defp u32(value), do: <<value::little-unsigned-integer-size(32)>>
+  defp u64(value), do: <<value::little-unsigned-integer-size(64)>>
 end

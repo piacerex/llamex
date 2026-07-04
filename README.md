@@ -110,6 +110,19 @@ Model JSON can reference such a file with:
 }
 ```
 
+## GGUF
+
+Llamex can read GGUF header, metadata, and tensor directory information:
+
+```elixir
+Llamex.GGUF.Reader.read_metadata("model.gguf")
+```
+
+The GGUF reader currently does not load tensor data. It validates the `GGUF`
+magic, reads v3-style header counts, metadata values, tensor names, tensor
+dimensions, tensor types, and tensor data offsets. This is the first step toward
+GGUF-to-Llamex conversion.
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
