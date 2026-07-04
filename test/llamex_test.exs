@@ -247,6 +247,19 @@ defmodule LlamexTest do
     assert Llamex.decode(model, [5]) == "low"
   end
 
+  test "loads a tokenizer.json bpe tokenizer" do
+    tokenizer = Llamex.Tokenizer.Loader.load_tokenizer_json("priv/tokenizers/tiny_tokenizer.json")
+
+    assert Llamex.Tokenizer.encode(tokenizer, "low") == [5]
+    assert Llamex.Tokenizer.decode(tokenizer, [5]) == "low"
+  end
+
+  test "loads a model with tokenizer.json path" do
+    model = Llamex.ModelLoader.load_json("priv/models/tiny_tokenizer_file.json")
+
+    assert Llamex.encode(model, "low") == [5]
+  end
+
   defp identity4 do
     [
       [1.0, 0.0, 0.0, 0.0],

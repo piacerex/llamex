@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "model": {
+    "type": "BPE",
+    "unk_token": "<unk>",
+    "vocab": {
+      "<unk>": 0,
+      "l": 1,
+      "o": 2,
+      "w": 3,
+      "lo": 4,
+      "low": 5
+    },
+    "merges": [
+      "l o",
+      "lo w"
+    ]
+  }
+}

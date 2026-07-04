@@ -61,6 +61,22 @@ Supported tokenizer types:
 The BPE implementation is fixture-oriented and not byte-level yet. See
 `priv/models/tiny_bpe.json` for the current shape.
 
+Tokenizer JSON files with a BPE `model` can also be loaded directly:
+
+```elixir
+Llamex.Tokenizer.Loader.load_tokenizer_json("priv/tokenizers/tiny_tokenizer.json")
+```
+
+Model JSON can reference such a file with:
+
+```json
+{
+  "tokenizer": {
+    "path": "priv/tokenizers/tiny_tokenizer.json"
+  }
+}
+```
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed

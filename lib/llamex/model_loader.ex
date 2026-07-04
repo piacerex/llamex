@@ -24,28 +24,38 @@ defmodule Llamex.ModelLoader do
 
   defp put_tokenizer(attrs, %{"tokenizer" => tokenizer}) when is_map(tokenizer) do
     tokenizer =
-      case Map.get(tokenizer, "type", "whitespace") do
-        "whitespace" ->
-          Llamex.Tokenizer.whitespace(
-            Map.fetch!(tokenizer, "vocab"),
-            Map.fetch!(tokenizer, "unknown_token")
-          )
+      case tokenizer do
+        %{"path" => path} ->
+          Llamex.Tokenizer.Loader.load_tokenizer_json(path)
 
-        "bpe" ->
-          Llamex.Tokenizer.bpe(
-            Map.fetch!(tokenizer, "vocab"),
-            Map.fetch!(tokenizer, "merges"),
-            Map.fetch!(tokenizer, "unknown_token")
-          )
-
-        type ->
-          raise ArgumentError, "unsupported tokenizer type: #{type}"
+        tokenizer ->
+          tokenizer_from_attrs(tokenizer)
       end
 
     Map.put(attrs, :tokenizer, tokenizer)
   end
 
   defp put_tokenizer(attrs, _source), do: attrs
+
+  defp tokenizer_from_attrs(tokenizer) do
+    case Map.get(tokenizer, "type", "whitespace") do
+      "whitespace" ->
+        Llamex.Tokenizer.whitespace(
+          Map.fetch!(tokenizer, "vocab"),
+          Map.fetch!(tokenizer, "unknown_token")
+        )
+
+      "bpe" ->
+        Llamex.Tokenizer.bpe(
+          Map.fetch!(tokenizer, "vocab"),
+          Map.fetch!(tokenizer, "merges"),
+          Map.fetch!(tokenizer, "unknown_token")
+        )
+
+      type ->
+        raise ArgumentError, "unsupported tokenizer type: #{type}"
+    end
+  end
 
   defp put_optional(attrs, source, source_key, target_key) do
     if Map.has_key?(source, source_key) do
