@@ -123,6 +123,19 @@ magic, reads v3-style header counts, metadata values, tensor names, tensor
 dimensions, tensor types, and tensor data offsets. This is the first step toward
 GGUF-to-Llamex conversion.
 
+Tokenizer metadata can be converted into a Llamex tokenizer:
+
+```elixir
+gguf = Llamex.GGUF.Reader.read_metadata("model.gguf")
+tokenizer = Llamex.GGUF.Tokenizer.from_metadata(gguf.metadata)
+```
+
+Currently recognized tokenizer keys:
+
+- `tokenizer.ggml.tokens`
+- `tokenizer.ggml.merges`
+- `tokenizer.ggml.unknown_token_id`
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
