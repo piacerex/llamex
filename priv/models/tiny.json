@@ -4,6 +4,7 @@
     "embedding_size": 2
   },
   "tokenizer": {
+    "type": "whitespace",
     "unknown_token": "<unk>",
     "vocab": {
       "<unk>": 0,

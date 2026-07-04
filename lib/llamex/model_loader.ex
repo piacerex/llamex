@@ -24,7 +24,16 @@ defmodule Llamex.ModelLoader do
 
   defp put_tokenizer(attrs, %{"tokenizer" => tokenizer}) when is_map(tokenizer) do
     tokenizer =
-      Llamex.Tokenizer.new(Map.fetch!(tokenizer, "vocab"), Map.fetch!(tokenizer, "unknown_token"))
+      case Map.get(tokenizer, "type", "whitespace") do
+        "whitespace" ->
+          Llamex.Tokenizer.whitespace(
+            Map.fetch!(tokenizer, "vocab"),
+            Map.fetch!(tokenizer, "unknown_token")
+          )
+
+        type ->
+          raise ArgumentError, "unsupported tokenizer type: #{type}"
+      end
 
     Map.put(attrs, :tokenizer, tokenizer)
   end
