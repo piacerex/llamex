@@ -72,6 +72,20 @@ The current tensor reader validates `shape`, `dtype`, and flat `data`, then maps
 `token_embd.weight` into Llamex token embeddings. Supported dtypes are `f32` and
 `f16`; values are still represented as Elixir numbers after loading.
 
+Recognized transformer tensor names:
+
+- `token_embd.weight`
+- `blk.N.attn_norm.weight`
+- `blk.N.attn_q.weight`
+- `blk.N.attn_k.weight`
+- `blk.N.attn_v.weight`
+- `blk.N.attn_output.weight`
+- `blk.N.ffn_norm.weight`
+- `blk.N.ffn_gate.weight`
+- `blk.N.ffn_up.weight`
+- `blk.N.ffn_down.weight`
+- `output.weight`
+
 Supported tokenizer types:
 
 - `whitespace`: splits on whitespace and looks up whole tokens.

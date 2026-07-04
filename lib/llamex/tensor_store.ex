@@ -14,7 +14,27 @@ defmodule Llamex.TensorStore do
   def fetch_matrix(tensors, name) when is_map(tensors) and is_binary(name) do
     tensors
     |> Map.fetch!(name)
-    |> Map.fetch!(:matrix)
+    |> Map.fetch!(:value)
+  end
+
+  def fetch_optional_matrix(tensors, name) when is_map(tensors) and is_binary(name) do
+    case Map.fetch(tensors, name) do
+      {:ok, tensor} -> Map.fetch!(tensor, :value)
+      :error -> nil
+    end
+  end
+
+  def layer_count(tensors) when is_map(tensors) do
+    tensors
+    |> Map.keys()
+    |> Enum.flat_map(fn name ->
+      case Regex.run(~r/^blk\.(\d+)\./, name) do
+        [_match, index] -> [String.to_integer(index)]
+        nil -> []
+      end
+    end)
+    |> Enum.max(fn -> -1 end)
+    |> Kernel.+(1)
   end
 
   defp decode_tensor(name, %{"shape" => shape, "dtype" => dtype, "data" => data})
@@ -23,7 +43,7 @@ defmodule Llamex.TensorStore do
     validate_shape!(name, shape)
     validate_data_size!(name, shape, data)
 
-    %{shape: shape, dtype: dtype, data: data, matrix: to_matrix(shape, data)}
+    %{shape: shape, dtype: dtype, data: data, value: to_value(shape, data)}
   end
 
   defp decode_tensor(name, _tensor) do
@@ -50,7 +70,9 @@ defmodule Llamex.TensorStore do
     end
   end
 
-  defp to_matrix([rows, columns], data) do
+  defp to_value([size], data) when size == length(data), do: data
+
+  defp to_value([rows, columns], data) do
     data
     |> Enum.chunk_every(columns)
     |> then(fn matrix ->
@@ -62,7 +84,7 @@ defmodule Llamex.TensorStore do
     end)
   end
 
-  defp to_matrix(_shape, _data) do
-    raise ArgumentError, "only rank-2 tensors can be converted to matrix"
+  defp to_value(_shape, _data) do
+    raise ArgumentError, "only rank-1 and rank-2 tensors are supported"
   end
 end

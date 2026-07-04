@@ -12,12 +12,14 @@ defmodule Llamex.ModelLoader do
   end
 
   defp atomize_model(attrs) when is_map(attrs) do
+    tensors = decoded_tensors(attrs)
+
     %{
       config: atomize_keys(Map.fetch!(attrs, "config")),
-      token_embeddings: token_embeddings(attrs)
+      token_embeddings: token_embeddings(attrs, tensors)
     }
-    |> put_optional(attrs, "layers", :layers)
-    |> put_optional(attrs, "output", :output)
+    |> put_layers(attrs, tensors)
+    |> put_output(attrs, tensors)
     |> put_tokenizer(attrs)
     |> integer_key_embeddings()
   end
@@ -57,19 +59,62 @@ defmodule Llamex.ModelLoader do
     end
   end
 
-  defp put_optional(attrs, source, source_key, target_key) do
-    if Map.has_key?(source, source_key) do
-      Map.put(attrs, target_key, atomize_value(Map.fetch!(source, source_key)))
-    else
-      attrs
+  defp decoded_tensors(%{"tensors" => tensors}), do: Llamex.TensorStore.decode(tensors)
+  defp decoded_tensors(_attrs), do: nil
+
+  defp put_layers(attrs, %{"layers" => layers}, _tensors) do
+    Map.put(attrs, :layers, atomize_value(layers))
+  end
+
+  defp put_layers(attrs, _source, nil), do: attrs
+
+  defp put_layers(attrs, _source, tensors) do
+    layers =
+      tensors
+      |> Llamex.TensorStore.layer_count()
+      |> layer_indexes()
+      |> Enum.map(&layer_from_tensors(tensors, &1))
+
+    Map.put(attrs, :layers, layers)
+  end
+
+  defp layer_indexes(0), do: []
+  defp layer_indexes(count), do: 0..(count - 1)
+
+  defp put_output(attrs, %{"output" => output}, _tensors) do
+    Map.put(attrs, :output, atomize_value(output))
+  end
+
+  defp put_output(attrs, _source, nil), do: attrs
+
+  defp put_output(attrs, _source, tensors) do
+    case Llamex.TensorStore.fetch_optional_matrix(tensors, "output.weight") do
+      nil -> attrs
+      weight -> Map.put(attrs, :output, %{weight: weight})
     end
   end
 
-  defp token_embeddings(%{"token_embeddings" => token_embeddings}), do: token_embeddings
+  defp layer_from_tensors(tensors, index) do
+    %{
+      attention_norm: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_norm.weight"),
+      feed_forward_norm:
+        Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.ffn_norm.weight"),
+      wq: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_q.weight"),
+      wk: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_k.weight"),
+      wv: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_v.weight"),
+      wo: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_output.weight"),
+      w_gate: Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.ffn_gate.weight"),
+      w_up: Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.ffn_up.weight"),
+      w_down: Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.ffn_down.weight")
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
+  end
 
-  defp token_embeddings(%{"tensors" => tensors}) do
+  defp token_embeddings(%{"token_embeddings" => token_embeddings}, _tensors), do: token_embeddings
+
+  defp token_embeddings(_attrs, tensors) when is_map(tensors) do
     tensors
-    |> Llamex.TensorStore.decode()
     |> Llamex.TensorStore.fetch_matrix("token_embd.weight")
     |> Enum.with_index()
     |> Map.new(fn {embedding, token_id} -> {token_id, embedding} end)

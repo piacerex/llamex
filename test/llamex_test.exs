@@ -274,6 +274,21 @@ defmodule LlamexTest do
     assert result.generated_tokens == [2]
   end
 
+  test "loads transformer layer and output weights from named tensors" do
+    model = Llamex.ModelLoader.load_json("priv/models/tiny_transformer_tensors.json")
+
+    assert [%{wq: wq, attention_norm: attention_norm}] = model.layers
+    assert wq == [[1.0, 0.0], [0.0, 1.0]]
+    assert attention_norm == [1.0, 1.0]
+    assert model.output == %{weight: [[1.0, 0.0], [0.0, 1.0]]}
+
+    context = Llamex.new_context(model, Llamex.Backend.List)
+    {context, next_token} = Llamex.next_token(context, 0)
+
+    assert context.tokens == [0]
+    assert next_token == 0
+  end
+
   defp identity4 do
     [
       [1.0, 0.0, 0.0, 0.0],

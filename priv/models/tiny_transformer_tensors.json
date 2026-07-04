@@ -1,0 +1,69 @@
+{
+  "config": {
+    "vocab_size": 2,
+    "embedding_size": 2
+  },
+  "tokenizer": {
+    "type": "whitespace",
+    "unknown_token": "<unk>",
+    "vocab": {
+      "<unk>": 0,
+      "hello": 1
+    }
+  },
+  "tensors": {
+    "token_embd.weight": {
+      "shape": [2, 2],
+      "dtype": "f32",
+      "data": [
+        1.0, 0.0,
+        0.0, 1.0
+      ]
+    },
+    "blk.0.attn_norm.weight": {
+      "shape": [2],
+      "dtype": "f32",
+      "data": [1.0, 1.0]
+    },
+    "blk.0.attn_q.weight": {
+      "shape": [2, 2],
+      "dtype": "f32",
+      "data": [
+        1.0, 0.0,
+        0.0, 1.0
+      ]
+    },
+    "blk.0.attn_k.weight": {
+      "shape": [2, 2],
+      "dtype": "f32",
+      "data": [
+        1.0, 0.0,
+        0.0, 1.0
+      ]
+    },
+    "blk.0.attn_v.weight": {
+      "shape": [2, 2],
+      "dtype": "f32",
+      "data": [
+        1.0, 0.0,
+        0.0, 1.0
+      ]
+    },
+    "blk.0.attn_output.weight": {
+      "shape": [2, 2],
+      "dtype": "f32",
+      "data": [
+        1.0, 0.0,
+        0.0, 1.0
+      ]
+    },
+    "output.weight": {
+      "shape": [2, 2],
+      "dtype": "f32",
+      "data": [
+        1.0, 0.0,
+        0.0, 1.0
+      ]
+    }
+  }
+}
