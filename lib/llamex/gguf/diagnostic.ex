@@ -35,6 +35,7 @@ defmodule Llamex.GGUF.Diagnostic do
       metadata_count: gguf.metadata_count,
       architecture: metadata_value(gguf.metadata, "general.architecture"),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
+      missing_chat_template_tokens: missing_chat_template_tokens(gguf.metadata),
       tensor_element_count: tensor_element_count(gguf.tensors),
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
       supported_tensor_types: supported_tensor_types(gguf.tensors),
@@ -50,6 +51,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
+      format_missing_chat_template_tokens(diagnostic.missing_chat_template_tokens),
       "tensor elements: #{diagnostic.tensor_element_count}",
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
       "supported tensor types: #{format_type_counts(diagnostic.supported_tensor_types)}",
@@ -102,6 +104,29 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp tensor_type_name(type), do: Map.get(@supported_tensor_types, type, "type_#{type}")
 
+  defp missing_chat_template_tokens(metadata) do
+    template = metadata_value(metadata, "tokenizer.chat_template")
+
+    tokens =
+      case metadata_value(metadata, "tokenizer.ggml.tokens") do
+        %{values: values} -> MapSet.new(values)
+        _other -> MapSet.new()
+      end
+
+    template
+    |> chat_template_markers()
+    |> Enum.reject(&MapSet.member?(tokens, &1))
+  end
+
+  defp chat_template_markers(nil), do: []
+
+  defp chat_template_markers(template) when is_binary(template) do
+    ~r/<\|[^>]+\|>/
+    |> Regex.scan(template)
+    |> Enum.map(&List.first/1)
+    |> Enum.uniq()
+  end
+
   defp tokenizer_token_count(metadata) do
     case metadata_value(metadata, "tokenizer.ggml.tokens") do
       %{values: values} -> length(values)
@@ -114,6 +139,12 @@ defmodule Llamex.GGUF.Diagnostic do
       {:ok, %{value: value}} -> value
       :error -> nil
     end
+  end
+
+  defp format_missing_chat_template_tokens([]), do: "chat template missing tokens: none"
+
+  defp format_missing_chat_template_tokens(tokens) do
+    "chat template missing tokens: " <> Enum.join(tokens, ", ")
   end
 
   defp format_type_counts(counts) when map_size(counts) == 0, do: "none"

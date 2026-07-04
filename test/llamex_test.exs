@@ -460,6 +460,7 @@ defmodule LlamexTest do
     assert diagnostic.eager_f32_bytes == 16
     assert diagnostic.supported_tensor_types == %{}
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
+    assert diagnostic.missing_chat_template_tokens == []
 
     assert diagnostic.unsupported_tensors == [
              %{name: "token_embd.weight", type: 99, dimensions: [2, 2]}
@@ -468,6 +469,7 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "unsupported tensors:\n- token_embd.weight: type_99 [2, 2]"
 
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template missing tokens: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor elements: 4"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "eager f32 lower bound: 16 B"
   end
@@ -498,6 +500,15 @@ defmodule LlamexTest do
              %{id: 2, token: "</s>", type: :control, type_id: 3},
              %{id: 3, token: "hello", type: :normal, type_id: 1}
            ]
+  end
+
+  test "diagnoses chat templates with missing marker tokens" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_chat_template_gguf())
+
+    assert diagnostic.missing_chat_template_tokens == ["<|im_start|>", "<|im_end|>"]
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "chat template missing tokens: <|im_start|>, <|im_end|>"
   end
 
   test "builds a tokenizer with gguf chat template metadata" do
