@@ -21,10 +21,7 @@ defmodule Llamex.Generation do
   def step(%Context{} = context, current_token, opts)
       when is_integer(current_token) and current_token >= 0 and is_map(opts) do
     sampler = Map.get(opts, :sampler, :greedy)
-    history = Map.get(opts, :history, context.tokens)
-    sampler_state = Map.get(opts, :sampler_state, new_sampler_state(sampler))
-    {context, logits} = Engine.eval(context, current_token)
-    {next_token, sampler_state} = sample(logits, context.backend, sampler, sampler_state, history)
+    {context, next_token, sampler_state} = step_token(context, current_token, sampler, opts)
 
     %{
       context: context,
@@ -32,6 +29,20 @@ defmodule Llamex.Generation do
       text: Llamex.decode(context.model, [next_token]),
       sampler_state: sampler_state
     }
+  end
+
+  defp step_token(context, current_token, :greedy, _opts) do
+    {context, next_token} = Engine.greedy_next_token(context, current_token)
+    {context, next_token, nil}
+  end
+
+  defp step_token(context, current_token, sampler, opts) do
+    history = Map.get(opts, :history, context.tokens)
+    sampler_state = Map.get(opts, :sampler_state, new_sampler_state(sampler))
+    {context, logits} = Engine.eval(context, current_token)
+    {next_token, sampler_state} = sample(logits, context.backend, sampler, sampler_state, history)
+
+    {context, next_token, sampler_state}
   end
 
   def generate(%Model{} = model, prompt, opts)

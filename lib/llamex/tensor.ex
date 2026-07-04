@@ -67,6 +67,39 @@ defmodule Llamex.Tensor do
     end
   end
 
+  def argmax_matvec(rows, vector) when is_list(rows) and is_list(vector) do
+    if parallel_matvec?(rows, vector) do
+      rows
+      |> Enum.chunk_every(256)
+      |> Enum.with_index()
+      |> Task.async_stream(
+        fn {chunk, chunk_index} ->
+          chunk
+          |> Enum.with_index(chunk_index * 256)
+          |> Enum.reduce(nil, fn {row, index}, best ->
+            max_dot(best, index, dot(row, vector))
+          end)
+        end,
+        ordered: false,
+        timeout: :infinity,
+        max_concurrency: System.schedulers_online()
+      )
+      |> Enum.reduce(nil, fn {:ok, {index, value}}, best -> max_dot(best, index, value) end)
+      |> elem(0)
+    else
+      rows
+      |> Enum.with_index()
+      |> Enum.reduce(nil, fn {row, index}, best -> max_dot(best, index, dot(row, vector)) end)
+      |> elem(0)
+    end
+  end
+
+  defp max_dot(nil, index, value), do: {index, value}
+
+  defp max_dot({best_index, best_value}, index, value) do
+    if value > best_value, do: {index, value}, else: {best_index, best_value}
+  end
+
   defp parallel_matvec?(rows, vector) do
     length(rows) * length(vector) >= 1_000_000 and System.schedulers_online() > 1
   end

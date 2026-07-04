@@ -96,6 +96,15 @@ defmodule LlamexTest do
     assert Llamex.Tensor.matvec(rows, vector) == Enum.map(1..1001, &(&1 / 1000.0))
   end
 
+  test "finds argmax matvec without materializing logits" do
+    vector = [1.0, 2.0, 3.0]
+
+    assert Llamex.Tensor.argmax_matvec(
+             [[0.0, 0.0, 1.0], [1.0, 1.0, 1.0], [0.0, 2.0, 0.0]],
+             vector
+           ) == 1
+  end
+
   test "runs a transformer block with SwiGLU feed-forward weights" do
     model =
       Llamex.new_model(%{

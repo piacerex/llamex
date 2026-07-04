@@ -31,6 +31,19 @@ defmodule Llamex.Engine do
     {context, sampler.(logits, context.backend)}
   end
 
+  def greedy_next_token(%Context{} = context, token) when is_integer(token) and token >= 0 do
+    hidden = Map.fetch!(context.model.token_embeddings, token)
+    position = length(context.tokens)
+    {context, hidden} = run_layers(context, hidden, position)
+
+    hidden =
+      maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+
+    next_token = greedy_token(context, hidden)
+
+    {Context.append(context, token), next_token}
+  end
+
   defp run_layers(%Context{model: %{layers: []}} = context, hidden, _position),
     do: {context, hidden}
 
@@ -82,5 +95,24 @@ defmodule Llamex.Engine do
 
       Tensor.dot(hidden, candidate_embedding)
     end)
+  end
+
+  defp greedy_token(%{model: %{output: %{weight: weight}}}, hidden) do
+    Tensor.argmax_matvec(weight, hidden)
+  end
+
+  defp greedy_token(context, hidden) do
+    0..(context.model.config.vocab_size - 1)
+    |> Enum.reduce(nil, fn candidate, best ->
+      candidate_embedding = Map.fetch!(context.model.token_embeddings, candidate)
+      value = Tensor.dot(hidden, candidate_embedding)
+
+      case best do
+        nil -> {candidate, value}
+        {_best_token, best_value} when value > best_value -> {candidate, value}
+        best -> best
+      end
+    end)
+    |> elem(0)
   end
 end
