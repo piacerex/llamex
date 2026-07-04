@@ -9,6 +9,7 @@ defmodule Llamex.GGUF.Reader do
   @q4_0_block_size 32
   @q4_1_block_size 32
   @q2_k_block_size 256
+  @q3_k_block_size 256
   @q4_k_block_size 256
   @q4_k_scale_size 12
   @q5_0_block_size 32
@@ -326,6 +327,21 @@ defmodule Llamex.GGUF.Reader do
   defp tensor_to_schema(gguf, %{type: 10} = tensor, binary) do
     data =
       read_q2_k_tensor(
+        binary,
+        gguf.tensor_data_offset + tensor.offset,
+        Enum.product(tensor.dimensions)
+      )
+
+    %{
+      "shape" => schema_shape(tensor.dimensions),
+      "dtype" => "f32",
+      "data" => data
+    }
+  end
+
+  defp tensor_to_schema(gguf, %{type: 11} = tensor, binary) do
+    data =
+      read_q3_k_tensor(
         binary,
         gguf.tensor_data_offset + tensor.offset,
         Enum.product(tensor.dimensions)
@@ -694,6 +710,77 @@ defmodule Llamex.GGUF.Reader do
     |> Bitwise.bsr(shift)
     |> Bitwise.band(0x03)
     |> then(&(&1 * block_scale * scale - block_minimum * minimum))
+  end
+
+  defp read_q3_k_tensor(_binary, _offset, count) when rem(count, @q3_k_block_size) != 0 do
+    raise ArgumentError, "Q3_K tensor element count must be divisible by #{@q3_k_block_size}"
+  end
+
+  defp read_q3_k_tensor(binary, offset, count) do
+    byte_size = div(count, @q3_k_block_size) * (32 + 64 + 12 + 2)
+    <<_prefix::binary-size(offset), tensor_data::binary-size(byte_size), _rest::binary>> = binary
+    read_q3_k_blocks(tensor_data, [])
+  end
+
+  defp read_q3_k_blocks(<<>>, values), do: values |> Enum.reverse() |> List.flatten()
+
+  defp read_q3_k_blocks(
+         <<high_mask::binary-size(32), quantized::binary-size(64), scales::binary-size(12),
+           scale_bits::little-unsigned-integer-size(16), rest::binary>>,
+         values
+       ) do
+    scale = f16_to_float(scale_bits)
+
+    block =
+      0..(@q3_k_block_size - 1)
+      |> Enum.map(fn index ->
+        q3_k_value(quantized, high_mask, scales, scale, index)
+      end)
+
+    read_q3_k_blocks(rest, [block | values])
+  end
+
+  defp q3_k_value(quantized, high_mask, scales, scale, index) do
+    super_group_index = div(index, 128)
+    super_group_offset = rem(index, 128)
+    pair_index = div(super_group_offset, 32)
+    pair_offset = rem(super_group_offset, 32)
+    scale_index = super_group_index * 8 + pair_index * 2 + if(pair_offset < 16, do: 0, else: 1)
+
+    quant_index =
+      super_group_index * 32 + rem(pair_offset, 16) + if(pair_offset < 16, do: 0, else: 16)
+
+    shift = pair_index * 2
+
+    quant =
+      quantized
+      |> :binary.at(quant_index)
+      |> Bitwise.bsr(shift)
+      |> Bitwise.band(0x03)
+
+    sign_offset =
+      if Bitwise.band(:binary.at(high_mask, rem(index, 32)), Bitwise.bsl(1, div(index, 32))) == 0,
+        do: 4,
+        else: 0
+
+    scale * q3_k_scale(scales, scale_index) * (quant - sign_offset)
+  end
+
+  defp q3_k_scale(scales, index) do
+    low =
+      if index < 8 do
+        scales |> :binary.at(index) |> Bitwise.band(0x0F)
+      else
+        scales |> :binary.at(index - 8) |> Bitwise.bsr(4)
+      end
+
+    high =
+      scales
+      |> :binary.at(8 + rem(index, 4))
+      |> Bitwise.bsr(2 * div(index, 4))
+      |> Bitwise.band(0x03)
+
+    Bitwise.bor(low, Bitwise.bsl(high, 4)) - 32
   end
 
   defp read_q4_k_tensor(_binary, _offset, count) when rem(count, @q4_k_block_size) != 0 do
