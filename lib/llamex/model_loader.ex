@@ -24,6 +24,7 @@ defmodule Llamex.ModelLoader do
       token_embeddings: token_embeddings(attrs, tensors)
     }
     |> put_layers(attrs, tensors)
+    |> put_output_norm(attrs, tensors)
     |> put_output(attrs, tensors)
     |> put_tokenizer(attrs)
     |> integer_key_embeddings()
@@ -85,6 +86,23 @@ defmodule Llamex.ModelLoader do
 
   defp layer_indexes(0), do: []
   defp layer_indexes(count), do: 0..(count - 1)
+
+  defp put_output_norm(attrs, %{"output_norm" => %{"weight" => weight}}, _tensors) do
+    Map.put(attrs, :output_norm, weight)
+  end
+
+  defp put_output_norm(attrs, %{"output_norm" => weight}, _tensors) when is_list(weight) do
+    Map.put(attrs, :output_norm, weight)
+  end
+
+  defp put_output_norm(attrs, _source, nil), do: attrs
+
+  defp put_output_norm(attrs, _source, tensors) do
+    case Llamex.TensorStore.fetch_optional_matrix(tensors, "output_norm.weight") do
+      nil -> attrs
+      weight -> Map.put(attrs, :output_norm, weight)
+    end
+  end
 
   defp put_output(attrs, %{"output" => output}, _tensors) do
     Map.put(attrs, :output, atomize_value(output))

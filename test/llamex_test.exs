@@ -280,6 +280,7 @@ defmodule LlamexTest do
     assert [%{wq: wq, attention_norm: attention_norm}] = model.layers
     assert wq == [[1.0, 0.0], [0.0, 1.0]]
     assert attention_norm == [1.0, 1.0]
+    assert model.output_norm == [1.0, 1.0]
     assert model.output == %{weight: [[1.0, 0.0], [0.0, 1.0]]}
 
     context = Llamex.new_context(model, Llamex.Backend.List)

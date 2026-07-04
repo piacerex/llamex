@@ -52,7 +52,7 @@ The current schema is intentionally small:
 
 Required fields are `config.vocab_size`, `config.embedding_size`, and
 either `token_embeddings` or `tensors.token_embd.weight`. `tokenizer`, `layers`,
-and `output` are optional.
+`output_norm`, and `output` are optional.
 
 Named tensors use this shape:
 
@@ -84,6 +84,7 @@ Recognized transformer tensor names:
 - `blk.N.ffn_gate.weight`
 - `blk.N.ffn_up.weight`
 - `blk.N.ffn_down.weight`
+- `output_norm.weight`
 - `output.weight`
 
 Supported tokenizer types:
@@ -118,10 +119,9 @@ Llamex can read GGUF header, metadata, and tensor directory information:
 Llamex.GGUF.Reader.read_metadata("model.gguf")
 ```
 
-The GGUF reader currently does not load tensor data. It validates the `GGUF`
-magic, reads v3-style header counts, metadata values, tensor names, tensor
-dimensions, tensor types, and tensor data offsets. This is the first step toward
-GGUF-to-Llamex conversion.
+The metadata reader validates the `GGUF` magic, reads v3-style header counts,
+metadata values, tensor names, tensor dimensions, tensor types, and tensor data
+offsets.
 
 F32 and F16 tensor data can be read into Llamex's named tensor schema:
 

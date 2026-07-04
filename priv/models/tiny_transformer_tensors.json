@@ -57,6 +57,11 @@
         0.0, 1.0
       ]
     },
+    "output_norm.weight": {
+      "shape": [2],
+      "dtype": "f32",
+      "data": [1.0, 1.0]
+    },
     "output.weight": {
       "shape": [2, 2],
       "dtype": "f32",

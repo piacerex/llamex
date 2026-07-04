@@ -11,13 +11,14 @@ defmodule Llamex.Model do
   alias Llamex.Config
 
   @enforce_keys [:config, :token_embeddings]
-  defstruct [:config, :token_embeddings, :tokenizer, :layers, :output]
+  defstruct [:config, :token_embeddings, :tokenizer, :layers, :output_norm, :output]
 
   @type t :: %__MODULE__{
           config: Config.t(),
           token_embeddings: %{required(non_neg_integer()) => list(number())},
           tokenizer: Llamex.Tokenizer.t() | nil,
           layers: list(map()) | nil,
+          output_norm: list(number()) | nil,
           output: map() | nil
         }
 
@@ -45,6 +46,7 @@ defmodule Llamex.Model do
       token_embeddings: token_embeddings,
       tokenizer: Map.get(attrs, :tokenizer),
       layers: Map.get(attrs, :layers, []),
+      output_norm: Map.get(attrs, :output_norm),
       output: Map.get(attrs, :output)
     }
   end

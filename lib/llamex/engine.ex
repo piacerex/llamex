@@ -12,6 +12,9 @@ defmodule Llamex.Engine do
     position = length(context.tokens)
     {context, hidden} = run_layers(context, hidden, position)
 
+    hidden =
+      maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+
     logits =
       if context.model.output do
         Linear.forward(hidden, Map.fetch!(context.model.output, :weight))
@@ -65,6 +68,12 @@ defmodule Llamex.Engine do
   end
 
   defp maybe_apply_mlp(hidden, _layer, _epsilon), do: hidden
+
+  defp maybe_apply_output_norm(hidden, nil, _epsilon), do: hidden
+
+  defp maybe_apply_output_norm(hidden, output_norm, epsilon) do
+    RMSNorm.forward(hidden, output_norm, epsilon)
+  end
 
   defp embedding_logits(context, hidden) do
     0..(context.model.config.vocab_size - 1)
