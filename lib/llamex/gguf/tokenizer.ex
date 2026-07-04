@@ -8,11 +8,12 @@ defmodule Llamex.GGUF.Tokenizer do
     vocab = tokens |> Enum.with_index() |> Map.new()
     unknown_token = unknown_token(metadata, tokens)
     merges = metadata_array(metadata, "tokenizer.ggml.merges", [])
+    special_tokens = special_tokens(metadata, tokens)
 
     if merges == [] do
-      Llamex.Tokenizer.whitespace(vocab, unknown_token)
+      Llamex.Tokenizer.whitespace(vocab, unknown_token, special_tokens: special_tokens)
     else
-      Llamex.Tokenizer.bpe(vocab, merges, unknown_token)
+      Llamex.Tokenizer.bpe(vocab, merges, unknown_token, special_tokens: special_tokens)
     end
   end
 
@@ -20,6 +21,33 @@ defmodule Llamex.GGUF.Tokenizer do
     case metadata_value(metadata, "tokenizer.ggml.unknown_token_id") do
       nil -> List.first(tokens)
       id when is_integer(id) -> Enum.at(tokens, id)
+    end
+  end
+
+  defp special_tokens(metadata, tokens) do
+    %{}
+    |> put_special_token(metadata, tokens, :unknown, "tokenizer.ggml.unknown_token_id")
+    |> put_special_token(metadata, tokens, :bos, "tokenizer.ggml.bos_token_id")
+    |> put_special_token(metadata, tokens, :eos, "tokenizer.ggml.eos_token_id")
+    |> put_special_token(metadata, tokens, :padding, "tokenizer.ggml.padding_token_id")
+    |> put_special_flag(metadata, :add_bos, "tokenizer.ggml.add_bos_token")
+    |> put_special_flag(metadata, :add_eos, "tokenizer.ggml.add_eos_token")
+  end
+
+  defp put_special_token(attrs, metadata, tokens, name, key) do
+    case metadata_value(metadata, key) do
+      id when is_integer(id) ->
+        Map.put(attrs, name, %{id: id, token: Enum.at(tokens, id)})
+
+      _other ->
+        attrs
+    end
+  end
+
+  defp put_special_flag(attrs, metadata, name, key) do
+    case metadata_value(metadata, key) do
+      value when is_boolean(value) -> Map.put(attrs, name, value)
+      _other -> attrs
     end
   end
 

@@ -154,6 +154,11 @@ Currently recognized tokenizer keys:
 - `tokenizer.ggml.tokens`
 - `tokenizer.ggml.merges`
 - `tokenizer.ggml.unknown_token_id`
+- `tokenizer.ggml.bos_token_id`
+- `tokenizer.ggml.eos_token_id`
+- `tokenizer.ggml.padding_token_id`
+- `tokenizer.ggml.add_bos_token`
+- `tokenizer.ggml.add_eos_token`
 
 Currently mapped Llama config keys:
 

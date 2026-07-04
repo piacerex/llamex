@@ -9,16 +9,22 @@ defmodule Llamex.Tokenizer.BPE do
   @behaviour Llamex.Tokenizer.Behavior
 
   @enforce_keys [:token_to_id, :id_to_token, :unknown_token, :merges]
-  defstruct [:token_to_id, :id_to_token, :unknown_token, :merges]
+  defstruct [:token_to_id, :id_to_token, :unknown_token, :merges, special_tokens: %{}]
 
   @type t :: %__MODULE__{
           token_to_id: %{required(String.t()) => non_neg_integer()},
           id_to_token: %{required(non_neg_integer()) => String.t()},
           unknown_token: String.t(),
-          merges: list({String.t(), String.t()})
+          merges: list({String.t(), String.t()}),
+          special_tokens: map()
         }
 
   def new(vocab, merges, unknown_token)
+      when is_map(vocab) and is_list(merges) and is_binary(unknown_token) do
+    new(vocab, merges, unknown_token, [])
+  end
+
+  def new(vocab, merges, unknown_token, opts)
       when is_map(vocab) and is_list(merges) and is_binary(unknown_token) do
     if not Map.has_key?(vocab, unknown_token) do
       raise ArgumentError, "vocab must contain unknown_token"
@@ -28,7 +34,8 @@ defmodule Llamex.Tokenizer.BPE do
       token_to_id: vocab,
       id_to_token: Map.new(vocab, fn {token, id} -> {id, token} end),
       unknown_token: unknown_token,
-      merges: Enum.map(merges, &parse_merge/1)
+      merges: Enum.map(merges, &parse_merge/1),
+      special_tokens: Keyword.get(opts, :special_tokens, %{})
     }
   end
 

@@ -9,15 +9,20 @@ defmodule Llamex.Tokenizer.Whitespace do
   @behaviour Llamex.Tokenizer.Behavior
 
   @enforce_keys [:token_to_id, :id_to_token, :unknown_token]
-  defstruct [:token_to_id, :id_to_token, :unknown_token]
+  defstruct [:token_to_id, :id_to_token, :unknown_token, special_tokens: %{}]
 
   @type t :: %__MODULE__{
           token_to_id: %{required(String.t()) => non_neg_integer()},
           id_to_token: %{required(non_neg_integer()) => String.t()},
-          unknown_token: String.t()
+          unknown_token: String.t(),
+          special_tokens: map()
         }
 
   def new(vocab, unknown_token) when is_map(vocab) and is_binary(unknown_token) do
+    new(vocab, unknown_token, [])
+  end
+
+  def new(vocab, unknown_token, opts) when is_map(vocab) and is_binary(unknown_token) do
     if not Map.has_key?(vocab, unknown_token) do
       raise ArgumentError, "vocab must contain unknown_token"
     end
@@ -25,7 +30,8 @@ defmodule Llamex.Tokenizer.Whitespace do
     %__MODULE__{
       token_to_id: vocab,
       id_to_token: Map.new(vocab, fn {token, id} -> {id, token} end),
-      unknown_token: unknown_token
+      unknown_token: unknown_token,
+      special_tokens: Keyword.get(opts, :special_tokens, %{})
     }
   end
 

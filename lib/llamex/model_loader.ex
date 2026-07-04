@@ -50,14 +50,16 @@ defmodule Llamex.ModelLoader do
       "whitespace" ->
         Llamex.Tokenizer.whitespace(
           Map.fetch!(tokenizer, "vocab"),
-          Map.fetch!(tokenizer, "unknown_token")
+          Map.fetch!(tokenizer, "unknown_token"),
+          special_tokens: atomize_special_tokens(Map.get(tokenizer, "special_tokens", %{}))
         )
 
       "bpe" ->
         Llamex.Tokenizer.bpe(
           Map.fetch!(tokenizer, "vocab"),
           Map.fetch!(tokenizer, "merges"),
-          Map.fetch!(tokenizer, "unknown_token")
+          Map.fetch!(tokenizer, "unknown_token"),
+          special_tokens: atomize_special_tokens(Map.get(tokenizer, "special_tokens", %{}))
         )
 
       type ->
@@ -154,13 +156,22 @@ defmodule Llamex.ModelLoader do
 
   defp atomize_keys(map) when is_map(map) do
     Map.new(map, fn {key, value} ->
-      {String.to_atom(key), atomize_value(value)}
+      {atomize_key(key), atomize_value(value)}
     end)
   end
 
   defp atomize_value(value) when is_map(value), do: atomize_keys(value)
   defp atomize_value(values) when is_list(values), do: Enum.map(values, &atomize_value/1)
   defp atomize_value(value), do: value
+
+  defp atomize_special_tokens(tokens) when is_map(tokens) do
+    Map.new(tokens, fn {key, value} ->
+      {atomize_key(key), atomize_value(value)}
+    end)
+  end
+
+  defp atomize_key(key) when is_atom(key), do: key
+  defp atomize_key(key) when is_binary(key), do: String.to_atom(key)
 
   defp parse_token_id(token) when is_integer(token), do: token
 

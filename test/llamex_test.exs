@@ -326,6 +326,18 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.decode(tokenizer, [0, 1]) == "<unk> hello"
   end
 
+  test "builds a tokenizer with gguf special token metadata" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_special_token_gguf())
+
+    tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
+
+    assert tokenizer.special_tokens.unknown == %{id: 0, token: "<unk>"}
+    assert tokenizer.special_tokens.bos == %{id: 1, token: "<s>"}
+    assert tokenizer.special_tokens.eos == %{id: 2, token: "</s>"}
+    assert tokenizer.special_tokens.add_bos == true
+    assert tokenizer.special_tokens.add_eos == false
+  end
+
   test "builds a bpe tokenizer from gguf metadata merges" do
     parsed = Llamex.GGUF.Reader.read_binary(tiny_bpe_gguf())
 
@@ -507,6 +519,27 @@ defmodule LlamexTest do
     end
   end
 
+  test "loads gguf tokenizer special tokens through model loader" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-special-token-model-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf_with_special_token_tensors())
+
+      model = Llamex.GGUF.ModelLoader.load(path)
+
+      assert model.tokenizer.special_tokens.bos == %{id: 1, token: "<s>"}
+      assert model.tokenizer.special_tokens.eos == %{id: 2, token: "</s>"}
+      assert model.tokenizer.special_tokens.add_bos == true
+      assert Llamex.encode(model, "hello") == [3]
+    after
+      File.rm(path)
+    end
+  end
+
   test "loads a transformer layer from gguf tensors and runs attention" do
     path =
       Path.join(
@@ -662,6 +695,17 @@ defmodule LlamexTest do
     )
   end
 
+  defp tiny_gguf_with_special_token_tensors do
+    tiny_multi_tensor_gguf(
+      block_count: 0,
+      tokens: ["<unk>", "<s>", "</s>", "hello"],
+      extra_metadata: special_token_metadata(),
+      tensors: [
+        {"token_embd.weight", [2, 4], [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 2.0, 0.0]}
+      ]
+    )
+  end
+
   defp tiny_gguf_with_transformer_tensors do
     identity = [1.0, 0.0, 0.0, 1.0]
 
@@ -707,24 +751,27 @@ defmodule LlamexTest do
     tensors = Keyword.fetch!(opts, :tensors)
     block_count = Keyword.fetch!(opts, :block_count)
     feed_forward_size = Keyword.get(opts, :feed_forward_size, 8)
+    tokens = Keyword.get(opts, :tokens, ["<unk>", "hello"])
+    extra_metadata = Keyword.get(opts, :extra_metadata, [])
+
+    metadata =
+      [
+        kv_string("general.architecture", "llama"),
+        kv_u32("general.alignment", 32),
+        kv_u32("llama.embedding_length", 2),
+        kv_u32("llama.context_length", 16),
+        kv_u32("llama.block_count", block_count),
+        kv_u32("llama.attention.head_count", 2),
+        kv_u32("llama.attention.head_count_kv", 1),
+        kv_u32("llama.feed_forward_length", feed_forward_size),
+        kv_array_string("tokenizer.ggml.tokens", tokens)
+      ] ++ extra_metadata
 
     header = [
       "GGUF",
       u32(3),
       u64(length(tensors)),
-      u64(9)
-    ]
-
-    metadata = [
-      kv_string("general.architecture", "llama"),
-      kv_u32("general.alignment", 32),
-      kv_u32("llama.embedding_length", 2),
-      kv_u32("llama.context_length", 16),
-      kv_u32("llama.block_count", block_count),
-      kv_u32("llama.attention.head_count", 2),
-      kv_u32("llama.attention.head_count_kv", 1),
-      kv_u32("llama.feed_forward_length", feed_forward_size),
-      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
+      u64(length(metadata))
     ]
 
     {tensor_infos, tensor_data} = f32_tensor_sections(tensors)
@@ -791,8 +838,36 @@ defmodule LlamexTest do
     IO.iodata_to_binary([header, metadata])
   end
 
+  defp tiny_special_token_gguf do
+    metadata =
+      [
+        kv_string("general.architecture", "llama"),
+        kv_array_string("tokenizer.ggml.tokens", ["<unk>", "<s>", "</s>", "hello"])
+      ] ++ special_token_metadata()
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp special_token_metadata do
+    [
+      kv_u32("tokenizer.ggml.unknown_token_id", 0),
+      kv_u32("tokenizer.ggml.bos_token_id", 1),
+      kv_u32("tokenizer.ggml.eos_token_id", 2),
+      kv_bool("tokenizer.ggml.add_bos_token", true),
+      kv_bool("tokenizer.ggml.add_eos_token", false)
+    ]
+  end
+
   defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]
   defp kv_u32(key, value), do: [gguf_string(key), u32(4), u32(value)]
+  defp kv_bool(key, value), do: [gguf_string(key), u32(7), if(value, do: <<1>>, else: <<0>>)]
 
   defp kv_array_string(key, values) do
     [gguf_string(key), u32(9), u32(8), u64(length(values)), Enum.map(values, &gguf_string/1)]

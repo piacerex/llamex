@@ -13,9 +13,19 @@ defmodule Llamex.Tokenizer do
     Llamex.Tokenizer.Whitespace.new(vocab, unknown_token)
   end
 
+  def whitespace(vocab, unknown_token, opts)
+      when is_map(vocab) and is_binary(unknown_token) and is_list(opts) do
+    Llamex.Tokenizer.Whitespace.new(vocab, unknown_token, opts)
+  end
+
   def bpe(vocab, merges, unknown_token)
       when is_map(vocab) and is_list(merges) and is_binary(unknown_token) do
     Llamex.Tokenizer.BPE.new(vocab, merges, unknown_token)
+  end
+
+  def bpe(vocab, merges, unknown_token, opts)
+      when is_map(vocab) and is_list(merges) and is_binary(unknown_token) and is_list(opts) do
+    Llamex.Tokenizer.BPE.new(vocab, merges, unknown_token, opts)
   end
 
   def encode(tokenizer, text) when is_binary(text) do
