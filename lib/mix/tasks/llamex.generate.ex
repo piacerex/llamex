@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp run_generation([model_path, prompt, max_new_tokens], options) do
     Mix.Task.run("app.start")
 
-    model = Llamex.ModelLoader.load_json(model_path)
+    model = load_model(model_path)
     max_new_tokens = String.to_integer(max_new_tokens)
 
     result =
@@ -68,5 +68,13 @@ defmodule Mix.Tasks.Llamex.Generate do
 
   defp stop_token(model) do
     model.tokenizer.token_to_id["<eos>"] || model.tokenizer.token_to_id["world"]
+  end
+
+  defp load_model(model_path) do
+    if Path.extname(model_path) == ".gguf" do
+      Llamex.GGUF.ModelLoader.load(model_path)
+    else
+      Llamex.ModelLoader.load_json(model_path)
+    end
   end
 end

@@ -131,6 +131,15 @@ Llamex.GGUF.Reader.read_tensors("model.gguf")
 
 Quantized tensor types and F16 decoding are not loaded yet.
 
+Small F32 GGUF files can be loaded as Llamex models:
+
+```elixir
+Llamex.GGUF.ModelLoader.load("model.gguf")
+```
+
+The `mix llamex.generate` task accepts `.gguf` paths and uses the GGUF loader
+for them.
+
 Tokenizer metadata can be converted into a Llamex tokenizer:
 
 ```elixir

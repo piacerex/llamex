@@ -295,7 +295,7 @@ defmodule LlamexTest do
 
     assert parsed.version == 3
     assert parsed.tensor_count == 1
-    assert parsed.metadata_count == 3
+    assert parsed.metadata_count == 4
     assert parsed.metadata["general.architecture"] == %{type: :string, value: "llama"}
     assert parsed.metadata["general.alignment"] == %{type: :uint32, value: 32}
 
@@ -378,6 +378,33 @@ defmodule LlamexTest do
     end
   end
 
+  test "loads a Llamex model from a f32 gguf file" do
+    path =
+      Path.join(System.tmp_dir!(), "llamex-model-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_gguf(:with_tensor_data))
+
+      model = Llamex.GGUF.ModelLoader.load(path)
+
+      assert Llamex.encode(model, "hello") == [1]
+      assert model.config.vocab_size == 2
+      assert model.config.embedding_size == 2
+      assert model.token_embeddings == %{0 => [1.0, 0.0], 1 => [0.0, 1.0]}
+
+      result =
+        Llamex.generate(model, "<unk>", %{
+          backend: Llamex.Backend.List,
+          max_new_tokens: 1,
+          stop_token: nil
+        })
+
+      assert result.generated_tokens == [0]
+    after
+      File.rm(path)
+    end
+  end
+
   defp identity4 do
     [
       [1.0, 0.0, 0.0, 0.0],
@@ -392,12 +419,13 @@ defmodule LlamexTest do
       "GGUF",
       u32(3),
       u64(1),
-      u64(3)
+      u64(4)
     ]
 
     metadata = [
       kv_string("general.architecture", "llama"),
       kv_u32("general.alignment", 32),
+      kv_u32("llama.embedding_length", 2),
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
     ]
 

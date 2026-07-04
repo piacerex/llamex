@@ -1,0 +1,77 @@
+defmodule Llamex.GGUF.ModelLoader do
+  @moduledoc """
+  Loads Llamex models from GGUF files.
+
+  Only F32 tensor data is supported at this stage.
+  """
+
+  def load(path) when is_binary(path) do
+    binary = File.read!(path)
+    gguf = Llamex.GGUF.Reader.read_binary(binary)
+
+    gguf
+    |> to_model_map(binary)
+    |> Llamex.ModelLoader.from_map()
+  end
+
+  def to_model_map(%Llamex.GGUF.Reader{} = gguf, binary) when is_binary(binary) do
+    %{
+      "config" => config_from_metadata(gguf.metadata),
+      "tokenizer" => tokenizer_from_metadata(gguf.metadata),
+      "tensors" => Llamex.GGUF.Reader.read_tensor_data(gguf, binary)
+    }
+  end
+
+  defp config_from_metadata(metadata) do
+    %{
+      "vocab_size" => metadata_value(metadata, "llama.vocab_size", token_count(metadata)),
+      "embedding_size" => metadata_value!(metadata, "llama.embedding_length"),
+      "context_size" => metadata_value(metadata, "llama.context_length", nil),
+      "epsilon" => metadata_value(metadata, "llama.attention.layer_norm_rms_epsilon", 1.0e-6),
+      "rope_theta" => metadata_value(metadata, "llama.rope.freq_base", 10_000.0)
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  defp tokenizer_from_metadata(metadata) do
+    tokenizer = Llamex.GGUF.Tokenizer.from_metadata(metadata)
+
+    %{
+      "type" => tokenizer_type(tokenizer),
+      "unknown_token" => tokenizer.unknown_token,
+      "vocab" => tokenizer.token_to_id
+    }
+    |> put_merges(tokenizer)
+  end
+
+  defp tokenizer_type(%Llamex.Tokenizer.BPE{}), do: "bpe"
+  defp tokenizer_type(%Llamex.Tokenizer.Whitespace{}), do: "whitespace"
+
+  defp put_merges(attrs, %Llamex.Tokenizer.BPE{merges: merges}) do
+    Map.put(attrs, "merges", Enum.map(merges, fn {left, right} -> [left, right] end))
+  end
+
+  defp put_merges(attrs, _tokenizer), do: attrs
+
+  defp token_count(metadata) do
+    metadata
+    |> metadata_value!("tokenizer.ggml.tokens")
+    |> Map.fetch!(:values)
+    |> length()
+  end
+
+  defp metadata_value!(metadata, key) do
+    case metadata_value(metadata, key, nil) do
+      nil -> raise ArgumentError, "GGUF metadata missing #{key}"
+      value -> value
+    end
+  end
+
+  defp metadata_value(metadata, key, default) do
+    case Map.fetch(metadata, key) do
+      {:ok, %{value: value}} -> value
+      :error -> default
+    end
+  end
+end

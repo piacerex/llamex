@@ -7,6 +7,11 @@ defmodule Llamex.ModelLoader do
     path
     |> File.read!()
     |> JSON.decode!()
+    |> from_map()
+  end
+
+  def from_map(attrs) when is_map(attrs) do
+    attrs
     |> atomize_model()
     |> Llamex.new_model()
   end
