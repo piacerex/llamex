@@ -94,8 +94,8 @@ Supported tokenizer types:
 
 The BPE implementation is fixture-oriented and not byte-level yet. See
 `priv/models/tiny_bpe.json` for the current shape.
-GGUF byte tokens such as `<0x68>` are decoded from `tokenizer.ggml.token_type`
-metadata when present.
+GGUF byte tokens such as `<0x68>` are encoded as a fallback and decoded from
+`tokenizer.ggml.token_type` metadata when present.
 
 Tokenizer JSON files with a BPE `model` can also be loaded directly:
 

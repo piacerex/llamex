@@ -351,11 +351,13 @@ defmodule LlamexTest do
     tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
 
     assert tokenizer.token_types == [
-             %{id: 0, token: "<0x68>", type: :byte, type_id: 6},
-             %{id: 1, token: "<0x69>", type: :byte, type_id: 6}
+             %{id: 0, token: "<unk>", type: :unknown, type_id: 2},
+             %{id: 1, token: "<0x68>", type: :byte, type_id: 6},
+             %{id: 2, token: "<0x69>", type: :byte, type_id: 6}
            ]
 
-    assert Llamex.Tokenizer.decode(tokenizer, [0, 1]) == "hi"
+    assert Llamex.Tokenizer.encode(tokenizer, "hi") == [1, 2]
+    assert Llamex.Tokenizer.decode(tokenizer, [1, 2]) == "hi"
   end
 
   test "builds a bpe tokenizer from gguf metadata merges" do
@@ -886,9 +888,9 @@ defmodule LlamexTest do
   defp tiny_byte_token_gguf do
     metadata = [
       kv_string("general.architecture", "llama"),
-      kv_array_string("tokenizer.ggml.tokens", ["<0x68>", "<0x69>"]),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "<0x68>", "<0x69>"]),
       kv_u32("tokenizer.ggml.unknown_token_id", 0),
-      kv_array_u32("tokenizer.ggml.token_type", [6, 6])
+      kv_array_u32("tokenizer.ggml.token_type", [2, 6, 6])
     ]
 
     header = [

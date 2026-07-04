@@ -57,28 +57,31 @@ defmodule Llamex.Tokenizer.BPE do
 
   @impl true
   def decode(%__MODULE__{} = tokenizer, tokens) when is_list(tokens) do
-    if has_byte_tokens?(tokenizer, tokens) do
-      tokens
-      |> Enum.map(&decode_token(tokenizer, &1))
-      |> IO.iodata_to_binary()
-    else
+    Llamex.Tokenizer.ByteTokens.decode(tokenizer, tokens, fn tokenizer, tokens ->
       tokens
       |> Enum.map(&Map.fetch!(tokenizer.id_to_token, &1))
       |> Enum.join(" ")
-    end
+    end)
   end
 
   defp encode_word(tokenizer, word) do
     word
     |> String.graphemes()
     |> apply_merges(tokenizer.merges)
-    |> Enum.map(fn token ->
-      Map.get(
-        tokenizer.token_to_id,
-        token,
-        Map.fetch!(tokenizer.token_to_id, tokenizer.unknown_token)
-      )
-    end)
+    |> Enum.flat_map(&encode_token(tokenizer, &1))
+  end
+
+  defp encode_token(tokenizer, token) do
+    case Map.fetch(tokenizer.token_to_id, token) do
+      {:ok, id} ->
+        [id]
+
+      :error ->
+        case Llamex.Tokenizer.ByteTokens.encode(tokenizer, token) do
+          :error -> [Map.fetch!(tokenizer.token_to_id, tokenizer.unknown_token)]
+          byte_tokens -> byte_tokens
+        end
+    end
   end
 
   defp apply_merges(tokens, merges) do
@@ -101,32 +104,5 @@ defmodule Llamex.Tokenizer.BPE do
       [left, right] -> {left, right}
       _other -> raise ArgumentError, "merge strings must contain exactly two tokens"
     end
-  end
-
-  defp has_byte_tokens?(tokenizer, tokens) do
-    byte_token_ids = byte_token_ids(tokenizer)
-
-    Enum.any?(tokens, &MapSet.member?(byte_token_ids, &1))
-  end
-
-  defp decode_token(tokenizer, id) do
-    if MapSet.member?(byte_token_ids(tokenizer), id) do
-      <<byte_value(Map.fetch!(tokenizer.id_to_token, id))>>
-    else
-      Map.fetch!(tokenizer.id_to_token, id)
-    end
-  end
-
-  defp byte_token_ids(tokenizer) do
-    tokenizer.token_types
-    |> Enum.filter(&(&1.type == :byte))
-    |> Enum.map(& &1.id)
-    |> MapSet.new()
-  end
-
-  defp byte_value("<0x" <> rest) do
-    rest
-    |> String.trim_trailing(">")
-    |> String.to_integer(16)
   end
 end
