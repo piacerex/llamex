@@ -9,11 +9,18 @@ defmodule Llamex.GGUF.Tokenizer do
     unknown_token = unknown_token(metadata, tokens)
     merges = metadata_array(metadata, "tokenizer.ggml.merges", [])
     special_tokens = special_tokens(metadata, tokens)
+    token_types = token_types(metadata, tokens)
 
     if merges == [] do
-      Llamex.Tokenizer.whitespace(vocab, unknown_token, special_tokens: special_tokens)
+      Llamex.Tokenizer.whitespace(vocab, unknown_token,
+        special_tokens: special_tokens,
+        token_types: token_types
+      )
     else
-      Llamex.Tokenizer.bpe(vocab, merges, unknown_token, special_tokens: special_tokens)
+      Llamex.Tokenizer.bpe(vocab, merges, unknown_token,
+        special_tokens: special_tokens,
+        token_types: token_types
+      )
     end
   end
 
@@ -50,6 +57,28 @@ defmodule Llamex.GGUF.Tokenizer do
       _other -> attrs
     end
   end
+
+  defp token_types(metadata, tokens) do
+    metadata
+    |> metadata_array("tokenizer.ggml.token_type", [])
+    |> Enum.with_index()
+    |> Enum.map(fn {type_id, id} ->
+      %{
+        id: id,
+        token: Enum.at(tokens, id),
+        type: token_type_name(type_id),
+        type_id: type_id
+      }
+    end)
+  end
+
+  defp token_type_name(1), do: :normal
+  defp token_type_name(2), do: :unknown
+  defp token_type_name(3), do: :control
+  defp token_type_name(4), do: :user_defined
+  defp token_type_name(5), do: :unused
+  defp token_type_name(6), do: :byte
+  defp token_type_name(_type_id), do: :undefined
 
   defp metadata_array!(metadata, key) do
     case metadata_array(metadata, key, nil) do

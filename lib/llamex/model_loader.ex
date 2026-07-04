@@ -51,7 +51,8 @@ defmodule Llamex.ModelLoader do
         Llamex.Tokenizer.whitespace(
           Map.fetch!(tokenizer, "vocab"),
           Map.fetch!(tokenizer, "unknown_token"),
-          special_tokens: atomize_special_tokens(Map.get(tokenizer, "special_tokens", %{}))
+          special_tokens: atomize_special_tokens(Map.get(tokenizer, "special_tokens", %{})),
+          token_types: atomize_value(Map.get(tokenizer, "token_types", []))
         )
 
       "bpe" ->
@@ -59,7 +60,8 @@ defmodule Llamex.ModelLoader do
           Map.fetch!(tokenizer, "vocab"),
           Map.fetch!(tokenizer, "merges"),
           Map.fetch!(tokenizer, "unknown_token"),
-          special_tokens: atomize_special_tokens(Map.get(tokenizer, "special_tokens", %{}))
+          special_tokens: atomize_special_tokens(Map.get(tokenizer, "special_tokens", %{})),
+          token_types: atomize_value(Map.get(tokenizer, "token_types", []))
         )
 
       type ->

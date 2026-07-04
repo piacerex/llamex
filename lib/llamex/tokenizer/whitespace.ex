@@ -9,13 +9,14 @@ defmodule Llamex.Tokenizer.Whitespace do
   @behaviour Llamex.Tokenizer.Behavior
 
   @enforce_keys [:token_to_id, :id_to_token, :unknown_token]
-  defstruct [:token_to_id, :id_to_token, :unknown_token, special_tokens: %{}]
+  defstruct [:token_to_id, :id_to_token, :unknown_token, special_tokens: %{}, token_types: []]
 
   @type t :: %__MODULE__{
           token_to_id: %{required(String.t()) => non_neg_integer()},
           id_to_token: %{required(non_neg_integer()) => String.t()},
           unknown_token: String.t(),
-          special_tokens: map()
+          special_tokens: map(),
+          token_types: list(map())
         }
 
   def new(vocab, unknown_token) when is_map(vocab) and is_binary(unknown_token) do
@@ -31,7 +32,8 @@ defmodule Llamex.Tokenizer.Whitespace do
       token_to_id: vocab,
       id_to_token: Map.new(vocab, fn {token, id} -> {id, token} end),
       unknown_token: unknown_token,
-      special_tokens: Keyword.get(opts, :special_tokens, %{})
+      special_tokens: Keyword.get(opts, :special_tokens, %{}),
+      token_types: Keyword.get(opts, :token_types, [])
     }
   end
 

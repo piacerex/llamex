@@ -9,14 +9,22 @@ defmodule Llamex.Tokenizer.BPE do
   @behaviour Llamex.Tokenizer.Behavior
 
   @enforce_keys [:token_to_id, :id_to_token, :unknown_token, :merges]
-  defstruct [:token_to_id, :id_to_token, :unknown_token, :merges, special_tokens: %{}]
+  defstruct [
+    :token_to_id,
+    :id_to_token,
+    :unknown_token,
+    :merges,
+    special_tokens: %{},
+    token_types: []
+  ]
 
   @type t :: %__MODULE__{
           token_to_id: %{required(String.t()) => non_neg_integer()},
           id_to_token: %{required(non_neg_integer()) => String.t()},
           unknown_token: String.t(),
           merges: list({String.t(), String.t()}),
-          special_tokens: map()
+          special_tokens: map(),
+          token_types: list(map())
         }
 
   def new(vocab, merges, unknown_token)
@@ -35,7 +43,8 @@ defmodule Llamex.Tokenizer.BPE do
       id_to_token: Map.new(vocab, fn {token, id} -> {id, token} end),
       unknown_token: unknown_token,
       merges: Enum.map(merges, &parse_merge/1),
-      special_tokens: Keyword.get(opts, :special_tokens, %{})
+      special_tokens: Keyword.get(opts, :special_tokens, %{}),
+      token_types: Keyword.get(opts, :token_types, [])
     }
   end
 

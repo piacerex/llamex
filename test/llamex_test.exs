@@ -336,6 +336,13 @@ defmodule LlamexTest do
     assert tokenizer.special_tokens.eos == %{id: 2, token: "</s>"}
     assert tokenizer.special_tokens.add_bos == true
     assert tokenizer.special_tokens.add_eos == false
+
+    assert tokenizer.token_types == [
+             %{id: 0, token: "<unk>", type: :unknown, type_id: 2},
+             %{id: 1, token: "<s>", type: :control, type_id: 3},
+             %{id: 2, token: "</s>", type: :control, type_id: 3},
+             %{id: 3, token: "hello", type: :normal, type_id: 1}
+           ]
   end
 
   test "builds a bpe tokenizer from gguf metadata merges" do
@@ -534,6 +541,14 @@ defmodule LlamexTest do
       assert model.tokenizer.special_tokens.bos == %{id: 1, token: "<s>"}
       assert model.tokenizer.special_tokens.eos == %{id: 2, token: "</s>"}
       assert model.tokenizer.special_tokens.add_bos == true
+
+      assert Enum.map(model.tokenizer.token_types, & &1.type) == [
+               :unknown,
+               :control,
+               :control,
+               :normal
+             ]
+
       assert Llamex.encode(model, "hello") == [3]
     after
       File.rm(path)
@@ -861,13 +876,17 @@ defmodule LlamexTest do
       kv_u32("tokenizer.ggml.bos_token_id", 1),
       kv_u32("tokenizer.ggml.eos_token_id", 2),
       kv_bool("tokenizer.ggml.add_bos_token", true),
-      kv_bool("tokenizer.ggml.add_eos_token", false)
+      kv_bool("tokenizer.ggml.add_eos_token", false),
+      kv_array_u32("tokenizer.ggml.token_type", [2, 3, 3, 1])
     ]
   end
 
   defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]
   defp kv_u32(key, value), do: [gguf_string(key), u32(4), u32(value)]
   defp kv_bool(key, value), do: [gguf_string(key), u32(7), if(value, do: <<1>>, else: <<0>>)]
+
+  defp kv_array_u32(key, values),
+    do: [gguf_string(key), u32(9), u32(4), u64(length(values)), Enum.map(values, &u32/1)]
 
   defp kv_array_string(key, values) do
     [gguf_string(key), u32(9), u32(8), u64(length(values)), Enum.map(values, &gguf_string/1)]
