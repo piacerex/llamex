@@ -67,7 +67,10 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp stop_token(%{tokenizer: nil}), do: nil
 
   defp stop_token(model) do
-    model.tokenizer.token_to_id["<eos>"] || model.tokenizer.token_to_id["world"]
+    get_in(model.tokenizer.special_tokens, [:eos, :id]) ||
+      model.tokenizer.token_to_id["<eos>"] ||
+      model.tokenizer.token_to_id["</s>"] ||
+      model.tokenizer.token_to_id["world"]
   end
 
   defp load_model(model_path) do
