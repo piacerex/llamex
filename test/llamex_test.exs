@@ -436,6 +436,35 @@ defmodule LlamexTest do
     end
   end
 
+  test "loads gguf output norm and output tensors" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-output-model-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf_with_output_tensors())
+
+      model = Llamex.GGUF.ModelLoader.load(path)
+
+      assert model.token_embeddings == %{0 => [1.0, 0.0], 1 => [0.0, 1.0]}
+      assert model.output_norm == [1.0, 1.0]
+      assert model.output == %{weight: [[1.0, 0.0], [0.0, 1.0]]}
+
+      result =
+        Llamex.generate(model, "<unk>", %{
+          backend: Llamex.Backend.List,
+          max_new_tokens: 1,
+          stop_token: nil
+        })
+
+      assert result.generated_tokens == [0]
+    after
+      File.rm(path)
+    end
+  end
+
   defp identity4 do
     [
       [1.0, 0.0, 0.0, 0.0],
@@ -472,13 +501,7 @@ defmodule LlamexTest do
         _other -> {[2, 2], 0, [1.0, 0.0, 0.0, 1.0]}
       end
 
-    tensor_infos = [
-      gguf_string("token_embd.weight"),
-      u32(length(dimensions)),
-      Enum.map(dimensions, &u64/1),
-      u32(tensor_type),
-      u64(0)
-    ]
+    tensor_infos = tensor_info("token_embd.weight", dimensions, tensor_type, 0)
 
     without_data = IO.iodata_to_binary([header, metadata, tensor_infos])
 
@@ -502,6 +525,66 @@ defmodule LlamexTest do
     tensor_data = Enum.map(values, fn value -> <<value::little-unsigned-integer-size(16)>> end)
 
     IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp tiny_gguf_with_output_tensors do
+    header = [
+      "GGUF",
+      u32(3),
+      u64(3),
+      u64(9)
+    ]
+
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_u32("general.alignment", 32),
+      kv_u32("llama.embedding_length", 2),
+      kv_u32("llama.context_length", 16),
+      kv_u32("llama.block_count", 0),
+      kv_u32("llama.attention.head_count", 2),
+      kv_u32("llama.attention.head_count_kv", 1),
+      kv_u32("llama.feed_forward_length", 8),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
+    ]
+
+    tensor_infos = [
+      tensor_info("token_embd.weight", [2, 2], 0, 0),
+      tensor_info("output_norm.weight", [2], 0, 32),
+      tensor_info("output.weight", [2, 2], 0, 64)
+    ]
+
+    without_data = IO.iodata_to_binary([header, metadata, tensor_infos])
+    padding = rem(32 - rem(byte_size(without_data), 32), 32)
+
+    token_embeddings = f32_values([1.0, 0.0, 0.0, 1.0])
+    output_norm = f32_values([1.0, 1.0])
+    output = f32_values([1.0, 0.0, 0.0, 1.0])
+
+    IO.iodata_to_binary([
+      without_data,
+      :binary.copy(<<0>>, padding),
+      token_embeddings,
+      :binary.copy(<<0>>, 32 - byte_size(token_embeddings)),
+      output_norm,
+      :binary.copy(<<0>>, 32 - byte_size(output_norm)),
+      output
+    ])
+  end
+
+  defp tensor_info(name, dimensions, tensor_type, offset) do
+    [
+      gguf_string(name),
+      u32(length(dimensions)),
+      Enum.map(dimensions, &u64/1),
+      u32(tensor_type),
+      u64(offset)
+    ]
+  end
+
+  defp f32_values(values) do
+    values
+    |> Enum.map(fn value -> <<value::little-float-size(32)>> end)
+    |> IO.iodata_to_binary()
   end
 
   defp tiny_bpe_gguf do
