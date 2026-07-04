@@ -125,14 +125,14 @@ The metadata reader validates the `GGUF` magic, reads v3-style header counts,
 metadata values, tensor names, tensor dimensions, tensor types, and tensor data
 offsets.
 
-F32, F16, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q6_K, Q8_0, Q8_1, and Q8_K tensor data can be read into Llamex's named tensor schema:
+F32, F16, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, and Q8_K tensor data can be read into Llamex's named tensor schema:
 
 ```elixir
 Llamex.GGUF.Reader.read_tensors("model.gguf")
 ```
 
 Rank-2 GGUF tensor dimensions are normalized into Llamex schema order when
-building the JSON-style tensor map. Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q6_K, Q8_0, Q8_1, and Q8_K tensors are
+building the JSON-style tensor map. Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, and Q8_K tensors are
 dequantized to F32 values while loading. Other quantized tensor types are not
 loaded yet.
 
