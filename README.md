@@ -164,6 +164,16 @@ mix llamex.gguf.inspect /tmp/llamex-models/test-gguf-trainer.Q8_0.gguf
 mix run -e 'model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/test-gguf-trainer.Q8_0.gguf"); IO.inspect(%{vocab_size: model.config.vocab_size, embedding_size: model.config.embedding_size, layers: length(model.layers), token_embeddings: map_size(model.token_embeddings)})'
 ```
 
+For iterative GGUF testing in IEx, load the model once and step tokens without
+reloading the file:
+
+```elixir
+model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/test-gguf-trainer.Q8_0.gguf")
+state = Llamex.prefill(model, "hello", %{backend: Llamex.Backend.List})
+step = Llamex.step(state.context, state.current_token, %{sampler: :greedy})
+step.text
+```
+
 Tokenizer metadata can be converted into a Llamex tokenizer:
 
 ```elixir
