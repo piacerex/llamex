@@ -31,6 +31,13 @@ defmodule Llamex.ModelLoader do
             Map.fetch!(tokenizer, "unknown_token")
           )
 
+        "bpe" ->
+          Llamex.Tokenizer.bpe(
+            Map.fetch!(tokenizer, "vocab"),
+            Map.fetch!(tokenizer, "merges"),
+            Map.fetch!(tokenizer, "unknown_token")
+          )
+
         type ->
           raise ArgumentError, "unsupported tokenizer type: #{type}"
       end

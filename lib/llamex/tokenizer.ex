@@ -3,7 +3,7 @@ defmodule Llamex.Tokenizer do
   Tokenizer facade.
   """
 
-  @type t :: Llamex.Tokenizer.Whitespace.t()
+  @type t :: Llamex.Tokenizer.Whitespace.t() | Llamex.Tokenizer.BPE.t()
 
   def new(vocab, unknown_token) when is_map(vocab) and is_binary(unknown_token) do
     whitespace(vocab, unknown_token)
@@ -11,6 +11,11 @@ defmodule Llamex.Tokenizer do
 
   def whitespace(vocab, unknown_token) when is_map(vocab) and is_binary(unknown_token) do
     Llamex.Tokenizer.Whitespace.new(vocab, unknown_token)
+  end
+
+  def bpe(vocab, merges, unknown_token)
+      when is_map(vocab) and is_list(merges) and is_binary(unknown_token) do
+    Llamex.Tokenizer.BPE.new(vocab, merges, unknown_token)
   end
 
   def encode(tokenizer, text) when is_binary(text) do

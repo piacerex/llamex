@@ -51,8 +51,15 @@ The current schema is intentionally small:
 ```
 
 Required fields are `config.vocab_size`, `config.embedding_size`, and
-`token_embeddings`. `tokenizer`, `layers`, and `output` are optional. The only
-supported tokenizer type today is `whitespace`.
+`token_embeddings`. `tokenizer`, `layers`, and `output` are optional.
+
+Supported tokenizer types:
+
+- `whitespace`: splits on whitespace and looks up whole tokens.
+- `bpe`: applies a small ordered merge list to each whitespace-delimited word.
+
+The BPE implementation is fixture-oriented and not byte-level yet. See
+`priv/models/tiny_bpe.json` for the current shape.
 
 ## Installation
 

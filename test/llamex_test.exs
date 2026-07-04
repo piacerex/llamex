@@ -27,6 +27,18 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.decode(tokenizer, [1, 2]) == "hello world"
   end
 
+  test "encodes text with the minimal bpe tokenizer" do
+    tokenizer =
+      Llamex.Tokenizer.bpe(
+        %{"<unk>" => 0, "l" => 1, "o" => 2, "w" => 3, "lo" => 4, "low" => 5},
+        [["l", "o"], ["lo", "w"]],
+        "<unk>"
+      )
+
+    assert Llamex.Tokenizer.encode(tokenizer, "low") == [5]
+    assert Llamex.Tokenizer.decode(tokenizer, [5]) == "low"
+  end
+
   test "runs one transformer-style attention layer and stores kv cache" do
     model =
       Llamex.new_model(%{
@@ -226,6 +238,13 @@ defmodule LlamexTest do
     assert result.text == "world"
     assert result.prompt_tokens == [1]
     assert result.generated_tokens == [2]
+  end
+
+  test "loads a tiny bpe tokenizer from json" do
+    model = Llamex.ModelLoader.load_json("priv/models/tiny_bpe.json")
+
+    assert Llamex.encode(model, "low") == [5]
+    assert Llamex.decode(model, [5]) == "low"
   end
 
   defp identity4 do
