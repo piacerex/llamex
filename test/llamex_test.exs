@@ -39,6 +39,22 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.decode(tokenizer, [5]) == "low"
   end
 
+  test "encodes chat template special tokens before byte fallback" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "<|im_start|>" => 1,
+          "<|im_end|>" => 2,
+          "user" => 3,
+          "Hi" => 4
+        },
+        "<unk>"
+      )
+
+    assert Llamex.Tokenizer.encode(tokenizer, "<|im_start|>user Hi<|im_end|>") == [1, 3, 4, 2]
+  end
+
   test "decodes sentencepiece-style gguf tokens as plain text" do
     tokenizer =
       Llamex.Tokenizer.whitespace(

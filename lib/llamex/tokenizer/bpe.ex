@@ -53,9 +53,12 @@ defmodule Llamex.Tokenizer.BPE do
 
   @impl true
   def encode(%__MODULE__{} = tokenizer, text) when is_binary(text) do
-    text
-    |> String.split()
-    |> Enum.flat_map(&encode_word(tokenizer, &1))
+    tokenizer
+    |> split_special_tokens(text)
+    |> Enum.flat_map(fn
+      {:special, token} -> [Map.fetch!(tokenizer.token_to_id, token)]
+      {:text, text} -> text |> String.split() |> Enum.flat_map(&encode_word(tokenizer, &1))
+    end)
   end
 
   @impl true
@@ -63,6 +66,41 @@ defmodule Llamex.Tokenizer.BPE do
     Llamex.Tokenizer.ByteTokens.decode(tokenizer, tokens, fn tokenizer, tokens ->
       Llamex.Tokenizer.TextDecoder.decode(tokenizer, tokens)
     end)
+  end
+
+  defp split_special_tokens(tokenizer, text) do
+    special_tokens =
+      tokenizer.token_to_id
+      |> Map.keys()
+      |> Enum.filter(&String.starts_with?(&1, "<|"))
+      |> Enum.sort_by(&byte_size/1, :desc)
+
+    split_special_tokens(text, special_tokens, [])
+  end
+
+  defp split_special_tokens("", _special_tokens, parts), do: Enum.reverse(parts)
+
+  defp split_special_tokens(text, special_tokens, parts) do
+    case Enum.find(special_tokens, &String.starts_with?(text, &1)) do
+      nil ->
+        {plain, rest} = take_until_special(text, special_tokens, "")
+        split_special_tokens(rest, special_tokens, [{:text, plain} | parts])
+
+      token ->
+        rest = binary_part(text, byte_size(token), byte_size(text) - byte_size(token))
+        split_special_tokens(rest, special_tokens, [{:special, token} | parts])
+    end
+  end
+
+  defp take_until_special("", _special_tokens, acc), do: {acc, ""}
+
+  defp take_until_special(text, special_tokens, acc) do
+    if Enum.any?(special_tokens, &String.starts_with?(text, &1)) do
+      {acc, text}
+    else
+      <<char::utf8, rest::binary>> = text
+      take_until_special(rest, special_tokens, acc <> <<char::utf8>>)
+    end
   end
 
   defp encode_word(tokenizer, word) do
