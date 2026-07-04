@@ -35,6 +35,8 @@ defmodule Llamex.GGUF.Diagnostic do
       metadata_count: gguf.metadata_count,
       architecture: metadata_value(gguf.metadata, "general.architecture"),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
+      tensor_element_count: tensor_element_count(gguf.tensors),
+      eager_f32_bytes: eager_f32_bytes(gguf.tensors),
       supported_tensor_types: supported_tensor_types(gguf.tensors),
       unsupported_tensor_types: unsupported_tensor_types(gguf.tensors),
       unsupported_tensors: unsupported_tensors(gguf.tensors)
@@ -48,6 +50,8 @@ defmodule Llamex.GGUF.Diagnostic do
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
+      "tensor elements: #{diagnostic.tensor_element_count}",
+      "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
       "supported tensor types: #{format_type_counts(diagnostic.supported_tensor_types)}",
       "unsupported tensor types: #{format_type_counts(diagnostic.unsupported_tensor_types)}",
       format_unsupported_tensors(diagnostic.unsupported_tensors)
@@ -82,6 +86,14 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp supported_tensor_type?(%{type: type}), do: Map.has_key?(@supported_tensor_types, type)
 
+  defp tensor_element_count(tensors) do
+    tensors
+    |> Enum.map(fn tensor -> Enum.product(tensor.dimensions) end)
+    |> Enum.sum()
+  end
+
+  defp eager_f32_bytes(tensors), do: tensor_element_count(tensors) * 4
+
   defp type_counts(tensors) do
     tensors
     |> Enum.frequencies_by(& &1.type)
@@ -112,6 +124,18 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.map(fn {type, count} -> "#{type}=#{count}" end)
     |> Enum.join(", ")
   end
+
+  defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
+
+  defp format_bytes(bytes) when bytes < 1024 * 1024 do
+    "#{Float.round(bytes / 1024, 1)} KiB"
+  end
+
+  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024 do
+    "#{Float.round(bytes / 1024 / 1024, 1)} MiB"
+  end
+
+  defp format_bytes(bytes), do: "#{Float.round(bytes / 1024 / 1024 / 1024, 1)} GiB"
 
   defp format_unsupported_tensors([]), do: ""
 
