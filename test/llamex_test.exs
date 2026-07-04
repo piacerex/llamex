@@ -153,6 +153,37 @@ defmodule LlamexTest do
     assert length(values) == 2
   end
 
+  test "runs grouped-query attention with fewer kv heads" do
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 2, embedding_size: 4},
+        token_embeddings: %{
+          0 => [1.0, 0.0, 0.0, 1.0],
+          1 => [0.0, 1.0, 1.0, 0.0]
+        },
+        layers: [
+          %{
+            head_count: 4,
+            kv_head_count: 2,
+            attention_norm: [1.0, 1.0, 1.0, 1.0],
+            wq: identity4(),
+            wk: [[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]],
+            wv: [[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]],
+            wo: identity4()
+          }
+        ],
+        output: %{weight: identity4() |> Enum.take(2)}
+      })
+
+    context = Llamex.new_context(model, Llamex.Backend.List)
+
+    {context, _next_token} = Llamex.next_token(context, 0)
+
+    assert [{keys, values}] = Llamex.KVCache.entries(context.kv_cache, 0)
+    assert length(keys) == 2
+    assert length(values) == 2
+  end
+
   test "samples with temperature and top-k" do
     logits = Llamex.Backend.List.from_list([0.0, 1.0, 2.0])
 

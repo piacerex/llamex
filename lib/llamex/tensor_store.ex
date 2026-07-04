@@ -27,6 +27,7 @@ defmodule Llamex.TensorStore do
   def layer_count(tensors) when is_map(tensors) do
     tensors
     |> Map.keys()
+    |> Enum.filter(&is_binary/1)
     |> Enum.flat_map(fn name ->
       case Regex.run(~r/^blk\.(\d+)\./, name) do
         [_match, index] -> [String.to_integer(index)]

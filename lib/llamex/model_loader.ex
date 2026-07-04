@@ -69,7 +69,12 @@ defmodule Llamex.ModelLoader do
     end
   end
 
-  defp decoded_tensors(%{"tensors" => tensors}), do: Llamex.TensorStore.decode(tensors)
+  defp decoded_tensors(%{"config" => config, "tensors" => tensors}) do
+    tensors
+    |> Llamex.TensorStore.decode()
+    |> Map.put(:__config__, atomize_keys(config))
+  end
+
   defp decoded_tensors(_attrs), do: nil
 
   defp put_layers(attrs, %{"layers" => layers}, _tensors) do
@@ -122,12 +127,18 @@ defmodule Llamex.ModelLoader do
   end
 
   defp layer_from_tensors(tensors, index) do
+    wq = Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_q.weight")
+    wk = Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_k.weight")
+    head_count = tensor_config(tensors, :attention_head_count)
+
     %{
+      head_count: head_count,
+      kv_head_count: kv_head_count(tensors, head_count, wq, wk),
       attention_norm: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_norm.weight"),
       feed_forward_norm:
         Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.ffn_norm.weight"),
-      wq: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_q.weight"),
-      wk: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_k.weight"),
+      wq: wq,
+      wk: wk,
       wv: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_v.weight"),
       wo: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_output.weight"),
       w_gate: Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.ffn_gate.weight"),
@@ -136,6 +147,25 @@ defmodule Llamex.ModelLoader do
     }
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
     |> Map.new()
+  end
+
+  defp tensor_config(tensors, key) do
+    tensors
+    |> Map.get(:__config__, %{})
+    |> Map.get(key)
+  end
+
+  defp kv_head_count(_tensors, nil, _wq, _wk), do: nil
+
+  defp kv_head_count(tensors, head_count, wq, wk) do
+    configured = tensor_config(tensors, :attention_head_count_kv)
+    head_size = div(length(wq), head_count)
+
+    cond do
+      is_nil(configured) -> head_count
+      length(wk) == configured * head_size -> configured
+      true -> head_count
+    end
   end
 
   defp token_embeddings(%{"token_embeddings" => token_embeddings}, _tensors), do: token_embeddings

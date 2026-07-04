@@ -9,6 +9,7 @@ defmodule Llamex.Layers.Attention do
   def forward(input, layer, cache, layer_index, position, rope_theta)
       when is_list(input) and is_map(layer) and is_integer(layer_index) do
     head_count = Map.get(layer, :head_count, 1)
+    kv_head_count = Map.get(layer, :kv_head_count, head_count)
 
     query_heads =
       input
@@ -20,12 +21,12 @@ defmodule Llamex.Layers.Attention do
       input
       |> Linear.forward(Map.fetch!(layer, :wk))
       |> RoPE.apply(position, rope_theta)
-      |> split_heads(head_count)
+      |> split_heads(kv_head_count)
 
     value_heads =
       input
       |> Linear.forward(Map.fetch!(layer, :wv))
-      |> split_heads(head_count)
+      |> split_heads(kv_head_count)
 
     {cache, entries} = KVCache.append(cache, layer_index, key_heads, value_heads)
 
@@ -33,11 +34,15 @@ defmodule Llamex.Layers.Attention do
       query_heads
       |> Enum.with_index()
       |> Enum.flat_map(fn {query, head_index} ->
-        attend_head(query, entries, head_index)
+        attend_head(query, entries, kv_head_index(head_index, head_count, kv_head_count))
       end)
       |> Linear.forward(Map.fetch!(layer, :wo))
 
     {cache, output}
+  end
+
+  defp kv_head_index(head_index, head_count, kv_head_count) do
+    div(head_index * kv_head_count, head_count)
   end
 
   defp split_heads(vector, head_count) do
