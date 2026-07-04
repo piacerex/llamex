@@ -421,6 +421,17 @@ defmodule LlamexTest do
            ]
   end
 
+  test "builds a tokenizer with gguf chat template metadata" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_chat_template_gguf())
+
+    tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
+
+    assert tokenizer.chat_template == chatml_template()
+
+    assert Llamex.ChatTemplate.apply(tokenizer.chat_template, "Hello") ==
+             "<|im_start|>user\nHello<|im_end|>\n<|im_start|>assistant\n"
+  end
+
   test "decodes gguf byte tokens" do
     parsed = Llamex.GGUF.Reader.read_binary(tiny_byte_token_gguf())
 
@@ -1519,6 +1530,23 @@ defmodule LlamexTest do
     IO.iodata_to_binary([header, metadata])
   end
 
+  defp tiny_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "Hello"]),
+      kv_string("tokenizer.chat_template", chatml_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
   defp tiny_byte_token_gguf do
     metadata = [
       kv_string("general.architecture", "llama"),
@@ -1546,6 +1574,10 @@ defmodule LlamexTest do
       kv_bool("tokenizer.ggml.add_eos_token", false),
       kv_array_u32("tokenizer.ggml.token_type", [2, 3, 3, 1])
     ]
+  end
+
+  defp chatml_template do
+    "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
   end
 
   defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]

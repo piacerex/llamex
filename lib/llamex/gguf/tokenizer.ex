@@ -10,16 +10,19 @@ defmodule Llamex.GGUF.Tokenizer do
     merges = metadata_array(metadata, "tokenizer.ggml.merges", [])
     special_tokens = special_tokens(metadata, tokens)
     token_types = token_types(metadata, tokens)
+    chat_template = metadata_value(metadata, "tokenizer.chat_template")
 
     if merges == [] do
       Llamex.Tokenizer.whitespace(vocab, unknown_token,
         special_tokens: special_tokens,
-        token_types: token_types
+        token_types: token_types,
+        chat_template: chat_template
       )
     else
       Llamex.Tokenizer.bpe(vocab, merges, unknown_token,
         special_tokens: special_tokens,
-        token_types: token_types
+        token_types: token_types,
+        chat_template: chat_template
       )
     end
   end

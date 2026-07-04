@@ -15,7 +15,8 @@ defmodule Llamex.Tokenizer.BPE do
     :unknown_token,
     :merges,
     special_tokens: %{},
-    token_types: []
+    token_types: [],
+    chat_template: nil
   ]
 
   @type t :: %__MODULE__{
@@ -24,7 +25,8 @@ defmodule Llamex.Tokenizer.BPE do
           unknown_token: String.t(),
           merges: list({String.t(), String.t()}),
           special_tokens: map(),
-          token_types: list(map())
+          token_types: list(map()),
+          chat_template: String.t() | nil
         }
 
   def new(vocab, merges, unknown_token)
@@ -44,7 +46,8 @@ defmodule Llamex.Tokenizer.BPE do
       unknown_token: unknown_token,
       merges: Enum.map(merges, &parse_merge/1),
       special_tokens: Keyword.get(opts, :special_tokens, %{}),
-      token_types: Keyword.get(opts, :token_types, [])
+      token_types: Keyword.get(opts, :token_types, []),
+      chat_template: Keyword.get(opts, :chat_template)
     }
   end
 

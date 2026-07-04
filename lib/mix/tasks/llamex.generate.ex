@@ -19,7 +19,8 @@ defmodule Mix.Tasks.Llamex.Generate do
           top_k: :integer,
           top_p: :float,
           repetition_penalty: :float,
-          seed: :integer
+          seed: :integer,
+          chat: :boolean
         ],
         aliases: [t: :temperature, k: :top_k, p: :top_p, s: :seed]
       )
@@ -40,6 +41,8 @@ defmodule Mix.Tasks.Llamex.Generate do
 
     model = load_model(model_path)
     max_new_tokens = String.to_integer(max_new_tokens)
+
+    prompt = maybe_apply_chat_template(model, prompt, options)
 
     result =
       Llamex.generate(model, prompt, %{
@@ -80,4 +83,10 @@ defmodule Mix.Tasks.Llamex.Generate do
       Llamex.ModelLoader.load_json(model_path)
     end
   end
+
+  defp maybe_apply_chat_template(model, prompt, %{chat: true}) do
+    Llamex.ChatTemplate.apply(model.tokenizer.chat_template, prompt)
+  end
+
+  defp maybe_apply_chat_template(_model, prompt, _options), do: prompt
 end

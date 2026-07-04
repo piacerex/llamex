@@ -46,7 +46,8 @@ defmodule Llamex.GGUF.ModelLoader do
       "unknown_token" => tokenizer.unknown_token,
       "vocab" => tokenizer.token_to_id,
       "special_tokens" => tokenizer.special_tokens,
-      "token_types" => tokenizer.token_types
+      "token_types" => tokenizer.token_types,
+      "chat_template" => tokenizer.chat_template
     }
     |> put_merges(tokenizer)
   end
