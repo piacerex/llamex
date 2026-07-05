@@ -39,6 +39,7 @@ defmodule Llamex.Backend.NxEXLA do
     end
 
     :persistent_term.put(@config_key, configured_info(target, client))
+    clear_process_caches()
 
     :ok
   end
@@ -80,6 +81,11 @@ defmodule Llamex.Backend.NxEXLA do
     %{
       rope_trig_entries: Process.get(@rope_trig_cache_key, %{}) |> map_size()
     }
+  end
+
+  def clear_process_caches do
+    Process.delete(@rope_trig_cache_key)
+    :ok
   end
 
   @impl true

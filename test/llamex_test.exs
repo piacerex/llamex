@@ -555,6 +555,9 @@ defmodule LlamexTest do
       expected = Llamex.Backend.List.rope([1.0, 2.0, 3.0, 4.0, 5.0], 1, 10_000.0, 4)
 
       assert cached_result == result
+      assert Llamex.Backend.NxEXLA.cache_stats().rope_trig_entries >= 1
+      assert :ok = Llamex.Backend.NxEXLA.clear_process_caches()
+      assert Llamex.Backend.NxEXLA.cache_stats().rope_trig_entries == 0
 
       Enum.zip(result, expected)
       |> Enum.each(fn {actual, expected} ->
