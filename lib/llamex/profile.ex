@@ -31,6 +31,40 @@ defmodule Llamex.Profile do
     }
   end
 
+  def prefill_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
+    backend = Map.get(opts, :backend, Llamex.Backend.List)
+    prompt_tokens = Llamex.encode(model, prompt)
+    context = Llamex.Context.new(model, backend)
+    prefill_tokens = Enum.drop(prompt_tokens, -1)
+
+    {steps, context} =
+      prefill_tokens
+      |> Enum.with_index(1)
+      |> Enum.reduce({[], context}, fn {token, index}, {steps, context} ->
+        {timing, {context, _logits}} =
+          timed("prefill_#{index}", fn ->
+            Llamex.Engine.eval(context, token)
+          end)
+
+        step = %{
+          index: index,
+          token: token,
+          piece: Map.fetch!(model.tokenizer.id_to_token, token),
+          timing: timing
+        }
+
+        {[step | steps], context}
+      end)
+
+    %{
+      prompt_tokens: prompt_tokens,
+      current_token: List.last(prompt_tokens),
+      current_piece: Map.fetch!(model.tokenizer.id_to_token, List.last(prompt_tokens)),
+      context_tokens: context.tokens,
+      steps: Enum.reverse(steps)
+    }
+  end
+
   def generation_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
     backend = Map.get(opts, :backend, Llamex.Backend.List)
     sampler = Map.get(opts, :sampler, :greedy)

@@ -396,6 +396,31 @@ defmodule LlamexTest do
     assert Enum.all?(profile.timings, &is_integer(&1.milliseconds))
   end
 
+  test "profiles prefill tokens individually" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    profile = Llamex.Profile.prefill_steps(model, "hello world", %{backend: Llamex.Backend.List})
+
+    assert profile.prompt_tokens == [1, 2]
+    assert profile.current_token == 2
+    assert profile.current_piece == "world"
+    assert profile.context_tokens == [1]
+    assert Enum.map(profile.steps, & &1.token) == [1]
+    assert Enum.map(profile.steps, & &1.piece) == ["hello"]
+    assert Enum.map(profile.steps, & &1.timing.label) == ["prefill_1"]
+  end
+
   test "profiles multiple generation steps" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
