@@ -2124,7 +2124,38 @@ defmodule LlamexTest do
     assert info["exla_available?"]
     assert info["target"] == "cpu"
     assert info["client"] == "host"
+    assert info["target_available?"]
     assert is_map(info["supported_platforms"])
+  end
+
+  test "exla info task reports unavailable GPU targets" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Exla.Info.run(["--target", "cuda", "--json"])
+      end)
+
+    info = JSON.decode!(String.trim(output))
+
+    assert info["client"] == "cuda"
+
+    if Map.has_key?(info["supported_platforms"], "cuda") do
+      assert info["target_available?"]
+    else
+      refute info["target_available?"]
+    end
+  end
+
+  test "nx_exla configure rejects unavailable cuda clients" do
+    info = Llamex.Backend.NxEXLA.info(:cuda)
+
+    if info.target_available? do
+      assert :ok = Llamex.Backend.NxEXLA.configure!(:cuda)
+      Llamex.Backend.NxEXLA.configure!(:cpu)
+    else
+      assert_raise RuntimeError, ~r/EXLA client :cuda is not available/, fn ->
+        Llamex.Backend.NxEXLA.configure!(:cuda)
+      end
+    end
   end
 
   test "exla info task rejects unknown targets" do

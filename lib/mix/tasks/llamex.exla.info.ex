@@ -42,6 +42,7 @@ defmodule Mix.Tasks.Llamex.Exla.Info do
       "EXLA available: #{info.exla_available?}",
       "target: #{info.target}",
       "client: #{info.client}",
+      "target available: #{info.target_available?}",
       "XLA_TARGET: #{info.xla_target || "not set"}",
       "supported platforms: #{format_platforms(info.supported_platforms)}"
     ]

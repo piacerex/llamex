@@ -69,6 +69,8 @@ mix llamex.generate model.gguf "Hello" 8 --backend nx_exla --exla rocm
 
 `--exla cpu` maps to EXLA's `:host` client. `--exla cuda` and `--exla rocm`
 require matching XLA binaries and GPU runtime setup, including `XLA_TARGET`.
+Use `mix llamex.exla.info --target TARGET --json` and check
+`target_available?` before running a GPU target.
 The same configuration is available from Elixir with
 `Llamex.Backend.NxEXLA.configure!(:cpu | :cuda | :rocm)`.
 

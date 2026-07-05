@@ -28,6 +28,8 @@ defmodule Llamex.Backend.NxEXLA do
     nx = nx!()
     exla = exla!()
 
+    validate_client_available!(client)
+
     apply(nx, :global_default_backend, [{Module.concat(exla, Backend), client: client}])
 
     if Code.ensure_loaded?(Nx.Defn) do
@@ -61,6 +63,7 @@ defmodule Llamex.Backend.NxEXLA do
       target: normalize_target(target),
       client: target_client,
       supported_platforms: supported_platforms(),
+      target_available?: client_available?(target_client),
       xla_target: System.get_env("XLA_TARGET")
     }
   end
@@ -201,6 +204,28 @@ defmodule Llamex.Backend.NxEXLA do
     end
   rescue
     _exception -> %{}
+  end
+
+  defp validate_client_available!(client) do
+    if client_available?(client) do
+      :ok
+    else
+      raise "EXLA client #{inspect(client)} is not available; supported platforms: #{format_platforms(supported_platforms())}"
+    end
+  end
+
+  defp client_available?(client) do
+    platforms = supported_platforms()
+    platforms == %{} or Map.has_key?(platforms, client)
+  end
+
+  defp format_platforms(platforms) when map_size(platforms) == 0, do: "unknown"
+
+  defp format_platforms(platforms) do
+    platforms
+    |> Map.keys()
+    |> Enum.sort()
+    |> Enum.map_join(", ", &to_string/1)
   end
 
   defp normalize_target(target) when is_binary(target) do
