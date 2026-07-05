@@ -9,6 +9,7 @@ mix test
 mix llamex.generate priv/models/tiny.json hello 2
 mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --top-p 0.9 --seed 42
 mix llamex.generate priv/models/tiny.json hello 2 --profile
+mix llamex.generate model.gguf "The" 1 --natural --profile --candidates 5
 mix llamex.generate priv/models/tiny.json hello 2 --profile --no-stop
 mix llamex.generate priv/models/tiny.json hello 2 --stop-token 2
 mix llamex.generate priv/models/tiny.json hello 2 --stop-piece world
@@ -185,7 +186,8 @@ timings so backend setup cost is visible. Each generated step includes
 `eval_timings` with per-layer `attention_norm`, `attention`, `mlp`,
 `output_norm`, and `logits` timings; `mlp` is further split into
 `feed_forward_norm`, `w_gate`, `w_up`, `silu_multiply`, `w_down`, and
-`residual`.
+`residual`. Add `--candidates N` with `--profile` to inspect the top sampled
+candidate token pieces and probabilities for each generated step.
 Use `--stop-token ID`, `--stop-piece TOKEN`, `--stop-special eos`, or
 `--stop-control` to override inferred EOS/stop behavior, or `--no-stop` to force
 generation to continue until `max_new_tokens`.

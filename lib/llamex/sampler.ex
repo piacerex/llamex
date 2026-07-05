@@ -8,9 +8,25 @@ defmodule Llamex.Sampler do
   end
 
   def sample(logits, backend, opts) when is_atom(backend) and is_map(opts) do
+    random = Map.fetch!(opts, :random)
+
+    logits
+    |> distribution(backend, opts)
+    |> draw(random)
+  end
+
+  def candidates(logits, backend, opts, limit)
+      when is_atom(backend) and is_map(opts) and is_integer(limit) and limit > 0 do
+    logits
+    |> distribution(backend, opts)
+    |> Enum.sort_by(fn {probability, _index} -> probability end, :desc)
+    |> Enum.take(limit)
+    |> Enum.map(fn {probability, index} -> %{token: index, probability: probability} end)
+  end
+
+  defp distribution(logits, backend, opts) do
     values = backend.to_list(logits)
     temperature = Map.fetch!(opts, :temperature)
-    random = Map.fetch!(opts, :random)
 
     if temperature <= 0.0 do
       raise ArgumentError, "temperature must be greater than zero"
@@ -23,7 +39,6 @@ defmodule Llamex.Sampler do
     |> probabilities()
     |> apply_top_p(Map.get(opts, :top_p))
     |> normalize()
-    |> draw(random)
   end
 
   defp apply_repetition_penalty(values, _history, nil), do: values

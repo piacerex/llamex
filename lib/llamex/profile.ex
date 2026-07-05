@@ -15,18 +15,23 @@ defmodule Llamex.Profile do
   def generation_step(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
     backend = Map.get(opts, :backend, Llamex.Backend.List)
     sampler = Map.get(opts, :sampler, :greedy)
+    candidate_count = Map.get(opts, :candidate_count, 0)
 
     {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend)
 
     {step_time, step} =
       timed("step", fn ->
-        timed_step(state.context, state.current_token, %{sampler: sampler})
+        timed_step(state.context, state.current_token, %{
+          sampler: sampler,
+          candidate_count: candidate_count
+        })
       end)
 
     %{
       prompt_tokens: length(state.prompt_tokens),
       token: step.token,
       text: step.text,
+      candidates: token_candidates(model, step.candidates),
       eval_timings: step.eval_timings,
       prefill_timings: prefill_timings,
       timings: [prefill_time, step_time]
@@ -72,6 +77,7 @@ defmodule Llamex.Profile do
     sampler = Map.get(opts, :sampler, :greedy)
     max_new_tokens = Map.get(opts, :max_new_tokens, 1)
     stop_tokens = stop_tokens(opts)
+    candidate_count = Map.get(opts, :candidate_count, 0)
 
     {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend)
 
@@ -85,7 +91,8 @@ defmodule Llamex.Profile do
               timed_step(context, current_token, %{
                 sampler: sampler,
                 sampler_state: sampler_state,
-                history: context.tokens
+                history: context.tokens,
+                candidate_count: candidate_count
               })
             end)
 
@@ -96,7 +103,8 @@ defmodule Llamex.Profile do
               index: index,
               text: step.text,
               timing: step_time,
-              eval_timings: step.eval_timings
+              eval_timings: step.eval_timings,
+              candidates: token_candidates(model, step.candidates)
             })
 
           finish_reason = if stop_token?(step.token, stop_tokens), do: :stop, else: :length
@@ -174,8 +182,10 @@ defmodule Llamex.Profile do
     sampler = Map.get(opts, :sampler, :greedy)
     history = Map.get(opts, :history, context.tokens)
     sampler_state = Map.get(opts, :sampler_state) || new_sampler_state(sampler)
+    candidate_count = Map.get(opts, :candidate_count, 0)
 
     {context, logits, eval_timings} = timed_eval(context, current_token)
+    candidates = candidates(logits, context, sampler, history, candidate_count)
 
     {token, sampler_state} =
       case sampler do
@@ -200,8 +210,29 @@ defmodule Llamex.Profile do
       token: token,
       text: Llamex.decode(context.model, [token]),
       sampler_state: sampler_state,
+      candidates: candidates,
       eval_timings: eval_timings
     }
+  end
+
+  defp candidates(_logits, _context, _sampler, _history, count) when count <= 0, do: []
+
+  defp candidates(logits, context, :greedy, _history, count) do
+    logits
+    |> context.backend.to_list()
+    |> Enum.with_index()
+    |> Enum.sort_by(fn {logit, _token} -> logit end, :desc)
+    |> Enum.take(count)
+    |> Enum.map(fn {logit, token} -> %{token: token, logit: logit} end)
+  end
+
+  defp candidates(logits, context, sampler, history, count) when is_map(sampler) do
+    Llamex.Sampler.candidates(
+      logits,
+      context.backend,
+      sampler |> Map.put(:history, history) |> Map.put_new(:random, 0.0),
+      count
+    )
   end
 
   defp new_sampler_state(:greedy), do: nil
@@ -367,6 +398,14 @@ defmodule Llamex.Profile do
       token: token_id,
       piece: Map.fetch!(model.tokenizer.id_to_token, token_id)
     })
+  end
+
+  defp token_candidates(model, candidates) do
+    Enum.map(candidates, fn %{token: token} = candidate ->
+      model
+      |> token_info(token)
+      |> Map.merge(Map.delete(candidate, :token))
+    end)
   end
 
   defp token_type(tokenizer, token_id) do

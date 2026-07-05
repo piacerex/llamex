@@ -347,6 +347,24 @@ defmodule LlamexTest do
            }) == 2
   end
 
+  test "reports sampled candidate probabilities" do
+    logits = Llamex.Backend.List.from_list([0.0, 1.0, 2.0])
+
+    candidates =
+      Llamex.Sampler.candidates(
+        logits,
+        Llamex.Backend.List,
+        %{
+          temperature: 1.0,
+          top_k: 2
+        },
+        2
+      )
+
+    assert Enum.map(candidates, & &1.token) == [2, 1]
+    assert Enum.all?(candidates, &is_float(&1.probability))
+  end
+
   test "applies repetition penalty before sampling" do
     logits = Llamex.Backend.List.from_list([3.0, 2.9, 0.0])
 
@@ -747,6 +765,25 @@ defmodule LlamexTest do
 
     assert Enum.map(profile["steps"], & &1["piece"]) == ["world"]
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
+  end
+
+  test "generate task can print candidate tokens in a generation profile" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello",
+          "1",
+          "--profile",
+          "--candidates",
+          "2"
+        ])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert [step] = profile["steps"]
+    assert Enum.map(step["candidates"], & &1["piece"]) == ["world", "hello"]
   end
 
   test "generate task can disable inferred stop token for profiling" do
