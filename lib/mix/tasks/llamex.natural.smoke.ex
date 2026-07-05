@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       mix llamex.natural.smoke model.gguf 3 --json --fail-on-issue
       mix llamex.natural.smoke model.gguf 3 --json --min-words 2
       mix llamex.natural.smoke model.gguf 8 --json --reject-open-ending
+      mix llamex.natural.smoke model.gguf 8 --json --complete-open-ending 4
       mix llamex.natural.smoke model.gguf 3 --prompt "Elixir is"
   """
 
@@ -25,6 +26,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           fail_on_issue: :boolean,
           json: :boolean,
           reject_open_ending: :boolean,
+          complete_open_ending: :integer,
           prompt: :keep,
           min_words: :integer,
           max_new_tokens: :integer,
@@ -66,6 +68,17 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
             sampler: sampler
           })
 
+        result =
+          maybe_complete_open_ending(
+            model,
+            prompt,
+            result,
+            sampler,
+            stop_tokens,
+            max_new_tokens,
+            options
+          )
+
         check =
           Llamex.Natural.smoke_check(model, result.generated_tokens, result.text, %{
             finish_reason: result.finish_reason,
@@ -77,6 +90,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           prompt: prompt,
           text: result.text,
           generated_tokens: result.generated_tokens,
+          completion_tokens: result.completion_tokens,
           finish_reason: result.finish_reason,
           ok: check.ok,
           issues: check.issues
@@ -102,6 +116,65 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     do: Mix.raise("min_words must be a positive integer, got: #{inspect(min_words)}")
 
   defp min_words(_options), do: 1
+
+  defp maybe_complete_open_ending(
+         model,
+         prompt,
+         result,
+         sampler,
+         stop_tokens,
+         _max_new_tokens,
+         options
+       ) do
+    extra_tokens = complete_open_ending(options)
+
+    if extra_tokens > 0 and result.finish_reason == :length and
+         Llamex.Natural.open_ending?(result.text) do
+      completion =
+        Llamex.generate(model, continuation_prompt(prompt, result.text), %{
+          backend: backend(options),
+          max_new_tokens: extra_tokens,
+          stop_tokens: stop_tokens,
+          sampler: sampler
+        })
+
+      %{
+        result
+        | text: append_completion_text(result.text, completion.text),
+          generated_tokens: result.generated_tokens ++ completion.generated_tokens,
+          finish_reason: completion.finish_reason
+      }
+      |> Map.put(:completion_tokens, completion.generated_tokens)
+    else
+      Map.put(result, :completion_tokens, [])
+    end
+  end
+
+  defp complete_open_ending(%{complete_open_ending: tokens})
+       when is_integer(tokens) and tokens >= 0,
+       do: tokens
+
+  defp complete_open_ending(%{complete_open_ending: tokens}),
+    do: Mix.raise("complete_open_ending must be a non-negative integer, got: #{inspect(tokens)}")
+
+  defp complete_open_ending(_options), do: 0
+
+  defp continuation_prompt(prompt, generated_text) do
+    if Regex.match?(~r/^[[:alnum:]]/u, generated_text) do
+      prompt <> " " <> generated_text
+    else
+      prompt <> generated_text
+    end
+  end
+
+  defp append_completion_text(text, completion_text) do
+    if Regex.match?(~r/[[:alnum:]]$/u, text) and
+         Regex.match?(~r/^[[:alnum:]]/u, completion_text) do
+      text <> " " <> completion_text
+    else
+      text <> completion_text
+    end
+  end
 
   defp natural_sampler(model, options) do
     sampler_options =

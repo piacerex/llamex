@@ -1129,6 +1129,62 @@ defmodule LlamexTest do
     end
   end
 
+  test "natural smoke task can complete open endings" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-natural-complete-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 3, "embedding_size" => 2},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "hello",
+        "vocab" => %{"hello" => 0, "world" => 1, "." => 2}
+      },
+      "token_embeddings" => %{
+        "0" => [1.0, 0.0],
+        "1" => [0.0, 1.0],
+        "2" => [0.0, 0.0]
+      },
+      "output" => %{
+        "weight" => [
+          [0.0, 0.0],
+          [3.0, 0.0],
+          [2.0, 3.0]
+        ]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Natural.Smoke.run([
+            path,
+            "1",
+            "--json",
+            "--prompt",
+            "hello",
+            "--reject-open-ending",
+            "--complete-open-ending",
+            "1"
+          ])
+        end)
+
+      [result] = JSON.decode!(String.trim(output))
+
+      assert result["text"] == "world."
+      assert result["generated_tokens"] == [1, 2]
+      assert result["completion_tokens"] == [2]
+      assert result["ok"] == true
+    after
+      File.rm(path)
+    end
+  end
+
   test "natural smoke check reports raw sentencepiece markers" do
     assert Llamex.Natural.smoke_check(%{}, [], "hello▁world") == %{
              ok: false,

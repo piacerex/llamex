@@ -209,6 +209,8 @@ Add `--min-words N` to require generated text to contain at least that many word
 fragments.
 Add `--reject-open-ending` to report length-limited output that ends on an
 alphanumeric fragment.
+Add `--complete-open-ending N` to let the smoke task generate up to `N` extra
+tokens when that open ending is detected.
 Add `--fail-on-issue` to make the task raise when any prompt reports issues.
 
 Current GGUF generation baseline on

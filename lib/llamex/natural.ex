@@ -23,6 +23,10 @@ defmodule Llamex.Natural do
     |> Enum.map(& &1.id)
   end
 
+  def open_ending?(text) when is_binary(text) do
+    Regex.match?(~r/[[:alnum:]]$/u, String.trim(text))
+  end
+
   def smoke_check(model, generated_tokens, text, opts \\ %{})
       when is_list(generated_tokens) and is_binary(text) do
     min_words = Map.get(opts, :min_words, 1)
@@ -96,8 +100,6 @@ defmodule Llamex.Natural do
   defp add_issue(issues, false, _issue), do: issues
 
   defp text_content?(text), do: Regex.match?(~r/[[:alnum:]]/u, text)
-
-  defp open_ending?(text), do: Regex.match?(~r/[[:alnum:]]$/u, String.trim(text))
 
   defp word_count(text) do
     ~r/[[:alnum:]]+/u
