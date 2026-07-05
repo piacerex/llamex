@@ -12,6 +12,9 @@ defmodule Llamex.Backend.List do
   def from_list(values) when is_list(values), do: values
 
   @impl true
+  def prepare_model(model), do: model
+
+  @impl true
   def dot(left, right) when is_list(left) and is_list(right), do: dot(left, right, 0.0)
 
   defp dot([], [], acc), do: acc
@@ -21,6 +24,11 @@ defmodule Llamex.Backend.List do
   end
 
   defp dot(_left, _right, _acc), do: raise(ArgumentError, "vectors must have matching lengths")
+
+  @impl true
+  def matvec(rows, vector) when is_list(rows) and is_list(vector) do
+    Llamex.Tensor.matvec(rows, vector)
+  end
 
   @impl true
   def add(left, right) when is_list(left) and is_list(right) and length(left) == length(right) do

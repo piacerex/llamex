@@ -36,10 +36,11 @@ EXLA can be added by BEAM-only consumers that want an XLA compiler for Nx:
 {:exla, "~> 0.12.0"}
 ```
 
-The GGUF path still stores loaded weights as lists today, so selecting the Nx
-backend alone does not yet make existing GGUF generation fast. The next speed
-step is moving matvec-heavy layer execution or loaded tensors onto Nx/EXLA while
-keeping the List backend as the AtomVM reference path.
+The Nx backend prepares projection matrices as Nx tensors when a context is
+created, but selecting it alone does not yet make existing GGUF generation fast.
+The next speed step is reducing Nx preparation overhead and moving more of the
+matvec-heavy layer execution onto Nx/EXLA while keeping the List backend as the
+AtomVM reference path.
 
 ## Model JSON
 

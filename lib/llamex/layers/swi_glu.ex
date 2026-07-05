@@ -6,16 +6,17 @@ defmodule Llamex.Layers.SwiGLU do
   alias Llamex.Tensor
   alias Llamex.Layers.Linear
 
-  def forward(input, layer) when is_list(input) and is_map(layer) do
+  def forward(input, layer, backend \\ Llamex.Backend.List)
+      when is_list(input) and is_map(layer) do
     gate =
       input
-      |> Linear.forward(Map.fetch!(layer, :w_gate))
+      |> Linear.forward(Map.fetch!(layer, :w_gate), backend)
       |> Tensor.silu()
 
-    up = Linear.forward(input, Map.fetch!(layer, :w_up))
+    up = Linear.forward(input, Map.fetch!(layer, :w_up), backend)
 
     gate
     |> Tensor.multiply(up)
-    |> Linear.forward(Map.fetch!(layer, :w_down))
+    |> Linear.forward(Map.fetch!(layer, :w_down), backend)
   end
 end

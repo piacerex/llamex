@@ -9,7 +9,9 @@ defmodule Llamex.Backend do
   @type tensor :: term()
 
   @callback from_list(list(number())) :: tensor()
+  @callback prepare_model(Llamex.Model.t()) :: Llamex.Model.t()
   @callback dot(tensor(), tensor()) :: number()
+  @callback matvec(tensor(), list(number())) :: list(number())
   @callback add(tensor(), tensor()) :: tensor()
   @callback argmax(tensor()) :: non_neg_integer()
   @callback to_list(tensor()) :: list(number())

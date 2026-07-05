@@ -17,7 +17,7 @@ defmodule Llamex.Engine do
 
     logits =
       if context.model.output do
-        Linear.forward(hidden, Map.fetch!(context.model.output, :weight))
+        Linear.forward(hidden, Map.fetch!(context.model.output, :weight), context.backend)
       else
         embedding_logits(context, hidden)
       end
@@ -61,26 +61,27 @@ defmodule Llamex.Engine do
           context.kv_cache,
           layer_index,
           position,
-          context.model.config.rope_theta
+          context.model.config.rope_theta,
+          context.backend
         )
 
       hidden = Tensor.add(hidden, attention)
-      hidden = maybe_apply_mlp(hidden, layer, context.model.config.epsilon)
+      hidden = maybe_apply_mlp(hidden, layer, context.model.config.epsilon, context.backend)
 
       {%{context | kv_cache: kv_cache}, hidden}
     end)
   end
 
-  defp maybe_apply_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon) do
+  defp maybe_apply_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon, backend) do
     feed_forward =
       hidden
       |> RMSNorm.forward(feed_forward_norm, epsilon)
-      |> SwiGLU.forward(layer)
+      |> SwiGLU.forward(layer, backend)
 
     Tensor.add(hidden, feed_forward)
   end
 
-  defp maybe_apply_mlp(hidden, _layer, _epsilon), do: hidden
+  defp maybe_apply_mlp(hidden, _layer, _epsilon, _backend), do: hidden
 
   defp maybe_apply_output_norm(hidden, nil, _epsilon), do: hidden
 
@@ -97,8 +98,14 @@ defmodule Llamex.Engine do
     end)
   end
 
-  defp greedy_token(%{model: %{output: %{weight: weight}}}, hidden) do
+  defp greedy_token(%{backend: Llamex.Backend.List, model: %{output: %{weight: weight}}}, hidden) do
     Tensor.argmax_matvec(weight, hidden)
+  end
+
+  defp greedy_token(%{backend: backend, model: %{output: %{weight: weight}}}, hidden) do
+    hidden
+    |> Linear.forward(weight, backend)
+    |> Llamex.Backend.List.argmax()
   end
 
   defp greedy_token(context, hidden) do

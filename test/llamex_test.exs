@@ -426,6 +426,34 @@ defmodule LlamexTest do
     assert step.context.tokens == [1]
   end
 
+  test "nx backend can generate through prepared output weights" do
+    if Code.ensure_loaded?(Nx) do
+      tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+      model =
+        Llamex.new_model(%{
+          config: %{vocab_size: 3, embedding_size: 2},
+          tokenizer: tokenizer,
+          token_embeddings: %{
+            0 => [0.0, 0.0],
+            1 => [1.0, 0.0],
+            2 => [2.0, 0.0]
+          },
+          output: %{weight: [[0.0, 0.0], [0.0, 1.0], [2.0, 0.0]]}
+        })
+
+      result =
+        Llamex.generate(model, "hello", %{
+          backend: Llamex.Backend.Nx,
+          max_new_tokens: 1,
+          stop_tokens: [2]
+        })
+
+      assert result.generated_tokens == [2]
+      assert result.finish_reason == :stop
+    end
+  end
+
   test "profiles one generation step" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
