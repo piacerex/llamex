@@ -2112,6 +2112,27 @@ defmodule LlamexTest do
     end
   end
 
+  test "exla info task prints target info as json" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Exla.Info.run(["--target", "cpu", "--json"])
+      end)
+
+    info = JSON.decode!(String.trim(output))
+
+    assert info["nx_available?"]
+    assert info["exla_available?"]
+    assert info["target"] == "cpu"
+    assert info["client"] == "host"
+    assert is_map(info["supported_platforms"])
+  end
+
+  test "exla info task rejects unknown targets" do
+    assert_raise Mix.Error, ~r/unsupported EXLA target/, fn ->
+      Mix.Tasks.Llamex.Exla.Info.run(["--target", "metal"])
+    end
+  end
+
   test "generate task can use an explicit special stop token" do
     path =
       Path.join(

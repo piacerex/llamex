@@ -59,6 +59,9 @@ EXLA can be added by BEAM-only consumers that want an XLA compiler for Nx:
 EXLA targets can be selected from the CLI:
 
 ```bash
+mix llamex.exla.info --target cpu
+mix llamex.exla.info --target cuda --json
+mix llamex.exla.info --target rocm --json
 mix llamex.generate model.gguf "Hello" 8 --backend nx_exla --exla cpu
 mix llamex.generate model.gguf "Hello" 8 --backend nx_exla --exla cuda
 mix llamex.generate model.gguf "Hello" 8 --backend nx_exla --exla rocm

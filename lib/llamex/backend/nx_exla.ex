@@ -52,6 +52,19 @@ defmodule Llamex.Backend.NxEXLA do
     KeyError -> raise ArgumentError, "unsupported EXLA target: #{inspect(target)}"
   end
 
+  def info(target \\ :cpu) do
+    target_client = client(target)
+
+    %{
+      nx_available?: Code.ensure_loaded?(Nx),
+      exla_available?: Code.ensure_loaded?(EXLA) and Code.ensure_loaded?(EXLA.Backend),
+      target: normalize_target(target),
+      client: target_client,
+      supported_platforms: supported_platforms(),
+      xla_target: System.get_env("XLA_TARGET")
+    }
+  end
+
   @impl true
   def from_list(values) when is_list(values) do
     apply(nx!(), :tensor, [values, [type: {:f, 32}]])
@@ -178,6 +191,25 @@ defmodule Llamex.Backend.NxEXLA do
       raise "EXLA is not available; add {:exla, ...} and run mix deps.get"
     end
   end
+
+  defp supported_platforms do
+    if Code.ensure_loaded?(EXLA.Client) and
+         function_exported?(EXLA.Client, :get_supported_platforms, 0) do
+      EXLA.Client.get_supported_platforms()
+    else
+      %{}
+    end
+  rescue
+    _exception -> %{}
+  end
+
+  defp normalize_target(target) when is_binary(target) do
+    target
+    |> String.downcase()
+    |> String.to_existing_atom()
+  end
+
+  defp normalize_target(target) when is_atom(target), do: target
 
   defp prepare_layer(layer) do
     [:wq, :wk, :wv, :wo, :w_gate, :w_up, :w_down]
