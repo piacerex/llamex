@@ -39,6 +39,16 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.decode(tokenizer, [5]) == "low"
   end
 
+  test "encodes sentencepiece word starts when available" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "Hello" => 1, "▁Hello" => 2, "world" => 3, "▁world" => 4},
+        "<unk>"
+      )
+
+    assert Llamex.Tokenizer.encode(tokenizer, "Hello world") == [2, 4]
+  end
+
   test "encodes chat template special tokens before byte fallback" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
