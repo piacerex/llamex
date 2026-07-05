@@ -19,7 +19,7 @@ defmodule Llamex.Sampler do
     values
     |> apply_repetition_penalty(Map.get(opts, :history, []), Map.get(opts, :repetition_penalty))
     |> apply_temperature(temperature)
-    |> apply_top_k(Map.get(opts, :top_k))
+    |> top_k_candidates(Map.get(opts, :top_k))
     |> probabilities()
     |> apply_top_p(Map.get(opts, :top_p))
     |> normalize()
@@ -50,80 +50,63 @@ defmodule Llamex.Sampler do
     Enum.map(values, &(&1 / temperature))
   end
 
-  defp apply_top_k(values, nil), do: values
-
-  defp apply_top_k(values, top_k) when is_integer(top_k) and top_k > 0 do
-    threshold =
-      values
-      |> Enum.sort(:desc)
-      |> Enum.at(top_k - 1)
-
-    Enum.map(values, fn value ->
-      if value >= threshold do
-        value
-      else
-        :negative_infinity
-      end
-    end)
+  defp top_k_candidates(values, nil) do
+    Enum.with_index(values)
   end
 
-  defp probabilities(values) do
-    finite_values = Enum.reject(values, &(&1 == :negative_infinity))
-    max = Enum.max(finite_values)
+  defp top_k_candidates(values, top_k) when is_integer(top_k) and top_k > 0 do
+    values
+    |> Enum.with_index()
+    |> Enum.sort_by(fn {value, _index} -> value end, :desc)
+    |> Enum.take(top_k)
+  end
+
+  defp probabilities(candidates) do
+    max = candidates |> Enum.map(fn {value, _index} -> value end) |> Enum.max()
 
     weighted =
-      Enum.map(values, fn
-        :negative_infinity -> 0.0
-        value -> :math.exp(value - max)
+      Enum.map(candidates, fn {value, index} ->
+        {:math.exp(value - max), index}
       end)
 
-    total = Enum.sum(weighted)
+    total = weighted |> Enum.map(fn {weight, _index} -> weight end) |> Enum.sum()
 
-    Enum.map(weighted, &(&1 / total))
+    Enum.map(weighted, fn {weight, index} -> {weight / total, index} end)
   end
 
   defp apply_top_p(probabilities, nil), do: probabilities
 
   defp apply_top_p(probabilities, top_p) when is_number(top_p) and top_p > 0.0 and top_p <= 1.0 do
-    kept =
-      probabilities
-      |> Enum.with_index()
-      |> Enum.sort_by(fn {probability, _index} -> probability end, :desc)
-      |> keep_until_top_p(top_p, 0.0, MapSet.new())
-
     probabilities
-    |> Enum.with_index()
-    |> Enum.map(fn {probability, index} ->
-      if MapSet.member?(kept, index), do: probability, else: 0.0
-    end)
+    |> Enum.sort_by(fn {probability, _index} -> probability end, :desc)
+    |> keep_until_top_p(top_p, 0.0, [])
   end
 
-  defp keep_until_top_p([], _top_p, _total, kept), do: kept
+  defp keep_until_top_p([], _top_p, _total, kept), do: Enum.reverse(kept)
 
   defp keep_until_top_p([{probability, index} | rest], top_p, total, kept) do
-    kept = MapSet.put(kept, index)
+    kept = [{probability, index} | kept]
     total = total + probability
 
     if total >= top_p do
-      kept
+      Enum.reverse(kept)
     else
       keep_until_top_p(rest, top_p, total, kept)
     end
   end
 
   defp normalize(probabilities) do
-    total = Enum.sum(probabilities)
+    total = probabilities |> Enum.map(fn {probability, _index} -> probability end) |> Enum.sum()
 
     if total == 0.0 do
       raise ArgumentError, "sampling filters removed all probabilities"
     end
 
-    Enum.map(probabilities, &(&1 / total))
+    Enum.map(probabilities, fn {probability, index} -> {probability / total, index} end)
   end
 
   defp draw(probabilities, random) when is_float(random) and random >= 0.0 and random < 1.0 do
     probabilities
-    |> Enum.with_index()
     |> Enum.reduce_while(random, fn {probability, index}, remaining ->
       if probability > 0.0 and remaining <= probability do
         {:halt, index}
