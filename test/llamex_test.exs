@@ -1232,9 +1232,9 @@ defmodule LlamexTest do
       "config" => %{"vocab_size" => 9, "embedding_size" => 9},
       "tokenizer" => %{
         "type" => "whitespace",
-        "unknown_token" => "hello",
+        "unknown_token" => "The",
         "vocab" => %{
-          "hello" => 0,
+          "The" => 0,
           "a" => 1,
           "b" => 2,
           "c" => 3,
@@ -1293,6 +1293,76 @@ defmodule LlamexTest do
       assert result["settings"]["min_words"] == 4
       assert result["settings"]["reject_open_ending"] == true
       assert result["settings"]["complete_open_ending"] == 4
+    after
+      File.rm(path)
+    end
+  end
+
+  test "natural baseline task uses the known GGUF prompt by default" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-natural-baseline-default-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 9, "embedding_size" => 9},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "The",
+        "vocab" => %{
+          "The" => 0,
+          "a" => 1,
+          "b" => 2,
+          "c" => 3,
+          "d" => 4,
+          "e" => 5,
+          "f" => 6,
+          "g" => 7,
+          "." => 8
+        }
+      },
+      "token_embeddings" => %{
+        "0" => [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "1" => [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "2" => [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "3" => [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "4" => [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+        "5" => [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+        "6" => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+        "7" => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+        "8" => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+      },
+      "output" => %{
+        "weight" => [
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 3.0]
+        ]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Natural.Baseline.run([
+            path,
+            "--json"
+          ])
+        end)
+
+      [result] = JSON.decode!(String.trim(output))
+
+      assert result["prompt"] == "The quick brown fox"
+      assert result["ok"] == true
     after
       File.rm(path)
     end
