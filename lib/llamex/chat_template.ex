@@ -3,11 +3,13 @@ defmodule Llamex.ChatTemplate do
   Minimal chat prompt formatting for tokenizer templates.
   """
 
+  import Kernel, except: [apply: 2, apply: 3]
+
   @chatml_template "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
   def supported?(nil), do: true
   def supported?(@chatml_template), do: true
-  def supported?(template) when is_binary(template), do: false
+  def supported?(template) when is_binary(template), do: role_marker_template?(template)
 
   def markers(nil), do: []
 
@@ -34,5 +36,28 @@ defmodule Llamex.ChatTemplate do
 
   def apply(template, _prompt) when is_binary(template) do
     raise ArgumentError, "unsupported chat template"
+  end
+
+  def apply(template, prompt, tokenizer) when is_binary(template) and is_binary(prompt) do
+    cond do
+      template == @chatml_template ->
+        apply(template, prompt)
+
+      role_marker_template?(template) ->
+        "<|user|>\n" <> prompt <> eos_token(tokenizer) <> "<|assistant|>"
+
+      true ->
+        raise ArgumentError, "unsupported chat template"
+    end
+  end
+
+  defp role_marker_template?(template) do
+    String.contains?(template, "<|user|>") and
+      String.contains?(template, "<|assistant|>") and
+      String.contains?(template, "eos_token")
+  end
+
+  defp eos_token(tokenizer) do
+    get_in(tokenizer.special_tokens, [:eos, :token]) || "</s>"
   end
 end

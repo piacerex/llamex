@@ -149,7 +149,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     tokenizer = model.tokenizer || Mix.raise("--chat requires a model tokenizer")
     validate_chat_tokenizer!(tokenizer)
 
-    Llamex.ChatTemplate.apply(tokenizer.chat_template, prompt)
+    Llamex.ChatTemplate.apply(tokenizer.chat_template, prompt, tokenizer)
   end
 
   defp maybe_apply_chat_template(_model, prompt, _options), do: prompt

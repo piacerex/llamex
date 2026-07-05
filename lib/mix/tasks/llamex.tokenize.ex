@@ -60,7 +60,7 @@ defmodule Mix.Tasks.Llamex.Tokenize do
   defp maybe_apply_chat_template(tokenizer, prompt, %{chat: true}) do
     validate_chat_tokenizer!(tokenizer)
 
-    Llamex.ChatTemplate.apply(tokenizer.chat_template, prompt)
+    Llamex.ChatTemplate.apply(tokenizer.chat_template, prompt, tokenizer)
   end
 
   defp maybe_apply_chat_template(_tokenizer, prompt, _options), do: prompt

@@ -87,6 +87,20 @@ defmodule LlamexTest do
            }) == ["<|im_end|>"]
   end
 
+  test "applies role marker chat templates with tokenizer eos token" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "</s>" => 1, "<|user|>" => 2, "<|assistant|>" => 3},
+        "<unk>",
+        special_tokens: %{eos: %{id: 1, token: "</s>"}}
+      )
+
+    assert Llamex.ChatTemplate.supported?(role_marker_template())
+
+    assert Llamex.ChatTemplate.apply(role_marker_template(), "Hello", tokenizer) ==
+             "<|user|>\nHello</s><|assistant|>"
+  end
+
   test "adds configured bos and eos tokens while encoding" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
@@ -1962,6 +1976,10 @@ defmodule LlamexTest do
 
   defp chatml_template do
     "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+  end
+
+  defp role_marker_template do
+    "{% for message in messages %}{% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}{% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n' + message['content'] + eos_token }}{% endif %}{% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}{% endif %}{% endfor %}"
   end
 
   defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]
