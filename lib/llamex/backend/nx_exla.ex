@@ -431,7 +431,7 @@ defmodule Llamex.Backend.NxEXLA do
 
   defp normalize_target(target) when is_atom(target), do: target
 
-  defp maybe_prepare_token_embeddings(%{token_embeddings: token_embeddings} = model) do
+  defp maybe_prepare_token_embeddings(%{output: nil, token_embeddings: token_embeddings} = model) do
     %{model | token_embeddings: prepare_token_embeddings(token_embeddings)}
   end
 
