@@ -9,7 +9,7 @@ defmodule Llamex.Engine do
 
   def eval(%Context{} = context, token) when is_integer(token) and token >= 0 do
     hidden = Map.fetch!(context.model.token_embeddings, token)
-    position = length(context.tokens)
+    position = context.token_count
     {context, hidden} = run_layers(context, hidden, position)
 
     hidden =
@@ -34,7 +34,7 @@ defmodule Llamex.Engine do
       )
       when is_integer(token) and token >= 0 and is_integer(top_k) and top_k > 0 and is_map(opts) do
     hidden = Map.fetch!(context.model.token_embeddings, token)
-    position = length(context.tokens)
+    position = context.token_count
     {context, hidden} = run_layers(context, hidden, position)
 
     hidden =
@@ -56,7 +56,7 @@ defmodule Llamex.Engine do
 
   def greedy_next_token(%Context{} = context, token) when is_integer(token) and token >= 0 do
     hidden = Map.fetch!(context.model.token_embeddings, token)
-    position = length(context.tokens)
+    position = context.token_count
     {context, hidden} = run_layers(context, hidden, position)
 
     hidden =

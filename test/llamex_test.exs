@@ -18,6 +18,7 @@ defmodule LlamexTest do
     {context, next_token} = Llamex.next_token(context, 0)
 
     assert context.tokens == [0]
+    assert context.token_count == 1
     assert next_token == 0
   end
 
