@@ -592,7 +592,9 @@ defmodule Llamex.Backend.NxEXLA do
 
     if is_number(penalty) and penalty > 0.0 and history != [] do
       repeated =
-        index_mask(history, vocab_size) |> tensor() |> then(&apply(nx, :equal, [&1, 1.0]))
+        history
+        |> index_mask_tensor(vocab_size, 1.0, nx)
+        |> then(&apply(nx, :equal, [&1, 1.0]))
 
       positive = apply(nx, :greater_equal, [logits, 0.0])
 
@@ -613,19 +615,25 @@ defmodule Llamex.Backend.NxEXLA do
     suppressed = Keyword.get(opts, :suppress_tokens, [])
 
     if is_list(suppressed) and suppressed != [] do
-      mask = suppressed |> index_mask(vocab_size) |> Enum.map(&(&1 * -1.0e30))
+      mask = index_mask_tensor(suppressed, vocab_size, -1.0e30, nx)
       apply(nx, :add, [logits, tensor(mask)])
     else
       logits
     end
   end
 
-  defp index_mask(indices, size) do
-    selected = indices |> Enum.filter(&(&1 >= 0 and &1 < size)) |> MapSet.new()
+  defp index_mask_tensor(indices, size, value, nx) do
+    indices = Enum.filter(indices, &(&1 >= 0 and &1 < size))
 
-    Enum.map(0..(size - 1), fn index ->
-      if MapSet.member?(selected, index), do: 1.0, else: 0.0
-    end)
+    if indices == [] do
+      tensor(List.duplicate(0.0, size))
+    else
+      target = 0.0 |> tensor() |> then(&apply(nx, :broadcast, [&1, {size}]))
+      updates = tensor(List.duplicate(value, length(indices)))
+      indexed = indices |> Enum.map(&[&1]) |> int_tensor()
+
+      apply(nx, :indexed_put, [target, indexed, updates])
+    end
   end
 
   defp maybe_prepare_combined(layer, combined_key, keys) do
@@ -646,4 +654,7 @@ defmodule Llamex.Backend.NxEXLA do
 
   defp tensor(values) when is_list(values), do: apply(nx!(), :tensor, [values, [type: {:f, 32}]])
   defp tensor(value), do: value
+
+  defp int_tensor(values) when is_list(values),
+    do: apply(nx!(), :tensor, [values, [type: {:s, 32}]])
 end
