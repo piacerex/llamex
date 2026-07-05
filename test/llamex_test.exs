@@ -225,6 +225,46 @@ defmodule LlamexTest do
     assert [{_key, _value}] = Llamex.KVCache.entries(context.kv_cache, 0)
   end
 
+  test "profiles SwiGLU feed-forward substeps" do
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 2, embedding_size: 2},
+        tokenizer: Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1}, "<unk>"),
+        token_embeddings: %{
+          0 => [1.0, 0.0],
+          1 => [0.0, 1.0]
+        },
+        layers: [
+          %{
+            attention_norm: [1.0, 1.0],
+            feed_forward_norm: [1.0, 1.0],
+            wq: [[1.0, 0.0], [0.0, 1.0]],
+            wk: [[1.0, 0.0], [0.0, 1.0]],
+            wv: [[1.0, 0.0], [0.0, 1.0]],
+            wo: [[1.0, 0.0], [0.0, 1.0]],
+            w_gate: [[1.0, 0.0], [0.0, 1.0]],
+            w_up: [[1.0, 0.0], [0.0, 1.0]],
+            w_down: [[1.0, 0.0], [0.0, 1.0]]
+          }
+        ],
+        output: %{weight: [[1.0, 0.0], [0.0, 1.0]]}
+      })
+
+    profile = Llamex.Profile.generation_step(model, "hello", %{backend: Llamex.Backend.List})
+
+    [layer] = profile.eval_timings.layers
+    mlp = Enum.find(layer.components, &(&1.label == "mlp"))
+
+    assert Enum.map(mlp.components, & &1.label) == [
+             "feed_forward_norm",
+             "w_gate",
+             "w_up",
+             "silu_multiply",
+             "w_down",
+             "residual"
+           ]
+  end
+
   test "runs multi-head attention" do
     model =
       Llamex.new_model(%{

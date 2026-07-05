@@ -4,7 +4,7 @@ defmodule Llamex.Profile do
   """
 
   alias Llamex.{Context, Tensor}
-  alias Llamex.Layers.{Attention, Linear, RMSNorm, SwiGLU}
+  alias Llamex.Layers.{Attention, Linear, RMSNorm}
 
   def timed(label, fun) when is_binary(label) and is_function(fun, 0) do
     {microseconds, result} = :timer.tc(fun)
@@ -279,25 +279,53 @@ defmodule Llamex.Profile do
 
     hidden = Tensor.add(hidden, attention)
 
-    {mlp_time, hidden} =
+    {mlp_time, {hidden, mlp_timings}} =
       timed("mlp", fn ->
-        maybe_apply_mlp(hidden, layer, context.model.config.epsilon, context.backend)
+        timed_mlp(hidden, layer, context.model.config.epsilon, context.backend)
       end)
 
+    mlp_time = Map.put(mlp_time, :components, mlp_timings)
     component_timings = [attention_norm_time, attention_time, mlp_time]
     {%{context | kv_cache: kv_cache}, hidden, component_timings}
   end
 
-  defp maybe_apply_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon, backend) do
-    feed_forward =
-      hidden
-      |> RMSNorm.forward(feed_forward_norm, epsilon)
-      |> SwiGLU.forward(layer, backend)
+  defp timed_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon, backend) do
+    {norm_time, normalized} =
+      timed("feed_forward_norm", fn ->
+        RMSNorm.forward(hidden, feed_forward_norm, epsilon)
+      end)
 
-    Tensor.add(hidden, feed_forward)
+    {gate_time, gate} =
+      timed("w_gate", fn ->
+        Linear.forward(normalized, Map.fetch!(layer, :w_gate), backend)
+      end)
+
+    {up_time, up} =
+      timed("w_up", fn ->
+        Linear.forward(normalized, Map.fetch!(layer, :w_up), backend)
+      end)
+
+    {activation_time, activated} =
+      timed("silu_multiply", fn ->
+        gate
+        |> Tensor.silu()
+        |> Tensor.multiply(up)
+      end)
+
+    {down_time, down} =
+      timed("w_down", fn ->
+        Linear.forward(activated, Map.fetch!(layer, :w_down), backend)
+      end)
+
+    {residual_time, hidden} =
+      timed("residual", fn ->
+        Tensor.add(hidden, down)
+      end)
+
+    {hidden, [norm_time, gate_time, up_time, activation_time, down_time, residual_time]}
   end
 
-  defp maybe_apply_mlp(hidden, _layer, _epsilon, _backend), do: hidden
+  defp timed_mlp(hidden, _layer, _epsilon, _backend), do: {hidden, []}
 
   defp maybe_apply_output_norm(hidden, nil, _epsilon), do: hidden
 
