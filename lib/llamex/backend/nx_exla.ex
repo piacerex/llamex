@@ -400,13 +400,14 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   defp maybe_prepare_tied_output(%{output: nil, token_embeddings: token_embeddings} = model) do
+    order = token_embedding_order(model)
+
     weight =
-      model
-      |> token_embedding_order()
+      order
       |> Enum.map(&Map.fetch!(token_embeddings, &1))
       |> stack_tensors()
 
-    %{model | output: %{weight: weight}}
+    %{model | token_embeddings: row_tensor_map(weight, order), output: %{weight: weight}}
   end
 
   defp maybe_prepare_tied_output(model), do: model
@@ -419,6 +420,22 @@ defmodule Llamex.Backend.NxEXLA do
     token_embeddings
     |> Map.keys()
     |> Enum.sort()
+  end
+
+  defp row_tensor_map(weight, order) do
+    nx = nx!()
+    {_row_count, column_count} = shape(weight)
+
+    order
+    |> Enum.with_index()
+    |> Map.new(fn {token, row_index} ->
+      row =
+        weight
+        |> then(&apply(nx, :slice, [&1, [row_index, 0], [1, column_count]]))
+        |> then(&apply(nx, :reshape, [&1, {column_count}]))
+
+      {token, row}
+    end)
   end
 
   defp prepare_layer(layer) do
