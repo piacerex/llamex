@@ -510,9 +510,7 @@ defmodule Llamex.Backend.NxEXLA do
     left = apply(nx, :slice, [vector, [0], [half]])
     right = apply(nx, :slice, [vector, [half], [half]])
     pass_count = (vector |> shape() |> elem(0)) - dimension_count
-    angles = rope_angles(position, theta, dimension_count, half)
-    cos = angles |> Enum.map(&:math.cos/1) |> tensor()
-    sin = angles |> Enum.map(&:math.sin/1) |> tensor()
+    {cos, sin} = rope_trig_tensors(position, theta, dimension_count, half)
 
     rotated_left =
       apply(nx, :subtract, [
@@ -579,9 +577,7 @@ defmodule Llamex.Backend.NxEXLA do
     left = apply(nx, :slice, [heads, [0, 0], [head_count, half]])
     right = apply(nx, :slice, [heads, [0, half], [head_count, half]])
     pass_count = head_size - dimension_count
-    angles = rope_angles(position, theta, dimension_count, half)
-    cos = angles |> Enum.map(&:math.cos/1) |> tensor()
-    sin = angles |> Enum.map(&:math.sin/1) |> tensor()
+    {cos, sin} = rope_trig_tensors(position, theta, dimension_count, half)
 
     rotated_left =
       apply(nx, :subtract, [
@@ -731,6 +727,15 @@ defmodule Llamex.Backend.NxEXLA do
     Enum.map(0..(half - 1), fn pair_index ->
       position / :math.pow(theta, 2 * pair_index / dimension_count)
     end)
+  end
+
+  defp rope_trig_tensors(position, theta, dimension_count, half) do
+    angles = rope_angles(position, theta, dimension_count, half)
+
+    {
+      angles |> Enum.map(&:math.cos/1) |> tensor(),
+      angles |> Enum.map(&:math.sin/1) |> tensor()
+    }
   end
 
   defp softmax(values, nx) do
