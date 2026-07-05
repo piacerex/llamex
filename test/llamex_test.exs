@@ -1140,6 +1140,16 @@ defmodule LlamexTest do
     assert diagnostic.version == 3
     assert diagnostic.tensor_count == 1
     assert diagnostic.tensor_element_count == 4
+
+    assert diagnostic.tensor_shapes == [
+             %{
+               name: "token_embd.weight",
+               type: "type_99",
+               dimensions: [2, 2],
+               schema_shape: [2, 2]
+             }
+           ]
+
     assert diagnostic.eager_f32_bytes == 16
     assert diagnostic.supported_tensor_types == %{}
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
@@ -1157,6 +1167,10 @@ defmodule LlamexTest do
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template missing tokens: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor elements: 4"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "token_embd.weight=type_99 gguf:[2, 2] schema:[2, 2]"
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "eager f32 lower bound: 16 B"
   end
 
@@ -1178,6 +1192,16 @@ defmodule LlamexTest do
       assert diagnostic["version"] == 3
       assert diagnostic["chat_template"] == "none"
       assert diagnostic["chat_usable"] == false
+
+      assert diagnostic["tensor_shapes"] == [
+               %{
+                 "name" => "token_embd.weight",
+                 "type" => "type_99",
+                 "dimensions" => [2, 2],
+                 "schema_shape" => [2, 2]
+               }
+             ]
+
       assert diagnostic["special_tokens"] == %{}
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
     after

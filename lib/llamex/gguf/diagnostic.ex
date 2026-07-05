@@ -42,6 +42,7 @@ defmodule Llamex.GGUF.Diagnostic do
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
       missing_chat_template_tokens: missing_chat_template_tokens,
       tensor_element_count: tensor_element_count(gguf.tensors),
+      tensor_shapes: tensor_shapes(gguf.tensors),
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
       supported_tensor_types: supported_tensor_types(gguf.tensors),
       unsupported_tensor_types: unsupported_tensor_types(gguf.tensors),
@@ -61,6 +62,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "chat usable: #{diagnostic.chat_usable}",
       format_missing_chat_template_tokens(diagnostic.missing_chat_template_tokens),
       "tensor elements: #{diagnostic.tensor_element_count}",
+      "tensor shapes: #{format_tensor_shapes(diagnostic.tensor_shapes)}",
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
       "supported tensor types: #{format_type_counts(diagnostic.supported_tensor_types)}",
       "unsupported tensor types: #{format_type_counts(diagnostic.unsupported_tensor_types)}",
@@ -103,6 +105,35 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp eager_f32_bytes(tensors), do: tensor_element_count(tensors) * 4
+
+  defp tensor_shapes(tensors) do
+    interesting =
+      MapSet.new([
+        "token_embd.weight",
+        "output_norm.weight",
+        "output.weight",
+        "blk.0.attn_norm.weight",
+        "blk.0.attn_q.weight",
+        "blk.0.attn_k.weight",
+        "blk.0.attn_v.weight",
+        "blk.0.attn_output.weight",
+        "blk.0.ffn_norm.weight",
+        "blk.0.ffn_gate.weight",
+        "blk.0.ffn_up.weight",
+        "blk.0.ffn_down.weight"
+      ])
+
+    tensors
+    |> Enum.filter(&MapSet.member?(interesting, &1.name))
+    |> Enum.map(fn tensor ->
+      %{
+        name: tensor.name,
+        type: tensor_type_name(tensor.type),
+        dimensions: tensor.dimensions,
+        schema_shape: schema_shape(tensor.dimensions)
+      }
+    end)
+  end
 
   defp type_counts(tensors) do
     tensors
@@ -213,6 +244,16 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp format_bytes(bytes), do: "#{Float.round(bytes / 1024 / 1024 / 1024, 1)} GiB"
 
+  defp format_tensor_shapes([]), do: "none"
+
+  defp format_tensor_shapes(tensors) do
+    tensors
+    |> Enum.map(fn tensor ->
+      "#{tensor.name}=#{tensor.type} gguf:#{inspect(tensor.dimensions)} schema:#{inspect(tensor.schema_shape)}"
+    end)
+    |> Enum.join(", ")
+  end
+
   defp format_unsupported_tensors([]), do: ""
 
   defp format_unsupported_tensors(tensors) do
@@ -225,4 +266,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
     "unsupported tensors:\n" <> tensors
   end
+
+  defp schema_shape([columns, rows]), do: [rows, columns]
+  defp schema_shape(dimensions), do: dimensions
 end
