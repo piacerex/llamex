@@ -194,8 +194,8 @@ mix run -e 'model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol
 ```
 
 On the current List backend this is still slow for natural prose. A verified
-single-token run took about 48 seconds for prefill plus 12 seconds for one
-sampled step and produced token `7896` (`"asket"`). Treat this as the current
+single-token run took about 54 seconds for prefill plus 16 seconds for one
+sampled step and produced token `18966` (`"loyd"`). Treat this as the current
 known-good existing GGUF path; the remaining work for natural multi-sentence
 text is backend speed and tokenizer/template quality.
 

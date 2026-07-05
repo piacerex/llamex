@@ -75,6 +75,23 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.encode(tokenizer, "<|im_start|>user Hi<|im_end|>") == [1, 3, 4, 2]
   end
 
+  test "adds configured bos and eos tokens while encoding" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "<s>" => 1, "</s>" => 2, "hello" => 3},
+        "<unk>",
+        special_tokens: %{
+          bos: %{id: 1, token: "<s>"},
+          eos: %{id: 2, token: "</s>"},
+          add_bos: true,
+          add_eos: true
+        }
+      )
+
+    assert Llamex.Tokenizer.encode(tokenizer, "hello") == [1, 3, 2]
+    assert Llamex.Tokenizer.encode(tokenizer, "<s> hello </s>") == [1, 3, 2]
+  end
+
   test "decodes sentencepiece-style gguf tokens as plain text" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
@@ -1023,7 +1040,7 @@ defmodule LlamexTest do
                :normal
              ]
 
-      assert Llamex.encode(model, "hello") == [3]
+      assert Llamex.encode(model, "hello") == [1, 3]
     after
       File.rm(path)
     end

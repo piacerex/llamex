@@ -54,6 +54,7 @@ defmodule Llamex.Tokenizer.Whitespace do
       {:special, token} -> [Map.fetch!(tokenizer.token_to_id, token)]
       {:text, text} -> text |> String.split() |> Enum.flat_map(&encode_word(tokenizer, &1))
     end)
+    |> add_configured_special_tokens(tokenizer)
   end
 
   @impl true
@@ -160,4 +161,28 @@ defmodule Llamex.Tokenizer.Whitespace do
         end
     end
   end
+
+  defp add_configured_special_tokens(token_ids, tokenizer) do
+    token_ids
+    |> maybe_prepend_special(tokenizer.special_tokens[:add_bos], tokenizer.special_tokens[:bos])
+    |> maybe_append_special(tokenizer.special_tokens[:add_eos], tokenizer.special_tokens[:eos])
+  end
+
+  defp maybe_prepend_special(token_ids, true, %{id: id}) do
+    case token_ids do
+      [^id | _rest] -> token_ids
+      _other -> [id | token_ids]
+    end
+  end
+
+  defp maybe_prepend_special(token_ids, _enabled, _special), do: token_ids
+
+  defp maybe_append_special(token_ids, true, %{id: id}) do
+    case Enum.reverse(token_ids) do
+      [^id | _rest] -> token_ids
+      _other -> token_ids ++ [id]
+    end
+  end
+
+  defp maybe_append_special(token_ids, _enabled, _special), do: token_ids
 end
