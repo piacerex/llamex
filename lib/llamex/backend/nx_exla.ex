@@ -643,20 +643,22 @@ defmodule Llamex.Backend.NxEXLA do
 
     0..(kv_head_count - 1)
     |> Enum.map(fn kv_head_index ->
-      queries =
-        query_heads
-        |> Enum.with_index()
-        |> Enum.filter(fn {_query, head_index} ->
-          div(head_index * kv_head_count, head_count) == kv_head_index
-        end)
-        |> Enum.map(fn {query, _head_index} -> query end)
-
+      queries = query_group(query_heads, kv_head_index, head_count, kv_head_count)
       {keys, values} = Map.fetch!(cache, kv_head_index)
 
       attend_query_group(queries, keys, values)
     end)
     |> then(&apply(nx!(), :concatenate, [&1, [axis: 0]]))
   end
+
+  defp query_group(query_heads, kv_head_index, head_count, kv_head_count) do
+    start_index = ceil_div(kv_head_index * head_count, kv_head_count)
+    end_index = ceil_div((kv_head_index + 1) * head_count, kv_head_count)
+
+    Enum.slice(query_heads, start_index, end_index - start_index)
+  end
+
+  defp ceil_div(value, divisor), do: div(value + divisor - 1, divisor)
 
   defp attend_query_group([query], keys, values), do: attend_head_tensors(query, keys, values)
 
