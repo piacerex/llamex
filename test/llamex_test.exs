@@ -615,7 +615,7 @@ defmodule LlamexTest do
           Llamex.Backend.List
         )
 
-      {_nx_cache, nx_output} =
+      {nx_cache, nx_output} =
         Llamex.Layers.Attention.forward(
           [1.0, 2.0],
           prepared_layer,
@@ -626,6 +626,11 @@ defmodule LlamexTest do
           nil,
           Llamex.Backend.NxEXLA
         )
+
+      assert match?(%Nx.Tensor{}, nx_output)
+      assert [{[nx_key], [nx_value]}] = Llamex.KVCache.entries(nx_cache, 0)
+      assert match?(%Nx.Tensor{}, nx_key)
+      assert match?(%Nx.Tensor{}, nx_value)
 
       nx_output = Llamex.Backend.NxEXLA.to_list(nx_output)
 
@@ -656,10 +661,11 @@ defmodule LlamexTest do
       prepared = Llamex.Backend.NxEXLA.prepare_model(%{layers: [layer], output: nil})
       [prepared_layer] = prepared.layers
 
-      result =
-        [1.0, 2.0]
-        |> Llamex.Layers.SwiGLU.forward(prepared_layer, Llamex.Backend.NxEXLA)
-        |> Llamex.Backend.NxEXLA.to_list()
+      result = Llamex.Layers.SwiGLU.forward([1.0, 2.0], prepared_layer, Llamex.Backend.NxEXLA)
+
+      assert match?(%Nx.Tensor{}, result)
+
+      result = Llamex.Backend.NxEXLA.to_list(result)
 
       expected = Llamex.Layers.SwiGLU.forward([1.0, 2.0], layer, Llamex.Backend.List)
 
