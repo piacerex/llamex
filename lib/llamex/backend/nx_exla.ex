@@ -9,6 +9,49 @@ defmodule Llamex.Backend.NxEXLA do
 
   @behaviour Llamex.Backend
 
+  @clients %{
+    cpu: :host,
+    host: :host,
+    gpu: :cuda,
+    cuda: :cuda,
+    rocm: :rocm
+  }
+
+  @doc """
+  Configures Nx to allocate tensors on EXLA for the selected target.
+
+  Accepted targets are `:cpu`, `:host`, `:gpu`, `:cuda`, and `:rocm`.
+  `:gpu` maps to CUDA; use `:rocm` explicitly for AMD ROCm.
+  """
+  def configure!(target) do
+    client = client(target)
+    nx = nx!()
+    exla = exla!()
+
+    apply(nx, :global_default_backend, [{Module.concat(exla, Backend), client: client}])
+
+    if Code.ensure_loaded?(Nx.Defn) do
+      apply(Nx.Defn, :global_default_options, [[compiler: exla, client: client]])
+    end
+
+    :ok
+  end
+
+  def client(target) when is_binary(target) do
+    target
+    |> String.downcase()
+    |> String.to_existing_atom()
+    |> client()
+  rescue
+    ArgumentError -> raise ArgumentError, "unsupported EXLA target: #{inspect(target)}"
+  end
+
+  def client(target) when is_atom(target) do
+    Map.fetch!(@clients, target)
+  rescue
+    KeyError -> raise ArgumentError, "unsupported EXLA target: #{inspect(target)}"
+  end
+
   @impl true
   def from_list(values) when is_list(values) do
     apply(nx!(), :tensor, [values, [type: {:f, 32}]])
@@ -74,6 +117,14 @@ defmodule Llamex.Backend.NxEXLA do
       Nx
     else
       raise "Nx is not available; add {:nx, ...} and select an EXLA compiler if needed"
+    end
+  end
+
+  defp exla! do
+    if Code.ensure_loaded?(EXLA) and Code.ensure_loaded?(EXLA.Backend) do
+      EXLA
+    else
+      raise "EXLA is not available; add {:exla, ...} and run mix deps.get"
     end
   end
 

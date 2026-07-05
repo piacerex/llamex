@@ -329,6 +329,18 @@ defmodule LlamexTest do
     end
   end
 
+  test "maps exla targets to clients" do
+    assert Llamex.Backend.NxEXLA.client(:cpu) == :host
+    assert Llamex.Backend.NxEXLA.client("cpu") == :host
+    assert Llamex.Backend.NxEXLA.client(:cuda) == :cuda
+    assert Llamex.Backend.NxEXLA.client("rocm") == :rocm
+    assert Llamex.Backend.NxEXLA.client(:gpu) == :cuda
+
+    assert_raise ArgumentError, ~r/unsupported EXLA target/, fn ->
+      Llamex.Backend.NxEXLA.client("metal")
+    end
+  end
+
   test "finds argmax matvec without materializing logits" do
     vector = [1.0, 2.0, 3.0]
 
@@ -2089,6 +2101,18 @@ defmodule LlamexTest do
         "--profile",
         "--stop-special",
         "nope"
+      ])
+    end
+  end
+
+  test "generate task rejects unknown exla targets" do
+    assert_raise Mix.Error, ~r/unsupported EXLA target/, fn ->
+      Mix.Tasks.Llamex.Generate.run([
+        "priv/models/tiny.json",
+        "hello",
+        "1",
+        "--exla",
+        "metal"
       ])
     end
   end

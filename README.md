@@ -18,6 +18,9 @@ mix llamex.generate model.gguf "Hello" 8 --natural --stop-control --profile
 mix llamex.generate model.gguf "Long prompt..." 32 --context-window 2048
 mix llamex.generate priv/models/tiny.json hello 2 --backend list
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx_exla
+mix llamex.generate priv/models/tiny.json hello 2 --backend nx_exla --exla cpu
+mix llamex.generate priv/models/tiny.json hello 2 --backend nx_exla --exla cuda
+mix llamex.generate priv/models/tiny.json hello 2 --backend nx_exla --exla rocm
 mix llamex.generate priv/models/tiny.json hello 2 --backend fpga
 mix llamex.generate model.gguf "Hello" 8 --natural
 mix llamex.tokenize model.gguf "Elixir is"
@@ -52,6 +55,19 @@ EXLA can be added by BEAM-only consumers that want an XLA compiler for Nx:
 ```elixir
 {:exla, "~> 0.12.0"}
 ```
+
+EXLA targets can be selected from the CLI:
+
+```bash
+mix llamex.generate model.gguf "Hello" 8 --backend nx_exla --exla cpu
+mix llamex.generate model.gguf "Hello" 8 --backend nx_exla --exla cuda
+mix llamex.generate model.gguf "Hello" 8 --backend nx_exla --exla rocm
+```
+
+`--exla cpu` maps to EXLA's `:host` client. `--exla cuda` and `--exla rocm`
+require matching XLA binaries and GPU runtime setup, including `XLA_TARGET`.
+The same configuration is available from Elixir with
+`Llamex.Backend.NxEXLA.configure!(:cpu | :cuda | :rocm)`.
 
 The NxEXLA backend prepares projection matrices as Nx tensors when a context is
 created, but selecting it alone does not yet make existing GGUF generation fast.

@@ -24,6 +24,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       OptionParser.parse(args,
         strict: [
           backend: :string,
+          exla: :string,
           fail_on_issue: :boolean,
           json: :boolean,
           reject_open_ending: :boolean,
@@ -55,6 +56,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
   defp run_smoke([model_path, max_new_tokens], options) do
     Mix.Task.run("app.start")
+    configure_exla(options)
 
     model = load_model(model_path)
     max_new_tokens = Map.get(options, :max_new_tokens, String.to_integer(max_new_tokens))
@@ -273,6 +275,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     sampler_options =
       Map.take(options, [:temperature, :top_k, :top_p, :repetition_penalty, :seed])
       |> Map.merge(Map.take(options, [:no_repeat_ngram_size, :no_repeat_adjacent_word]))
+      |> Map.delete(:exla)
 
     Llamex.Natural.sampler(model, sampler_options)
   end
@@ -284,6 +287,14 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
   defp backend(%{backend: nil}), do: Llamex.Backend.Nx
   defp backend(%{backend: backend}), do: Mix.raise("unsupported backend: #{backend}")
   defp backend(%{}), do: Llamex.Backend.Nx
+
+  defp configure_exla(%{exla: target}) when is_binary(target) do
+    Llamex.Backend.NxEXLA.configure!(target)
+  rescue
+    exception in [ArgumentError, RuntimeError] -> Mix.raise(Exception.message(exception))
+  end
+
+  defp configure_exla(_options), do: :ok
 
   defp load_model(model_path) do
     if Path.extname(model_path) == ".gguf" do

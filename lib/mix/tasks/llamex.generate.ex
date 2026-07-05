@@ -16,6 +16,7 @@ defmodule Mix.Tasks.Llamex.Generate do
       OptionParser.parse(args,
         strict: [
           backend: :string,
+          exla: :string,
           temperature: :float,
           top_k: :integer,
           top_p: :float,
@@ -51,6 +52,7 @@ defmodule Mix.Tasks.Llamex.Generate do
 
   defp run_generation([model_path, prompt, max_new_tokens], options) do
     Mix.Task.run("app.start")
+    configure_exla(options)
 
     validate_chat_template(model_path, options)
 
@@ -87,6 +89,7 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp sampling_options(options) do
     options
     |> Map.delete(:backend)
+    |> Map.delete(:exla)
     |> Map.delete(:natural)
     |> Map.delete(:chat)
     |> Map.delete(:system)
@@ -107,6 +110,14 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp backend(%{backend: nil}), do: Llamex.Backend.Nx
   defp backend(%{backend: backend}), do: Mix.raise("unsupported backend: #{backend}")
   defp backend(%{}), do: Llamex.Backend.Nx
+
+  defp configure_exla(%{exla: target}) when is_binary(target) do
+    Llamex.Backend.NxEXLA.configure!(target)
+  rescue
+    exception in [ArgumentError, RuntimeError] -> Mix.raise(Exception.message(exception))
+  end
+
+  defp configure_exla(_options), do: :ok
 
   defp stop_token(_model, %{no_stop: true}), do: nil
 

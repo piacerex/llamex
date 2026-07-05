@@ -3,6 +3,8 @@ defmodule Llamex.Backend.Nx do
   Backward-compatible alias for `Llamex.Backend.NxEXLA`.
   """
 
+  defdelegate configure!(target), to: Llamex.Backend.NxEXLA
+  defdelegate client(target), to: Llamex.Backend.NxEXLA
   defdelegate from_list(values), to: Llamex.Backend.NxEXLA
   defdelegate prepare_model(model), to: Llamex.Backend.NxEXLA
   defdelegate dot(left, right), to: Llamex.Backend.NxEXLA

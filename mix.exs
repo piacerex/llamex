@@ -21,7 +21,8 @@ defmodule Llamex.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:nx, "~> 0.12.1", optional: true}
+      {:nx, "~> 0.12.1", optional: true},
+      {:exla, "~> 0.12.0", optional: true}
     ]
   end
 end
