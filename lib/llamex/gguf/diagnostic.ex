@@ -37,6 +37,7 @@ defmodule Llamex.GGUF.Diagnostic do
       metadata_count: gguf.metadata_count,
       architecture: metadata_value(gguf.metadata, "general.architecture"),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
+      special_tokens: special_tokens(gguf.metadata),
       chat_template: chat_template,
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
       missing_chat_template_tokens: missing_chat_template_tokens,
@@ -55,6 +56,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
+      "special tokens: #{format_special_tokens(diagnostic.special_tokens)}",
       "chat template: #{diagnostic.chat_template}",
       "chat usable: #{diagnostic.chat_usable}",
       format_missing_chat_template_tokens(diagnostic.missing_chat_template_tokens),
@@ -144,6 +146,30 @@ defmodule Llamex.GGUF.Diagnostic do
     end
   end
 
+  defp special_tokens(metadata) do
+    tokens =
+      case metadata_value(metadata, "tokenizer.ggml.tokens") do
+        %{values: values} -> values
+        _other -> []
+      end
+
+    %{}
+    |> put_special_token(metadata, tokens, :unknown, "tokenizer.ggml.unknown_token_id")
+    |> put_special_token(metadata, tokens, :bos, "tokenizer.ggml.bos_token_id")
+    |> put_special_token(metadata, tokens, :eos, "tokenizer.ggml.eos_token_id")
+    |> put_special_token(metadata, tokens, :padding, "tokenizer.ggml.padding_token_id")
+  end
+
+  defp put_special_token(attrs, metadata, tokens, name, key) do
+    case metadata_value(metadata, key) do
+      id when is_integer(id) ->
+        Map.put(attrs, name, %{id: id, piece: Enum.at(tokens, id)})
+
+      _other ->
+        attrs
+    end
+  end
+
   defp metadata_value(metadata, key) do
     case Map.fetch(metadata, key) do
       {:ok, %{value: value}} -> value
@@ -163,6 +189,15 @@ defmodule Llamex.GGUF.Diagnostic do
     counts
     |> Enum.sort()
     |> Enum.map(fn {type, count} -> "#{type}=#{count}" end)
+    |> Enum.join(", ")
+  end
+
+  defp format_special_tokens(tokens) when map_size(tokens) == 0, do: "none"
+
+  defp format_special_tokens(tokens) do
+    tokens
+    |> Enum.sort()
+    |> Enum.map(fn {name, %{id: id, piece: piece}} -> "#{name}=#{id}:#{piece}" end)
     |> Enum.join(", ")
   end
 

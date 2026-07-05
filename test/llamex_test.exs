@@ -814,6 +814,7 @@ defmodule LlamexTest do
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
     assert diagnostic.chat_template == "none"
     assert diagnostic.chat_usable == false
+    assert diagnostic.special_tokens == %{}
     assert diagnostic.missing_chat_template_tokens == []
 
     assert diagnostic.unsupported_tensors == [
@@ -846,10 +847,24 @@ defmodule LlamexTest do
       assert diagnostic["version"] == 3
       assert diagnostic["chat_template"] == "none"
       assert diagnostic["chat_usable"] == false
+      assert diagnostic["special_tokens"] == %{}
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
     after
       File.rm(path)
     end
+  end
+
+  test "diagnoses gguf special tokens" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_special_token_gguf())
+
+    assert diagnostic.special_tokens == %{
+             unknown: %{id: 0, piece: "<unk>"},
+             bos: %{id: 1, piece: "<s>"},
+             eos: %{id: 2, piece: "</s>"}
+           }
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "special tokens: bos=1:<s>, eos=2:</s>, unknown=0:<unk>"
   end
 
   test "gguf inspect task can print json diagnostics for multiple files" do
