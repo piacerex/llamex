@@ -90,13 +90,14 @@ defmodule Llamex.Profile do
               })
             end)
 
-          step_info = %{
-            index: index,
-            token: step.token,
-            piece: Map.fetch!(model.tokenizer.id_to_token, step.token),
-            text: step.text,
-            timing: step_time
-          }
+          step_info =
+            model
+            |> token_info(step.token)
+            |> Map.merge(%{
+              index: index,
+              text: step.text,
+              timing: step_time
+            })
 
           finish_reason = if step.token == stop_token, do: :stop, else: :length
 
@@ -123,6 +124,8 @@ defmodule Llamex.Profile do
       prompt_token_ids: state.prompt_tokens,
       prompt_pieces: token_pieces(model, state.prompt_tokens),
       generated_tokens: generated_tokens,
+      generated_pieces: token_pieces(model, generated_tokens),
+      generated_token_info: Enum.map(generated_tokens, &token_info(model, &1)),
       finish_reason: finish_reason,
       text: Llamex.decode(model, generated_tokens),
       timings: [prefill_time | Enum.map(steps, & &1.timing)],
@@ -132,5 +135,21 @@ defmodule Llamex.Profile do
 
   defp token_pieces(model, token_ids) do
     Enum.map(token_ids, &Map.fetch!(model.tokenizer.id_to_token, &1))
+  end
+
+  defp token_info(model, token_id) do
+    model.tokenizer
+    |> token_type(token_id)
+    |> Map.merge(%{
+      token: token_id,
+      piece: Map.fetch!(model.tokenizer.id_to_token, token_id)
+    })
+  end
+
+  defp token_type(tokenizer, token_id) do
+    case Enum.find(tokenizer.token_types, &(&1.id == token_id)) do
+      nil -> %{}
+      %{type: type, type_id: type_id} -> %{type: type, type_id: type_id}
+    end
   end
 end

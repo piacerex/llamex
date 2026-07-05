@@ -450,7 +450,16 @@ defmodule LlamexTest do
   end
 
   test "profiles multiple generation steps" do
-    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "hello" => 1, "world" => 2},
+        "<unk>",
+        token_types: [
+          %{id: 0, token: "<unk>", type: :unknown, type_id: 2},
+          %{id: 1, token: "hello", type: :normal, type_id: 1},
+          %{id: 2, token: "world", type: :normal, type_id: 1}
+        ]
+      )
 
     model =
       Llamex.new_model(%{
@@ -477,10 +486,23 @@ defmodule LlamexTest do
     assert profile.stop_token == nil
     assert profile.sampler == :greedy
     assert profile.generated_tokens == [2, 2]
+    assert profile.generated_pieces == ["world", "world"]
+
+    assert profile.generated_token_info == [
+             %{token: 2, piece: "world", type: :normal, type_id: 1},
+             %{token: 2, piece: "world", type: :normal, type_id: 1}
+           ]
+
     assert profile.finish_reason == :length
     assert profile.text == "world world"
     assert Enum.map(profile.steps, & &1.token) == [2, 2]
     assert Enum.map(profile.steps, & &1.piece) == ["world", "world"]
+
+    assert Enum.map(profile.steps, &Map.take(&1, [:token, :piece, :type, :type_id])) == [
+             %{token: 2, piece: "world", type: :normal, type_id: 1},
+             %{token: 2, piece: "world", type: :normal, type_id: 1}
+           ]
+
     assert Enum.map(profile.timings, & &1.label) == ["prefill", "step_1", "step_2"]
   end
 
@@ -596,6 +618,8 @@ defmodule LlamexTest do
     assert profile["max_new_tokens"] == 2
     assert profile["sampler"] == "greedy"
     assert profile["generated_tokens"] == [2]
+    assert profile["generated_pieces"] == ["world"]
+    assert profile["generated_token_info"] == [%{"token" => 2, "piece" => "world"}]
     assert profile["finish_reason"] == "stop"
     assert profile["text"] == "world"
     assert Enum.map(profile["steps"], & &1["piece"]) == ["world"]
