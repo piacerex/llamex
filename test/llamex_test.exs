@@ -470,6 +470,8 @@ defmodule LlamexTest do
       })
 
     assert profile.prompt_tokens == 1
+    assert profile.prompt_token_ids == [1]
+    assert profile.prompt_pieces == ["hello"]
     assert profile.backend == Llamex.Backend.List
     assert profile.max_new_tokens == 2
     assert profile.stop_token == nil
@@ -588,6 +590,8 @@ defmodule LlamexTest do
     assert profile["original_prompt"] == "hello"
     assert profile["prompt"] == "hello"
     assert profile["prompt_tokens"] == 1
+    assert profile["prompt_token_ids"] == [1]
+    assert profile["prompt_pieces"] == ["hello"]
     assert profile["backend"] == "Elixir.Llamex.Backend.List"
     assert profile["max_new_tokens"] == 2
     assert profile["sampler"] == "greedy"

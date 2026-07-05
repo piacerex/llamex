@@ -120,11 +120,17 @@ defmodule Llamex.Profile do
       stop_token: stop_token,
       sampler: sampler,
       prompt_tokens: length(state.prompt_tokens),
+      prompt_token_ids: state.prompt_tokens,
+      prompt_pieces: token_pieces(model, state.prompt_tokens),
       generated_tokens: generated_tokens,
       finish_reason: finish_reason,
       text: Llamex.decode(model, generated_tokens),
       timings: [prefill_time | Enum.map(steps, & &1.timing)],
       steps: steps
     }
+  end
+
+  defp token_pieces(model, token_ids) do
+    Enum.map(token_ids, &Map.fetch!(model.tokenizer.id_to_token, &1))
   end
 end
