@@ -5,6 +5,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       mix llamex.natural.smoke model.gguf
       mix llamex.natural.smoke model.gguf 3 --json
       mix llamex.natural.smoke model.gguf 3 --json --fail-on-issue
+      mix llamex.natural.smoke model.gguf 3 --json --min-words 2
       mix llamex.natural.smoke model.gguf 3 --prompt "Elixir is"
   """
 
@@ -23,6 +24,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           fail_on_issue: :boolean,
           json: :boolean,
           prompt: :keep,
+          min_words: :integer,
           max_new_tokens: :integer,
           seed: :integer,
           top_p: :float,
@@ -61,7 +63,10 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
             sampler: sampler
           })
 
-        check = Llamex.Natural.smoke_check(model, result.generated_tokens, result.text)
+        check =
+          Llamex.Natural.smoke_check(model, result.generated_tokens, result.text, %{
+            min_words: min_words(options)
+          })
 
         %{
           prompt: prompt,
@@ -84,6 +89,14 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
   defp prompts(%{prompt: prompts}) when is_list(prompts), do: prompts
   defp prompts(%{prompt: prompt}) when is_binary(prompt), do: [prompt]
   defp prompts(_options), do: @default_prompts
+
+  defp min_words(%{min_words: min_words}) when is_integer(min_words) and min_words > 0,
+    do: min_words
+
+  defp min_words(%{min_words: min_words}),
+    do: Mix.raise("min_words must be a positive integer, got: #{inspect(min_words)}")
+
+  defp min_words(_options), do: 1
 
   defp natural_sampler(model, options) do
     sampler_options =

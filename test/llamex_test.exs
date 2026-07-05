@@ -1105,6 +1105,18 @@ defmodule LlamexTest do
            }
   end
 
+  test "natural smoke check can require a minimum word count" do
+    assert Llamex.Natural.smoke_check(%{}, [], "world", %{min_words: 2}) == %{
+             ok: false,
+             issues: ["generated fewer than 2 word(s)"]
+           }
+
+    assert Llamex.Natural.smoke_check(%{}, [], ". They were", %{min_words: 2}) == %{
+             ok: true,
+             issues: []
+           }
+  end
+
   test "natural smoke task can fail on quality issues" do
     path =
       Path.join(

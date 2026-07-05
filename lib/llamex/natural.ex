@@ -22,12 +22,19 @@ defmodule Llamex.Natural do
     |> Enum.map(& &1.id)
   end
 
-  def smoke_check(model, generated_tokens, text)
+  def smoke_check(model, generated_tokens, text, opts \\ %{})
       when is_list(generated_tokens) and is_binary(text) do
+    min_words = Map.get(opts, :min_words, 1)
+    has_text_content? = text_content?(text)
+
     issues =
       []
       |> add_issue(String.contains?(text, "▁"), "raw sentencepiece marker in text")
-      |> add_issue(not text_content?(text), "no alphanumeric text generated")
+      |> add_issue(not has_text_content?, "no alphanumeric text generated")
+      |> add_issue(
+        has_text_content? and word_count(text) < min_words,
+        "generated fewer than #{min_words} word(s)"
+      )
       |> Kernel.++(token_issues(model, generated_tokens))
 
     %{ok: issues == [], issues: issues}
@@ -83,6 +90,12 @@ defmodule Llamex.Natural do
   defp add_issue(issues, false, _issue), do: issues
 
   defp text_content?(text), do: Regex.match?(~r/[[:alnum:]]/u, text)
+
+  defp word_count(text) do
+    ~r/[[:alnum:]]+/u
+    |> Regex.scan(text)
+    |> length()
+  end
 
   defp token_issues(%{tokenizer: nil}, _generated_tokens), do: []
   defp token_issues(model, _generated_tokens) when not is_map_key(model, :tokenizer), do: []

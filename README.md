@@ -18,7 +18,7 @@ mix llamex.generate model.gguf "Hello" 8 --natural --stop-control --profile
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx
 mix llamex.generate model.gguf "Hello" 8 --natural
 mix llamex.tokenize model.gguf "Elixir is"
-mix llamex.natural.smoke model.gguf 3 --json --fail-on-issue
+mix llamex.natural.smoke model.gguf 3 --json --min-words 2 --fail-on-issue
 ```
 
 ## Backends
@@ -204,6 +204,8 @@ Use `mix llamex.natural.smoke MODEL [max_new_tokens] --json` to run the current
 natural-generation baseline prompts after loading the model once. Smoke results
 include `ok` and `issues` fields for raw `▁` markers, suppressed token types, or
 punctuation-only output.
+Add `--min-words N` to require generated text to contain at least that many word
+fragments.
 Add `--fail-on-issue` to make the task raise when any prompt reports issues.
 
 Current GGUF generation baseline on
