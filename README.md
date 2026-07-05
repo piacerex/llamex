@@ -16,6 +16,7 @@ mix llamex.generate priv/models/tiny.json hello 2 --stop-piece world
 mix llamex.generate model.gguf "Hello" 8 --stop-special eos
 mix llamex.generate model.gguf "Hello" 8 --natural --stop-control --profile
 mix llamex.generate model.gguf "Long prompt..." 32 --context-window 2048
+mix llamex.generate priv/models/tiny.json hello 2 --backend list
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx_exla
 mix llamex.generate priv/models/tiny.json hello 2 --backend fpga
 mix llamex.generate model.gguf "Hello" 8 --natural
@@ -25,9 +26,11 @@ mix llamex.natural.baseline model.gguf --json
 
 ## Backends
 
-Llamex keeps the core path on `Llamex.Backend.List` so the engine remains
-portable to restricted runtimes such as AtomVM. Backend selection is explicit:
+Llamex keeps `Llamex.Backend.List` as the pure Elixir reference path so the
+engine remains portable to restricted runtimes such as AtomVM. PC-oriented
+commands default to the Nx backend, and backend selection is explicit:
 
+- `Llamex.Backend.Nx`: default Nx path, backed by `Llamex.Backend.NxEXLA`
 - `Llamex.Backend.List`: pure Elixir reference path
 - `Llamex.Backend.NxEXLA`: optional Nx/EXLA path for BEAM experiments
 - `Llamex.Backend.FPGA`: FPGA boundary, currently backed by the List fallback

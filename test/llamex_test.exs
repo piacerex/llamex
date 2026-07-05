@@ -1269,7 +1269,7 @@ defmodule LlamexTest do
     assert profile["prompt_tokens"] == 1
     assert profile["prompt_token_ids"] == [1]
     assert profile["prompt_pieces"] == ["hello"]
-    assert profile["backend"] == "Elixir.Llamex.Backend.List"
+    assert profile["backend"] == "Elixir.Llamex.Backend.Nx"
     assert profile["max_new_tokens"] == 2
     assert profile["sampler"] == "greedy"
     assert profile["generated_tokens"] == [2]

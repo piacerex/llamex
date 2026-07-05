@@ -104,9 +104,9 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp backend(%{backend: "fpga"}), do: Llamex.Backend.FPGA
   defp backend(%{backend: "nx"}), do: Llamex.Backend.Nx
   defp backend(%{backend: "nx_exla"}), do: Llamex.Backend.NxEXLA
-  defp backend(%{backend: nil}), do: Llamex.Backend.List
+  defp backend(%{backend: nil}), do: Llamex.Backend.Nx
   defp backend(%{backend: backend}), do: Mix.raise("unsupported backend: #{backend}")
-  defp backend(%{}), do: Llamex.Backend.List
+  defp backend(%{}), do: Llamex.Backend.Nx
 
   defp stop_token(_model, %{no_stop: true}), do: nil
 

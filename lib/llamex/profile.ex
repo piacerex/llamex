@@ -13,7 +13,7 @@ defmodule Llamex.Profile do
   end
 
   def generation_step(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
-    backend = Map.get(opts, :backend, Llamex.Backend.List)
+    backend = Map.get(opts, :backend, Llamex.Backend.Nx)
     sampler = Map.get(opts, :sampler, :greedy)
     candidate_count = Map.get(opts, :candidate_count, 0)
 
@@ -43,7 +43,7 @@ defmodule Llamex.Profile do
   end
 
   def prefill_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
-    backend = Map.get(opts, :backend, Llamex.Backend.List)
+    backend = Map.get(opts, :backend, Llamex.Backend.Nx)
     original_prompt_tokens = Llamex.encode(model, prompt)
     context_window = ContextWindow.resolve(model, opts)
     prompt_tokens = ContextWindow.apply(original_prompt_tokens, context_window)
@@ -82,7 +82,7 @@ defmodule Llamex.Profile do
   end
 
   def generation_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
-    backend = Map.get(opts, :backend, Llamex.Backend.List)
+    backend = Map.get(opts, :backend, Llamex.Backend.Nx)
     sampler = Map.get(opts, :sampler, :greedy)
     max_new_tokens = Map.get(opts, :max_new_tokens, 1)
     stop_tokens = stop_tokens(opts)
