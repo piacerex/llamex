@@ -58,7 +58,7 @@ defmodule Llamex.Tokenizer.Whitespace do
     |> split_special_tokens(text)
     |> Enum.flat_map(fn
       {:special, token} -> [Map.fetch!(tokenizer.token_to_id, token)]
-      {:text, text} -> text |> String.split() |> Enum.flat_map(&encode_word(tokenizer, &1))
+      {:text, text} -> encode_text(tokenizer, text)
     end)
     |> add_configured_special_tokens(tokenizer)
   end
@@ -100,6 +100,35 @@ defmodule Llamex.Tokenizer.Whitespace do
     else
       <<char::utf8, rest::binary>> = text
       take_until_special(rest, special_tokens, acc <> <<char::utf8>>)
+    end
+  end
+
+  defp encode_text(tokenizer, text) do
+    ~r/(\s+)/u
+    |> Regex.split(text, include_captures: true, trim: true)
+    |> Enum.flat_map(fn part ->
+      if Regex.match?(~r/^\s+$/u, part) do
+        encode_whitespace(tokenizer, part)
+      else
+        encode_word(tokenizer, part)
+      end
+    end)
+  end
+
+  defp encode_whitespace(tokenizer, whitespace) do
+    case Map.fetch(tokenizer.token_to_id, whitespace) do
+      {:ok, id} ->
+        [id]
+
+      :error ->
+        whitespace
+        |> String.graphemes()
+        |> Enum.flat_map(fn grapheme ->
+          case Map.fetch(tokenizer.token_to_id, grapheme) do
+            {:ok, id} -> [id]
+            :error -> []
+          end
+        end)
     end
   end
 

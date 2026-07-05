@@ -75,6 +75,17 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.encode(tokenizer, "binding pon") == [1, 2, 3]
   end
 
+  test "keeps whitespace tokens when they exist in the vocab" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "hello" => 1, "\n" => 2, "world" => 3},
+        "<unk>"
+      )
+
+    assert Llamex.Tokenizer.encode(tokenizer, "hello\nworld") == [1, 2, 3]
+    assert Llamex.Tokenizer.encode(tokenizer, "hello world") == [1, 3]
+  end
+
   test "encodes chat template special tokens before byte fallback" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
@@ -89,6 +100,29 @@ defmodule LlamexTest do
       )
 
     assert Llamex.Tokenizer.encode(tokenizer, "<|im_start|>user Hi<|im_end|>") == [1, 3, 4, 2]
+  end
+
+  test "encodes chat template newlines when the tokenizer has newline tokens" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "<|im_start|>" => 1,
+          "<|im_end|>" => 2,
+          "user" => 3,
+          "\n" => 4,
+          "Hi" => 5
+        },
+        "<unk>"
+      )
+
+    assert Llamex.Tokenizer.encode(tokenizer, "<|im_start|>user\nHi<|im_end|>") == [
+             1,
+             3,
+             4,
+             5,
+             2
+           ]
   end
 
   test "detects chat template markers missing from tokenizer vocab" do
