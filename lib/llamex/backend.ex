@@ -36,9 +36,10 @@ defmodule Llamex.Backend do
   @callback silu_multiply(tensor(), tensor()) :: tensor()
   @callback rms_norm(tensor(), tensor(), number()) :: tensor()
   @callback attend_head(tensor(), tensor(), tensor()) :: list(number())
+  @callback prepare_kv_entries(list({list(tensor()), list(tensor())})) :: term()
   @callback attend_heads(
               list(tensor()),
-              list({list(tensor()), list(tensor())}),
+              term(),
               pos_integer(),
               pos_integer()
             ) ::

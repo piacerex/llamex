@@ -224,17 +224,43 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def prepare_kv_entries(entries) when is_list(entries) do
+    {keys, values} = kv_cache_tensors(entries)
+    {:nx_exla_kv_entries, entries, keys, values}
+  end
+
+  @impl true
+  def attend_heads(query_heads, {:nx_exla_kv_entries, _entries, keys, values}, head_count, 1)
+      when is_list(query_heads) and is_integer(head_count) and head_count > 0 do
+    attend_shared_kv_heads(query_heads, keys, values, head_count)
+  end
+
+  @impl true
+  def attend_heads(
+        query_heads,
+        {:nx_exla_kv_entries, _entries, keys, values},
+        head_count,
+        kv_head_count
+      )
+      when is_list(query_heads) and is_integer(head_count) and head_count > 0 and
+             is_integer(kv_head_count) and kv_head_count > 0 do
+    attend_grouped_kv_heads(query_heads, keys, values, head_count, kv_head_count)
+  end
+
+  @impl true
   def attend_heads(query_heads, entries, head_count, 1)
       when is_list(query_heads) and is_list(entries) and is_integer(head_count) and
              head_count > 0 do
-    attend_shared_kv_heads(query_heads, entries, head_count)
+    {keys, values} = kv_cache_tensors(entries)
+    attend_shared_kv_heads(query_heads, keys, values, head_count)
   end
 
   @impl true
   def attend_heads(query_heads, entries, head_count, kv_head_count)
       when is_list(query_heads) and is_list(entries) and is_integer(head_count) and
              head_count > 0 and is_integer(kv_head_count) and kv_head_count > 0 do
-    attend_grouped_kv_heads(query_heads, entries, head_count, kv_head_count)
+    {keys, values} = kv_cache_tensors(entries)
+    attend_grouped_kv_heads(query_heads, keys, values, head_count, kv_head_count)
   end
 
   @impl true
@@ -602,21 +628,18 @@ defmodule Llamex.Backend.NxEXLA do
     |> then(&apply(nx, :dot, [&1, values]))
   end
 
-  defp attend_shared_kv_heads(query_heads, entries, head_count) do
+  defp attend_shared_kv_heads(query_heads, key_cache, value_cache, head_count) do
     queries = stack_tensors(query_heads)
     {_head_count, head_size} = shape(queries)
-    {keys, values} = kv_cache_tensors(entries)
-    keys = kv_cache_head_tensor(keys, 0)
-    values = kv_cache_head_tensor(values, 0)
+    keys = kv_cache_head_tensor(key_cache, 0)
+    values = kv_cache_head_tensor(value_cache, 0)
 
     queries
     |> attend_query_group_tensors(keys, values)
     |> then(&apply(nx!(), :reshape, [&1, {head_count * head_size}]))
   end
 
-  defp attend_grouped_kv_heads(query_heads, entries, head_count, kv_head_count) do
-    {key_cache, value_cache} = kv_cache_tensors(entries)
-
+  defp attend_grouped_kv_heads(query_heads, key_cache, value_cache, head_count, kv_head_count) do
     0..(kv_head_count - 1)
     |> Enum.map(fn kv_head_index ->
       queries = query_group(query_heads, kv_head_index, head_count, kv_head_count)
