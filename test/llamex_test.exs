@@ -473,6 +473,13 @@ defmodule LlamexTest do
     assert profile.prompt_tokens == 1
     assert profile.token == 2
     assert profile.text == "world"
+
+    assert Enum.map(profile.prefill_timings, & &1.label) == [
+             "prompt_encode",
+             "backend_prepare",
+             "prompt_eval"
+           ]
+
     assert Enum.map(profile.timings, & &1.label) == ["prefill", "step"]
     assert Enum.all?(profile.timings, &is_integer(&1.milliseconds))
   end
@@ -538,6 +545,13 @@ defmodule LlamexTest do
     assert profile.max_new_tokens == 2
     assert profile.stop_token == nil
     assert profile.stop_tokens == []
+
+    assert Enum.map(profile.prefill_timings, & &1.label) == [
+             "prompt_encode",
+             "backend_prepare",
+             "prompt_eval"
+           ]
+
     assert profile.sampler == :greedy
     assert profile.generated_tokens == [2, 2]
     assert profile.generated_pieces == ["world", "world"]
@@ -676,6 +690,13 @@ defmodule LlamexTest do
     assert profile["generated_token_info"] == [%{"token" => 2, "piece" => "world"}]
     assert profile["finish_reason"] == "stop"
     assert profile["text"] == "world"
+
+    assert Enum.map(profile["prefill_timings"], & &1["label"]) == [
+             "prompt_encode",
+             "backend_prepare",
+             "prompt_eval"
+           ]
+
     assert Enum.map(profile["steps"], & &1["piece"]) == ["world"]
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
   end

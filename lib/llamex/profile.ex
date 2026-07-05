@@ -13,10 +13,7 @@ defmodule Llamex.Profile do
     backend = Map.get(opts, :backend, Llamex.Backend.List)
     sampler = Map.get(opts, :sampler, :greedy)
 
-    {prefill_time, state} =
-      timed("prefill", fn ->
-        Llamex.prefill(model, prompt, %{backend: backend})
-      end)
+    {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend)
 
     {step_time, step} =
       timed("step", fn ->
@@ -27,6 +24,7 @@ defmodule Llamex.Profile do
       prompt_tokens: length(state.prompt_tokens),
       token: step.token,
       text: step.text,
+      prefill_timings: prefill_timings,
       timings: [prefill_time, step_time]
     }
   end
@@ -71,10 +69,7 @@ defmodule Llamex.Profile do
     max_new_tokens = Map.get(opts, :max_new_tokens, 1)
     stop_tokens = stop_tokens(opts)
 
-    {prefill_time, state} =
-      timed("prefill", fn ->
-        Llamex.prefill(model, prompt, %{backend: backend})
-      end)
+    {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend)
 
     {steps, _context, _current_token, _sampler_state, finish_reason} =
       Enum.reduce_while(
@@ -129,10 +124,46 @@ defmodule Llamex.Profile do
       generated_token_info: Enum.map(generated_tokens, &token_info(model, &1)),
       finish_reason: finish_reason,
       text: Llamex.decode(model, generated_tokens),
+      prefill_timings: prefill_timings,
       timings: [prefill_time | Enum.map(steps, & &1.timing)],
       steps: steps
     }
   end
+
+  defp timed_prefill(model, prompt, backend) do
+    timed("prefill", fn ->
+      {encode_time, prompt_tokens} =
+        timed("prompt_encode", fn ->
+          Llamex.encode(model, prompt)
+        end)
+
+      {prepare_time, context} =
+        timed("backend_prepare", fn ->
+          Llamex.Context.new(model, backend)
+        end)
+
+      {prompt_eval_time, context} =
+        timed("prompt_eval", fn ->
+          prompt_tokens
+          |> Enum.drop(-1)
+          |> Enum.reduce(context, fn token, context ->
+            {context, _logits} = Llamex.Engine.eval(context, token)
+            context
+          end)
+        end)
+
+      state = %{
+        context: context,
+        prompt_tokens: prompt_tokens,
+        current_token: seed_token(prompt_tokens)
+      }
+
+      {state, [encode_time, prepare_time, prompt_eval_time]}
+    end)
+  end
+
+  defp seed_token([]), do: raise(ArgumentError, "prompt must encode to at least one token")
+  defp seed_token(prompt_tokens), do: List.last(prompt_tokens)
 
   defp token_pieces(model, token_ids) do
     Enum.map(token_ids, &Map.fetch!(model.tokenizer.id_to_token, &1))

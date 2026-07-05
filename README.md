@@ -179,7 +179,9 @@ for them. Use `--natural` to select a conservative text sampling preset
 (`temperature=0.8`, `top-k=40`, `top-p=0.9`, `repetition-penalty=1.1`).
 Use `--profile` to inspect the model path, prompt, prompt token IDs/pieces,
 generation settings, generated token IDs/pieces/types, timings, and
-`finish_reason` (`stop` or `length`) for generation experiments.
+`finish_reason` (`stop` or `length`) for generation experiments. Profile output
+also splits prefill into `prompt_encode`, `backend_prepare`, and `prompt_eval`
+timings so backend setup cost is visible.
 Use `--stop-token ID`, `--stop-piece TOKEN`, `--stop-special eos`, or
 `--stop-control` to override inferred EOS/stop behavior, or `--no-stop` to force
 generation to continue until `max_new_tokens`.
