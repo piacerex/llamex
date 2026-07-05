@@ -43,6 +43,12 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def rope(vector, position, theta, dimension_count)
+      when is_list(vector) and is_integer(position) and position >= 0 and is_number(theta) do
+    Llamex.Layers.RoPE.apply(vector, position, theta, dimension_count)
+  end
+
+  @impl true
   def matvec_pair(left_rows, right_rows, vector)
       when is_list(left_rows) and is_list(right_rows) and is_list(vector) do
     Llamex.Tensor.matvec_pair(left_rows, right_rows, vector)

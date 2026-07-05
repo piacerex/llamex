@@ -4,7 +4,7 @@ defmodule Llamex.Layers.Attention do
   """
 
   alias Llamex.{KVCache, Tensor}
-  alias Llamex.Layers.{Linear, RoPE}
+  alias Llamex.Layers.Linear
 
   def forward(
         input,
@@ -25,12 +25,12 @@ defmodule Llamex.Layers.Attention do
     query_heads =
       query
       |> split_heads(head_count)
-      |> apply_rope(position, rope_theta, rope_dimension_count)
+      |> apply_rope(position, rope_theta, rope_dimension_count, backend)
 
     key_heads =
       key
       |> split_heads(kv_head_count)
-      |> apply_rope(position, rope_theta, rope_dimension_count)
+      |> apply_rope(position, rope_theta, rope_dimension_count, backend)
 
     value_heads =
       split_heads(value, kv_head_count)
@@ -78,8 +78,8 @@ defmodule Llamex.Layers.Attention do
     Tensor.split_every(vector, div(length(vector), head_count))
   end
 
-  defp apply_rope(heads, position, rope_theta, rope_dimension_count) do
-    Enum.map(heads, &RoPE.apply(&1, position, rope_theta, rope_dimension_count))
+  defp apply_rope(heads, position, rope_theta, rope_dimension_count, backend) do
+    Enum.map(heads, &backend.rope(&1, position, rope_theta, rope_dimension_count))
   end
 
   defp attend_head(query, entries, head_index, backend) do

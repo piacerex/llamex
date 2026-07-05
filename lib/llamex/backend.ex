@@ -15,6 +15,7 @@ defmodule Llamex.Backend do
   @callback matvec_tensor(tensor(), tensor()) :: tensor()
   @callback top_k_matvec(tensor(), tensor(), pos_integer(), keyword()) ::
               list({number(), non_neg_integer()})
+  @callback rope(tensor(), non_neg_integer(), number(), pos_integer() | nil) :: list(number())
   @callback matvec_pair(tensor(), tensor(), tensor()) :: {list(number()), list(number())}
   @callback matvec_pair_tensor(tensor(), tensor(), tensor()) :: {tensor(), tensor()}
   @callback matvec_split_pair_tensor(tensor(), pos_integer(), tensor()) :: {tensor(), tensor()}

@@ -446,6 +446,20 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs rope through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      vector = Llamex.Backend.NxEXLA.from_list([1.0, 2.0, 3.0, 4.0, 5.0])
+
+      result = Llamex.Backend.NxEXLA.rope(vector, 1, 10_000.0, 4)
+      expected = Llamex.Backend.List.rope([1.0, 2.0, 3.0, 4.0, 5.0], 1, 10_000.0, 4)
+
+      Enum.zip(result, expected)
+      |> Enum.each(fn {actual, expected} ->
+        assert_in_delta actual, expected, 1.0e-6
+      end)
+    end
+  end
+
   test "maps exla targets to clients" do
     assert Llamex.Backend.NxEXLA.client(:cpu) == :host
     assert Llamex.Backend.NxEXLA.client("cpu") == :host

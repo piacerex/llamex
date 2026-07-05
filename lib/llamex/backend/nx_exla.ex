@@ -134,6 +134,29 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def rope(vector, position, theta, dimension_count)
+      when is_integer(position) and position >= 0 and is_number(theta) do
+    nx = nx!()
+    vector = tensor(vector)
+    vector_size = vector |> shape() |> elem(0)
+    dimension_count = dimension_count || vector_size - rem(vector_size, 2)
+
+    cond do
+      dimension_count == 0 ->
+        to_list(vector)
+
+      dimension_count > vector_size ->
+        raise ArgumentError, "RoPE dimension count cannot exceed vector length"
+
+      rem(dimension_count, 2) != 0 ->
+        raise ArgumentError, "RoPE vector length must be even"
+
+      true ->
+        apply_rope_tensor(vector, position, theta, dimension_count, nx)
+    end
+  end
+
+  @impl true
   def matvec_pair(left_rows, right_rows, vector) do
     nx = nx!()
 
@@ -353,6 +376,49 @@ defmodule Llamex.Backend.NxEXLA do
       |> then(&apply(nx, :add, [&1, 1.0]))
 
     apply(nx, :divide, [tensor, denominator])
+  end
+
+  defp apply_rope_tensor(vector, position, theta, dimension_count, nx) do
+    half = div(dimension_count, 2)
+    left = apply(nx, :slice, [vector, [0], [half]])
+    right = apply(nx, :slice, [vector, [half], [half]])
+    pass_count = (vector |> shape() |> elem(0)) - dimension_count
+    angles = rope_angles(position, theta, dimension_count, half)
+    cos = angles |> Enum.map(&:math.cos/1) |> tensor()
+    sin = angles |> Enum.map(&:math.sin/1) |> tensor()
+
+    rotated_left =
+      apply(nx, :subtract, [
+        apply(nx, :multiply, [left, cos]),
+        apply(nx, :multiply, [right, sin])
+      ])
+
+    rotated_right =
+      apply(nx, :add, [
+        apply(nx, :multiply, [left, sin]),
+        apply(nx, :multiply, [right, cos])
+      ])
+
+    parts =
+      if pass_count > 0 do
+        [
+          rotated_left,
+          rotated_right,
+          apply(nx, :slice, [vector, [dimension_count], [pass_count]])
+        ]
+      else
+        [rotated_left, rotated_right]
+      end
+
+    nx
+    |> apply(:concatenate, [parts, [axis: 0]])
+    |> to_list()
+  end
+
+  defp rope_angles(position, theta, dimension_count, half) do
+    Enum.map(0..(half - 1), fn pair_index ->
+      position / :math.pow(theta, 2 * pair_index / dimension_count)
+    end)
   end
 
   defp softmax(values, nx) do
