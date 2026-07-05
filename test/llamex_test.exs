@@ -1289,6 +1289,10 @@ defmodule LlamexTest do
       assert result["ok"] == true
       assert result["issues"] == []
       assert result["text"] == "a b c d e f g ."
+      assert result["settings"]["max_new_tokens"] == 8
+      assert result["settings"]["min_words"] == 4
+      assert result["settings"]["reject_open_ending"] == true
+      assert result["settings"]["complete_open_ending"] == 4
     after
       File.rm(path)
     end

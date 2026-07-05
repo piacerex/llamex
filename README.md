@@ -215,6 +215,8 @@ Add `--fail-on-issue` to make the task raise when any prompt reports issues.
 Use `mix llamex.natural.baseline MODEL --json` for the current stricter GGUF
 baseline gate: 8 initial tokens, at least 4 generated word fragments,
 open-ending rejection, up to 4 completion tokens, and fail-on-issue enabled.
+JSON smoke output includes the `settings` used for each prompt so baseline
+results are auditable.
 
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:

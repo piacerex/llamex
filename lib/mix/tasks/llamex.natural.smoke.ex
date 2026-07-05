@@ -58,6 +58,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     prompts = prompts(options)
     sampler = natural_sampler(model, options)
     stop_tokens = Llamex.Natural.control_stop_tokens(model)
+    settings = smoke_settings(max_new_tokens, stop_tokens, sampler, options)
 
     results =
       Enum.map(prompts, fn prompt ->
@@ -89,6 +90,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
         %{
           prompt: prompt,
+          settings: settings,
           text: result.text,
           generated_tokens: result.generated_tokens,
           completion_tokens: result.completion_tokens,
@@ -117,6 +119,26 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     do: Mix.raise("min_words must be a positive integer, got: #{inspect(min_words)}")
 
   defp min_words(_options), do: 1
+
+  defp smoke_settings(max_new_tokens, stop_tokens, sampler, options) do
+    %{
+      max_new_tokens: max_new_tokens,
+      min_words: min_words(options),
+      reject_open_ending: Map.get(options, :reject_open_ending, false),
+      complete_open_ending: complete_open_ending(options),
+      stop_tokens: stop_tokens,
+      sampler: display_sampler(sampler)
+    }
+  end
+
+  defp display_sampler(%{suppress_tokens: suppress_tokens} = sampler)
+       when is_list(suppress_tokens) do
+    sampler
+    |> Map.delete(:suppress_tokens)
+    |> Map.put(:suppressed_token_count, length(suppress_tokens))
+  end
+
+  defp display_sampler(sampler), do: sampler
 
   defp maybe_complete_open_ending(
          model,
