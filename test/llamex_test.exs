@@ -148,6 +148,26 @@ defmodule LlamexTest do
              "<|user|>\nHello</s><|assistant|>"
   end
 
+  test "applies chat templates to message lists" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "</s>" => 1, "<|user|>" => 2, "<|assistant|>" => 3},
+        "<unk>",
+        special_tokens: %{eos: %{id: 1, token: "</s>"}}
+      )
+
+    messages = [
+      %{role: "system", content: "Be concise."},
+      %{role: "user", content: "Hello"}
+    ]
+
+    assert Llamex.ChatTemplate.apply(chatml_template(), messages) ==
+             "<|im_start|>system\nBe concise.<|im_end|>\n<|im_start|>user\nHello<|im_end|>\n<|im_start|>assistant\n"
+
+    assert Llamex.ChatTemplate.apply(role_marker_template(), messages, tokenizer) ==
+             "<|user|>\nBe concise.</s><|user|>\nHello</s><|assistant|>"
+  end
+
   test "adds configured bos and eos tokens while encoding" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
@@ -1088,6 +1108,63 @@ defmodule LlamexTest do
     end
   end
 
+  test "generate task applies chat template with system prompt" do
+    path = Path.join(System.tmp_dir!(), "llamex-chat-#{System.unique_integer([:positive])}.json")
+
+    model = %{
+      "config" => %{"vocab_size" => 7, "embedding_size" => 2},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "chat_template" => chatml_template(),
+        "vocab" => %{
+          "<unk>" => 0,
+          "<|im_start|>" => 1,
+          "<|im_end|>" => 2,
+          "system" => 3,
+          "user" => 4,
+          "Be" => 5,
+          "Hello" => 6
+        }
+      },
+      "token_embeddings" => %{
+        "0" => [0.0, 0.0],
+        "1" => [1.0, 0.0],
+        "2" => [0.0, 1.0],
+        "3" => [1.0, 1.0],
+        "4" => [0.5, 0.5],
+        "5" => [0.2, 0.2],
+        "6" => [0.8, 0.8]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Generate.run([
+            path,
+            "Hello",
+            "1",
+            "--chat",
+            "--system",
+            "Be",
+            "--profile"
+          ])
+        end)
+
+      profile = JSON.decode!(String.trim(output))
+
+      assert profile["prompt"] ==
+               "<|im_start|>system\nBe<|im_end|>\n<|im_start|>user\nHello<|im_end|>\n<|im_start|>assistant\n"
+
+      assert profile["original_prompt"] == "Hello"
+    after
+      File.rm(path)
+    end
+  end
+
   test "generate task can print a generation profile" do
     output =
       capture_io(fn ->
@@ -1898,6 +1975,57 @@ defmodule LlamexTest do
              %{"id" => 1, "piece" => "hello"},
              %{"id" => 2, "piece" => "world"}
            ]
+  end
+
+  test "tokenize task applies chat template with system prompt" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-tokenize-chat-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 7, "embedding_size" => 2},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "chat_template" => chatml_template(),
+        "vocab" => %{
+          "<unk>" => 0,
+          "<|im_start|>" => 1,
+          "<|im_end|>" => 2,
+          "system" => 3,
+          "user" => 4,
+          "Be" => 5,
+          "Hello" => 6
+        }
+      },
+      "token_embeddings" => %{
+        "0" => [0.0, 0.0],
+        "1" => [1.0, 0.0],
+        "2" => [0.0, 1.0],
+        "3" => [1.0, 1.0],
+        "4" => [0.5, 0.5],
+        "5" => [0.2, 0.2],
+        "6" => [0.8, 0.8]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Tokenize.run([path, "Hello", "--chat", "--system", "Be"])
+        end)
+
+      result = JSON.decode!(String.trim(output))
+
+      assert result["prompt"] ==
+               "<|im_start|>system\nBe<|im_end|>\n<|im_start|>user\nHello<|im_end|>\n<|im_start|>assistant\n"
+    after
+      File.rm(path)
+    end
   end
 
   test "tokenize task prints gguf token type metadata" do

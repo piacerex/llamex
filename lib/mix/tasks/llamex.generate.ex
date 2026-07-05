@@ -24,6 +24,7 @@ defmodule Mix.Tasks.Llamex.Generate do
           no_repeat_adjacent_word: :boolean,
           seed: :integer,
           chat: :boolean,
+          system: :string,
           natural: :boolean,
           profile: :boolean,
           candidates: :integer,
@@ -87,6 +88,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> Map.delete(:backend)
     |> Map.delete(:natural)
     |> Map.delete(:chat)
+    |> Map.delete(:system)
     |> Map.delete(:profile)
     |> Map.delete(:candidates)
     |> Map.delete(:stop_token)
@@ -227,14 +229,20 @@ defmodule Mix.Tasks.Llamex.Generate do
 
   defp validate_chat_template(_model_path, _options), do: :ok
 
-  defp maybe_apply_chat_template(model, prompt, %{chat: true}) do
+  defp maybe_apply_chat_template(model, prompt, %{chat: true} = options) do
     tokenizer = model.tokenizer || Mix.raise("--chat requires a model tokenizer")
     validate_chat_tokenizer!(tokenizer)
 
-    Llamex.ChatTemplate.apply(tokenizer.chat_template, prompt, tokenizer)
+    Llamex.ChatTemplate.apply(tokenizer.chat_template, chat_messages(prompt, options), tokenizer)
   end
 
   defp maybe_apply_chat_template(_model, prompt, _options), do: prompt
+
+  defp chat_messages(prompt, %{system: system}) when is_binary(system) do
+    [%{role: "system", content: system}, %{role: "user", content: prompt}]
+  end
+
+  defp chat_messages(prompt, _options), do: [%{role: "user", content: prompt}]
 
   defp validate_chat_tokenizer!(tokenizer) do
     template = tokenizer.chat_template || Mix.raise("--chat requires tokenizer.chat_template")

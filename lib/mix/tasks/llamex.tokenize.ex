@@ -14,7 +14,7 @@ defmodule Mix.Tasks.Llamex.Tokenize do
   def run(args) do
     {options, positional, invalid} =
       OptionParser.parse(args,
-        strict: [chat: :boolean]
+        strict: [chat: :boolean, system: :string]
       )
 
     if invalid != [] do
@@ -57,13 +57,19 @@ defmodule Mix.Tasks.Llamex.Tokenize do
     end
   end
 
-  defp maybe_apply_chat_template(tokenizer, prompt, %{chat: true}) do
+  defp maybe_apply_chat_template(tokenizer, prompt, %{chat: true} = options) do
     validate_chat_tokenizer!(tokenizer)
 
-    Llamex.ChatTemplate.apply(tokenizer.chat_template, prompt, tokenizer)
+    Llamex.ChatTemplate.apply(tokenizer.chat_template, chat_messages(prompt, options), tokenizer)
   end
 
   defp maybe_apply_chat_template(_tokenizer, prompt, _options), do: prompt
+
+  defp chat_messages(prompt, %{system: system}) when is_binary(system) do
+    [%{role: "system", content: system}, %{role: "user", content: prompt}]
+  end
+
+  defp chat_messages(prompt, _options), do: [%{role: "user", content: prompt}]
 
   defp validate_chat_tokenizer!(tokenizer) do
     template = tokenizer.chat_template || Mix.raise("--chat requires tokenizer.chat_template")

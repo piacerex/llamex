@@ -31,20 +31,35 @@ defmodule Llamex.ChatTemplate do
   def apply(nil, prompt) when is_binary(prompt), do: prompt
 
   def apply(@chatml_template, prompt) when is_binary(prompt) do
-    "<|im_start|>user\n" <> prompt <> "<|im_end|>\n<|im_start|>assistant\n"
+    apply(@chatml_template, [%{role: "user", content: prompt}])
   end
 
-  def apply(template, _prompt) when is_binary(template) do
+  def apply(@chatml_template, messages) when is_list(messages) do
+    Enum.map_join(messages, "", fn message ->
+      "<|im_start|>" <>
+        message_role(message) <> "\n" <> message_content(message) <> "<|im_end|>\n"
+    end) <> "<|im_start|>assistant\n"
+  end
+
+  def apply(template, prompt) when is_binary(template) and is_binary(prompt) do
+    raise ArgumentError, "unsupported chat template"
+  end
+
+  def apply(template, messages) when is_binary(template) and is_list(messages) do
     raise ArgumentError, "unsupported chat template"
   end
 
   def apply(template, prompt, tokenizer) when is_binary(template) and is_binary(prompt) do
+    apply(template, [%{role: "user", content: prompt}], tokenizer)
+  end
+
+  def apply(template, messages, tokenizer) when is_binary(template) and is_list(messages) do
     cond do
       template == @chatml_template ->
-        apply(template, prompt)
+        apply(template, messages)
 
       role_marker_template?(template) ->
-        "<|user|>\n" <> prompt <> eos_token(tokenizer) <> "<|assistant|>"
+        apply_role_marker_template(messages, tokenizer)
 
       true ->
         raise ArgumentError, "unsupported chat template"
@@ -56,6 +71,31 @@ defmodule Llamex.ChatTemplate do
       String.contains?(template, "<|assistant|>") and
       String.contains?(template, "eos_token")
   end
+
+  defp apply_role_marker_template(messages, tokenizer) do
+    eos_token = eos_token(tokenizer)
+
+    Enum.map_join(messages, "", fn message ->
+      case message_role(message) do
+        "user" ->
+          "<|user|>\n" <> message_content(message) <> eos_token
+
+        "assistant" ->
+          "<|assistant|>\n" <> message_content(message) <> eos_token
+
+        "system" ->
+          "<|user|>\n" <> message_content(message) <> eos_token
+      end
+    end) <> "<|assistant|>"
+  end
+
+  defp message_role(%{role: role}) when is_atom(role), do: Atom.to_string(role)
+  defp message_role(%{role: role}) when is_binary(role), do: role
+  defp message_role(%{"role" => role}) when is_atom(role), do: Atom.to_string(role)
+  defp message_role(%{"role" => role}) when is_binary(role), do: role
+
+  defp message_content(%{content: content}) when is_binary(content), do: content
+  defp message_content(%{"content" => content}) when is_binary(content), do: content
 
   defp eos_token(tokenizer) do
     get_in(tokenizer.special_tokens, [:eos, :token]) || "</s>"
