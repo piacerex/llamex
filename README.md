@@ -223,23 +223,33 @@ Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
 
 ```bash
-mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "The" 3 --natural --stop-control
-mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "Once upon a time" 3 --natural --stop-control
-mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "The quick brown fox" 3 --natural --stop-control
+mix llamex.natural.baseline /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf --json
 ```
 
-Verified multi-token runs now reach ordinary text generation. The prompt
-`Elixir is` generated `a common mole`, and `Once upon a time` generated
-`of high stress`; `The quick brown fox` generated `. They were`. Short prompts
-can still produce weak continuations, but the existing GGUF path can produce
-natural word pieces instead of decode noise. Byte-token output is normalized
-through the same SentencePiece-style decoder, so standalone `▁` markers are not
-leaked into generated text. The `--natural` preset also suppresses byte tokens,
-unknown/unused tokens, non-EOS control tokens, standalone `▁`, and
-newline/carriage-return pieces while sampling. On the current development
-machine this remains slow: one-token profiled runs spend tens of seconds in
-prefill and about 11s in the sampled step. Profile timings show the next speed
-targets are the feed-forward `w_down` matvecs and remaining layer matvec work.
+The current verified baseline output for the default prompt is:
+
+```text
+. They were a bit of brown and brown butter,
+```
+
+This is not high-quality prose yet, but it is ordinary decoded text from an
+existing GGUF path with `ok: true` and no smoke issues. Short prompts can still
+produce weak continuations, but the existing GGUF path can produce natural word
+pieces instead of decode noise. Byte-token output is normalized through the same
+SentencePiece-style decoder, so standalone `▁` markers are not leaked into
+generated text. The `--natural` preset also suppresses byte tokens,
+unknown/unused tokens, non-EOS control tokens, standalone `▁`,
+newline/carriage-return pieces, repeated token n-grams, and adjacent repeated
+words while sampling. On the current development machine this remains slow:
+one-token profiled runs spend tens of seconds in prefill and about 11s in the
+sampled step. Profile timings show the next speed targets are the feed-forward
+`w_down` matvecs and remaining layer matvec work.
+
+For quick manual comparisons, shorter direct generation still works:
+
+```bash
+mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "The quick brown fox" 3 --natural --stop-control
+```
 
 GGUF compatibility can be inspected without loading tensor data:
 
