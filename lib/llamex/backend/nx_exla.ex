@@ -226,11 +226,11 @@ defmodule Llamex.Backend.NxEXLA do
   @impl true
   def prepare_kv_entries(entries) when is_list(entries) do
     {keys, values} = kv_cache_tensors(entries)
-    {:nx_exla_kv_entries, entries, keys, values}
+    {:nx_exla_kv_entries, keys, values}
   end
 
   @impl true
-  def attend_heads(query_heads, {:nx_exla_kv_entries, _entries, keys, values}, head_count, 1)
+  def attend_heads(query_heads, {:nx_exla_kv_entries, keys, values}, head_count, 1)
       when is_list(query_heads) and is_integer(head_count) and head_count > 0 do
     attend_shared_kv_heads(query_heads, keys, values, head_count)
   end
@@ -238,7 +238,7 @@ defmodule Llamex.Backend.NxEXLA do
   @impl true
   def attend_heads(
         query_heads,
-        {:nx_exla_kv_entries, _entries, keys, values},
+        {:nx_exla_kv_entries, keys, values},
         head_count,
         kv_head_count
       )

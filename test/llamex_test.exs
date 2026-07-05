@@ -479,7 +479,7 @@ defmodule LlamexTest do
       result = Llamex.Backend.NxEXLA.attend_heads(query_heads, prepared_entries, 2, 1)
       expected = Llamex.Backend.List.attend_heads(query_heads, entries, 2, 1)
 
-      assert match?({:nx_exla_kv_entries, ^entries, %Nx.Tensor{}, %Nx.Tensor{}}, prepared_entries)
+      assert match?({:nx_exla_kv_entries, %Nx.Tensor{}, %Nx.Tensor{}}, prepared_entries)
       assert match?(%Nx.Tensor{}, result)
 
       result
