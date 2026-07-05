@@ -606,6 +606,41 @@ defmodule LlamexTest do
     assert state.prompt_truncated?
   end
 
+  test "generation stops before exceeding the context window" do
+    tokenizer = Llamex.Tokenizer.new(%{"A" => 0, "B" => 1, "C" => 2}, "A")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 3},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0, 0.0, 0.0],
+          1 => [0.0, 1.0, 0.0],
+          2 => [0.0, 0.0, 1.0]
+        },
+        output: %{
+          weight: [
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 3.0, 0.0]
+          ]
+        }
+      })
+
+    result =
+      Llamex.generate(model, "A B", %{
+        backend: Llamex.Backend.List,
+        context_window: 2,
+        max_new_tokens: 3,
+        stop_tokens: []
+      })
+
+    assert result.generated_tokens == [2]
+    assert result.requested_max_new_tokens == 3
+    assert result.effective_max_new_tokens == 1
+    assert result.finish_reason == :context_window
+  end
+
   test "generation can suppress adjacent repeated words" do
     tokenizer = Llamex.Tokenizer.new(%{"brown" => 0, "and" => 1}, "brown")
 
@@ -1266,6 +1301,28 @@ defmodule LlamexTest do
     assert profile["original_prompt_token_count"] == 2
     assert profile["context_window"] == 1
     assert profile["prompt_truncated?"]
+  end
+
+  test "generate task profile reports context window generation limit" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello world",
+          "3",
+          "--profile",
+          "--context-window",
+          "1",
+          "--no-stop"
+        ])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert profile["requested_max_new_tokens"] == 3
+    assert profile["effective_max_new_tokens"] == 1
+    assert profile["generated_tokens"] == [2]
+    assert profile["finish_reason"] == "context_window"
   end
 
   test "generate task can print candidate tokens in a generation profile" do

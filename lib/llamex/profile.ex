@@ -90,9 +90,16 @@ defmodule Llamex.Profile do
 
     {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend, opts)
 
+    effective_max_new_tokens =
+      ContextWindow.generation_budget(
+        max_new_tokens,
+        length(state.prompt_tokens),
+        state.context_window
+      )
+
     {steps, _context, _current_token, _sampler_state, finish_reason} =
       Enum.reduce_while(
-        1..max_new_tokens,
+        step_indexes(effective_max_new_tokens),
         {[], state.context, state.current_token, nil, :length},
         fn index, {steps, context, current_token, sampler_state, _finish_reason} ->
           history = state.prompt_tokens ++ generated_tokens_from_acc(steps)
@@ -137,6 +144,8 @@ defmodule Llamex.Profile do
     %{
       backend: backend,
       max_new_tokens: max_new_tokens,
+      requested_max_new_tokens: max_new_tokens,
+      effective_max_new_tokens: effective_max_new_tokens,
       stop_token: List.first(stop_tokens),
       stop_tokens: stop_tokens,
       sampler: display_sampler(sampler),
@@ -149,7 +158,7 @@ defmodule Llamex.Profile do
       generated_tokens: generated_tokens,
       generated_pieces: token_pieces(model, generated_tokens),
       generated_token_info: Enum.map(generated_tokens, &token_info(model, &1)),
-      finish_reason: finish_reason,
+      finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
       text: Llamex.decode(model, generated_tokens),
       prefill_timings: prefill_timings,
       timings: [prefill_time | Enum.map(steps, & &1.timing)],
@@ -162,6 +171,19 @@ defmodule Llamex.Profile do
     |> Enum.reverse()
     |> Enum.map(& &1.token)
   end
+
+  defp step_indexes(0), do: []
+  defp step_indexes(max_new_tokens), do: 1..max_new_tokens
+
+  defp finish_reason(:length, requested_max_new_tokens, effective_max_new_tokens) do
+    if ContextWindow.context_limited?(requested_max_new_tokens, effective_max_new_tokens) do
+      :context_window
+    else
+      :length
+    end
+  end
+
+  defp finish_reason(reason, _requested_max_new_tokens, _effective_max_new_tokens), do: reason
 
   defp display_sampler(%{suppress_tokens: suppress_tokens} = sampler)
        when is_list(suppress_tokens) do

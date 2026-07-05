@@ -56,6 +56,9 @@ The next speed step is reducing Nx preparation overhead and moving more of the
 matvec-heavy layer execution onto Nx/EXLA while keeping the List backend as the
 AtomVM reference path.
 
+`--context-window` keeps the tail of long prompts and caps generation so the
+minimal KV cache does not step past the selected window.
+
 ## Model JSON
 
 Llamex can load a small JSON model with:

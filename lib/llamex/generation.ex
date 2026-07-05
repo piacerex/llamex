@@ -195,13 +195,16 @@ defmodule Llamex.Generation do
     state = prefill(model, prompt, Map.take(opts, [:backend, :context_window]))
     %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} = state
 
+    effective_max_new_tokens =
+      ContextWindow.generation_budget(max_new_tokens, length(prompt_tokens), state.context_window)
+
     sampler_state = new_sampler_state(sampler)
 
     {context, generated_tokens, finish_reason} =
       generate_tokens(
         context,
         current_token,
-        max_new_tokens,
+        effective_max_new_tokens,
         stop_tokens,
         sampler,
         sampler_state,
@@ -215,8 +218,10 @@ defmodule Llamex.Generation do
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
       prompt_truncated?: state.prompt_truncated?,
+      requested_max_new_tokens: max_new_tokens,
+      effective_max_new_tokens: effective_max_new_tokens,
       generated_tokens: generated_tokens,
-      finish_reason: finish_reason,
+      finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
       context: context
     }
   end
@@ -286,6 +291,16 @@ defmodule Llamex.Generation do
   defp stop_tokens(_opts), do: []
 
   defp stop_token?(token, stop_tokens), do: token in stop_tokens
+
+  defp finish_reason(:length, requested_max_new_tokens, effective_max_new_tokens) do
+    if ContextWindow.context_limited?(requested_max_new_tokens, effective_max_new_tokens) do
+      :context_window
+    else
+      :length
+    end
+  end
+
+  defp finish_reason(reason, _requested_max_new_tokens, _effective_max_new_tokens), do: reason
 
   defp new_sampler_state(:greedy), do: nil
 
