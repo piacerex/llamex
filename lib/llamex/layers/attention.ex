@@ -39,22 +39,10 @@ defmodule Llamex.Layers.Attention do
 
     output =
       query_heads
-      |> Enum.with_index()
-      |> Enum.flat_map(fn {query, head_index} ->
-        attend_head(
-          query,
-          entries,
-          kv_head_index(head_index, head_count, kv_head_count),
-          backend
-        )
-      end)
+      |> backend.attend_heads(entries, head_count, kv_head_count)
       |> Linear.forward(Map.fetch!(layer, :wo), backend)
 
     {cache, output}
-  end
-
-  defp kv_head_index(head_index, head_count, kv_head_count) do
-    div(head_index * kv_head_count, head_count)
   end
 
   defp qkv_projection(
@@ -80,19 +68,5 @@ defmodule Llamex.Layers.Attention do
 
   defp apply_rope(heads, position, rope_theta, rope_dimension_count, backend) do
     Enum.map(heads, &backend.rope(&1, position, rope_theta, rope_dimension_count))
-  end
-
-  defp attend_head(query, entries, head_index, backend) do
-    keys =
-      Enum.map(entries, fn {cached_keys, _cached_values} ->
-        Enum.at(cached_keys, head_index)
-      end)
-
-    values =
-      Enum.map(entries, fn {_cached_keys, cached_values} ->
-        Enum.at(cached_values, head_index)
-      end)
-
-    backend.attend_head(query, keys, values)
   end
 end

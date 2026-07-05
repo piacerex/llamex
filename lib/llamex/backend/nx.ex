@@ -23,6 +23,10 @@ defmodule Llamex.Backend.Nx do
   defdelegate silu_multiply(gate, up), to: Llamex.Backend.NxEXLA
   defdelegate rms_norm(input, weight, epsilon), to: Llamex.Backend.NxEXLA
   defdelegate attend_head(query, keys, values), to: Llamex.Backend.NxEXLA
+
+  defdelegate attend_heads(query_heads, entries, head_count, kv_head_count),
+    to: Llamex.Backend.NxEXLA
+
   defdelegate add(left, right), to: Llamex.Backend.NxEXLA
   defdelegate argmax(tensor), to: Llamex.Backend.NxEXLA
   defdelegate to_list(tensor), to: Llamex.Backend.NxEXLA

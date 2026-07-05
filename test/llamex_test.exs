@@ -420,6 +420,25 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs grouped attention heads through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      query_heads = [[1.0, 0.0], [0.0, 1.0]]
+
+      entries = [
+        {[[1.0, 0.0]], [[2.0, 0.0]]},
+        {[[0.0, 1.0]], [[0.0, 4.0]]}
+      ]
+
+      result = Llamex.Backend.NxEXLA.attend_heads(query_heads, entries, 2, 1)
+      expected = Llamex.Backend.List.attend_heads(query_heads, entries, 2, 1)
+
+      Enum.zip(result, expected)
+      |> Enum.each(fn {actual, expected} ->
+        assert_in_delta actual, expected, 1.0e-6
+      end)
+    end
+  end
+
   test "runs top k matvec through nx_exla backend when Nx is available" do
     if Code.ensure_loaded?(Nx) do
       rows = Llamex.Backend.NxEXLA.from_list([[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]])

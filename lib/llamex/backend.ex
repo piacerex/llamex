@@ -26,6 +26,13 @@ defmodule Llamex.Backend do
   @callback silu_multiply(tensor(), tensor()) :: tensor()
   @callback rms_norm(tensor(), tensor(), number()) :: tensor()
   @callback attend_head(tensor(), tensor(), tensor()) :: list(number())
+  @callback attend_heads(
+              list(tensor()),
+              list({list(tensor()), list(tensor())}),
+              pos_integer(),
+              pos_integer()
+            ) ::
+              list(number())
   @callback add(tensor(), tensor()) :: tensor()
   @callback argmax(tensor()) :: non_neg_integer()
   @callback to_list(tensor()) :: list(number())

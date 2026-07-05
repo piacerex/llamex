@@ -93,6 +93,29 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def attend_heads(query_heads, entries, head_count, kv_head_count)
+      when is_list(query_heads) and is_list(entries) and is_integer(head_count) and
+             head_count > 0 and is_integer(kv_head_count) and kv_head_count > 0 do
+    query_heads
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {query, head_index} ->
+      kv_head_index = div(head_index * kv_head_count, head_count)
+
+      keys =
+        Enum.map(entries, fn {cached_keys, _cached_values} ->
+          Enum.at(cached_keys, kv_head_index)
+        end)
+
+      values =
+        Enum.map(entries, fn {_cached_keys, cached_values} ->
+          Enum.at(cached_values, kv_head_index)
+        end)
+
+      attend_head(query, keys, values)
+    end)
+  end
+
+  @impl true
   def matvec_triple(left_rows, middle_rows, right_rows, vector)
       when is_list(left_rows) and is_list(middle_rows) and is_list(right_rows) and is_list(vector) do
     {matvec(left_rows, vector), matvec(middle_rows, vector), matvec(right_rows, vector)}

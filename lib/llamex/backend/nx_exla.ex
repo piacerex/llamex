@@ -214,21 +214,21 @@ defmodule Llamex.Backend.NxEXLA do
 
   @impl true
   def attend_head(query, keys, values) do
-    nx = nx!()
-    query = tensor(query)
-    keys = tensor(keys)
-    values = tensor(values)
-    scale = 1.0 / :math.sqrt(query |> shape() |> elem(0))
+    attend_head_tensors(query, tensor(keys), tensor(values))
+  end
 
-    weights =
-      keys
-      |> then(&apply(nx, :dot, [&1, query]))
-      |> then(&apply(nx, :multiply, [&1, scale]))
-      |> softmax(nx)
+  @impl true
+  def attend_heads(query_heads, entries, head_count, kv_head_count)
+      when is_list(query_heads) and is_list(entries) and is_integer(head_count) and
+             head_count > 0 and is_integer(kv_head_count) and kv_head_count > 0 do
+    cache = grouped_kv_tensors(entries, kv_head_count)
 
-    weights
-    |> then(&apply(nx, :dot, [&1, values]))
-    |> then(&apply(nx, :to_flat_list, [&1]))
+    query_heads
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {query, head_index} ->
+      {keys, values} = Map.fetch!(cache, div(head_index * kv_head_count, head_count))
+      attend_head_tensors(query, keys, values)
+    end)
   end
 
   @impl true
@@ -413,6 +413,39 @@ defmodule Llamex.Backend.NxEXLA do
     nx
     |> apply(:concatenate, [parts, [axis: 0]])
     |> to_list()
+  end
+
+  defp grouped_kv_tensors(entries, kv_head_count) do
+    0..(kv_head_count - 1)
+    |> Map.new(fn head_index ->
+      keys =
+        Enum.map(entries, fn {cached_keys, _cached_values} ->
+          Enum.at(cached_keys, head_index)
+        end)
+
+      values =
+        Enum.map(entries, fn {_cached_keys, cached_values} ->
+          Enum.at(cached_values, head_index)
+        end)
+
+      {head_index, {tensor(keys), tensor(values)}}
+    end)
+  end
+
+  defp attend_head_tensors(query, keys, values) do
+    nx = nx!()
+    query = tensor(query)
+    scale = 1.0 / :math.sqrt(query |> shape() |> elem(0))
+
+    weights =
+      keys
+      |> then(&apply(nx, :dot, [&1, query]))
+      |> then(&apply(nx, :multiply, [&1, scale]))
+      |> softmax(nx)
+
+    weights
+    |> then(&apply(nx, :dot, [&1, values]))
+    |> then(&apply(nx, :to_flat_list, [&1]))
   end
 
   defp rope_angles(position, theta, dimension_count, half) do
