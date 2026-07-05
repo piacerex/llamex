@@ -76,11 +76,11 @@ defmodule Llamex.Profile do
         Llamex.prefill(model, prompt, %{backend: backend})
       end)
 
-    {steps, _context, _current_token, _sampler_state} =
+    {steps, _context, _current_token, _sampler_state, finish_reason} =
       Enum.reduce_while(
         1..max_new_tokens,
-        {[], state.context, state.current_token, nil},
-        fn index, {steps, context, current_token, sampler_state} ->
+        {[], state.context, state.current_token, nil, :length},
+        fn index, {steps, context, current_token, sampler_state, _finish_reason} ->
           {step_time, step} =
             timed("step_#{index}", fn ->
               Llamex.step(context, current_token, %{
@@ -98,7 +98,10 @@ defmodule Llamex.Profile do
             timing: step_time
           }
 
-          next_state = {[step_info | steps], step.context, step.token, step.sampler_state}
+          finish_reason = if step.token == stop_token, do: :stop, else: :length
+
+          next_state =
+            {[step_info | steps], step.context, step.token, step.sampler_state, finish_reason}
 
           if step.token == stop_token do
             {:halt, next_state}
@@ -114,6 +117,7 @@ defmodule Llamex.Profile do
     %{
       prompt_tokens: length(state.prompt_tokens),
       generated_tokens: generated_tokens,
+      finish_reason: finish_reason,
       text: Llamex.decode(model, generated_tokens),
       timings: [prefill_time | Enum.map(steps, & &1.timing)],
       steps: steps

@@ -346,6 +346,7 @@ defmodule LlamexTest do
       })
 
     assert result.generated_tokens == [2]
+    assert result.finish_reason == :stop
     assert result.text == "world"
   end
 
@@ -372,6 +373,7 @@ defmodule LlamexTest do
 
     assert result.prompt_tokens == [1]
     assert result.generated_tokens == [2]
+    assert result.finish_reason == :stop
     assert result.text == "world"
     assert result.context.tokens == [1]
   end
@@ -469,6 +471,7 @@ defmodule LlamexTest do
 
     assert profile.prompt_tokens == 1
     assert profile.generated_tokens == [2, 2]
+    assert profile.finish_reason == :length
     assert profile.text == "world world"
     assert Enum.map(profile.steps, & &1.token) == [2, 2]
     assert Enum.map(profile.steps, & &1.piece) == ["world", "world"]
@@ -497,6 +500,7 @@ defmodule LlamexTest do
       })
 
     assert profile.generated_tokens == [2]
+    assert profile.finish_reason == :stop
     assert profile.text == "world"
     assert Enum.map(profile.timings, & &1.label) == ["prefill", "step_1"]
   end
@@ -577,6 +581,7 @@ defmodule LlamexTest do
 
     assert profile["prompt_tokens"] == 1
     assert profile["generated_tokens"] == [2]
+    assert profile["finish_reason"] == "stop"
     assert profile["text"] == "world"
     assert Enum.map(profile["steps"], & &1["piece"]) == ["world"]
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]

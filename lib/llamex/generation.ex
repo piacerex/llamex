@@ -61,7 +61,7 @@ defmodule Llamex.Generation do
 
     sampler_state = new_sampler_state(sampler)
 
-    {context, generated_tokens} =
+    {context, generated_tokens, finish_reason} =
       generate_tokens(
         context,
         current_token,
@@ -77,6 +77,7 @@ defmodule Llamex.Generation do
       text: Llamex.decode(model, generated_tokens),
       prompt_tokens: prompt_tokens,
       generated_tokens: generated_tokens,
+      finish_reason: finish_reason,
       context: context
     }
   end
@@ -106,7 +107,7 @@ defmodule Llamex.Generation do
          _prompt_tokens,
          generated_tokens
        ) do
-    {context, Enum.reverse(generated_tokens)}
+    {context, Enum.reverse(generated_tokens), :length}
   end
 
   defp generate_tokens(
@@ -131,7 +132,7 @@ defmodule Llamex.Generation do
       )
 
     if next_token == stop_token do
-      {context, Enum.reverse([next_token | generated_tokens])}
+      {context, Enum.reverse([next_token | generated_tokens]), :stop}
     else
       generate_tokens(
         context,

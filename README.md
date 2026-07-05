@@ -171,6 +171,8 @@ Llamex.GGUF.ModelLoader.load("model.gguf")
 The `mix llamex.generate` task accepts `.gguf` paths and uses the GGUF loader
 for them. Use `--natural` to select a conservative text sampling preset
 (`temperature=0.8`, `top-k=40`, `top-p=0.9`, `repetition-penalty=1.1`).
+Use `--profile` to inspect token pieces, timings, and `finish_reason`
+(`stop` or `length`) for generation experiments.
 Use `--chat` only after `mix llamex.gguf.inspect` reports that the chat template
 has no missing tokens. The generate task validates `.gguf --chat` from metadata
 before loading tensors, so incompatible chat templates fail quickly.
