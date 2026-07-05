@@ -2198,7 +2198,7 @@ defmodule LlamexTest do
     {high_bits, low_bits} = q6_k_bits(values)
 
     tensor_data = [
-      q4_0_bytes(low_bits),
+      Enum.map(low_bits, &<<&1>>),
       high_bits,
       List.duplicate(1, 16) |> Enum.map(&i8/1),
       <<0x3C00::little-unsigned-integer-size(16)>>
@@ -2210,20 +2210,36 @@ defmodule LlamexTest do
   defp q6_k_bits(values) do
     values
     |> Enum.with_index()
-    |> Enum.reduce({List.duplicate(0, 64), []}, fn {value, index}, {high_bytes, low_bits} ->
+    |> Enum.reduce({List.duplicate(0, 64), List.duplicate(0, 128)}, fn {value, index},
+                                                                       {high_bytes, low_bytes} ->
+      group_index = div(index, 128)
+      group_offset = rem(index, 128)
+      quadrant = div(group_offset, 32)
+      offset = rem(group_offset, 32)
       high_value = value |> Bitwise.bsr(4) |> Bitwise.band(0x03)
-      high_index = div(index, 4)
-      shift = rem(index, 4) * 2
+      high_index = group_index * 32 + offset
+      high_shift = quadrant * 2
+      low_index = group_index * 64 + offset + if(quadrant in [1, 3], do: 32, else: 0)
+      low_value = Bitwise.band(value, 0x0F)
 
       high_bytes =
         List.update_at(high_bytes, high_index, fn byte ->
-          Bitwise.bor(byte, Bitwise.bsl(high_value, shift))
+          Bitwise.bor(byte, Bitwise.bsl(high_value, high_shift))
         end)
 
-      {high_bytes, [Bitwise.band(value, 0x0F) | low_bits]}
+      low_bytes =
+        List.update_at(low_bytes, low_index, fn byte ->
+          if quadrant in [0, 1] do
+            Bitwise.bor(byte, low_value)
+          else
+            Bitwise.bor(byte, Bitwise.bsl(low_value, 4))
+          end
+        end)
+
+      {high_bytes, low_bytes}
     end)
-    |> then(fn {high_bytes, low_bits} ->
-      {Enum.map(high_bytes, &<<&1>>), Enum.reverse(low_bits)}
+    |> then(fn {high_bytes, low_bytes} ->
+      {Enum.map(high_bytes, &<<&1>>), low_bytes}
     end)
   end
 

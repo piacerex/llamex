@@ -744,6 +744,7 @@ defmodule Llamex.GGUF.Reader do
          values
        ) do
     scale = f16_to_float(scale_bits)
+    scales = q3_k_scales(scales)
 
     block =
       0..(@q3_k_block_size - 1)
@@ -780,21 +781,47 @@ defmodule Llamex.GGUF.Reader do
     scale * q3_k_scale(scales, scale_index) * (quant - sign_offset)
   end
 
-  defp q3_k_scale(scales, index) do
-    low =
-      if index < 8 do
-        scales |> :binary.at(index) |> Bitwise.band(0x0F)
-      else
-        scales |> :binary.at(index - 8) |> Bitwise.bsr(4)
-      end
+  defp q3_k_scale(scales, index), do: Enum.at(scales, index)
 
-    high =
-      scales
-      |> :binary.at(8 + rem(index, 4))
-      |> Bitwise.bsr(2 * div(index, 4))
-      |> Bitwise.band(0x03)
+  defp q3_k_scales(scales) do
+    aux0 = u32_at(scales, 0)
+    aux1 = u32_at(scales, 4)
+    aux2 = u32_at(scales, 8)
 
-    Bitwise.bor(low, Bitwise.bsl(high, 4)) - 32
+    [
+      Bitwise.bor(Bitwise.band(aux0, 0x0F0F0F0F), Bitwise.bsl(Bitwise.band(aux2, 0x03030303), 4)),
+      Bitwise.bor(
+        Bitwise.band(aux1, 0x0F0F0F0F),
+        Bitwise.bsl(Bitwise.band(Bitwise.bsr(aux2, 2), 0x03030303), 4)
+      ),
+      Bitwise.bor(
+        Bitwise.band(Bitwise.bsr(aux0, 4), 0x0F0F0F0F),
+        Bitwise.bsl(Bitwise.band(Bitwise.bsr(aux2, 4), 0x03030303), 4)
+      ),
+      Bitwise.bor(
+        Bitwise.band(Bitwise.bsr(aux1, 4), 0x0F0F0F0F),
+        Bitwise.bsl(Bitwise.band(Bitwise.bsr(aux2, 6), 0x03030303), 4)
+      )
+    ]
+    |> Enum.flat_map(&u32_bytes/1)
+    |> Enum.map(&signed_i8/1)
+    |> Enum.map(&(&1 - 32))
+  end
+
+  defp u32_at(binary, offset) do
+    <<_prefix::binary-size(offset), value::little-unsigned-integer-size(32), _rest::binary>> =
+      binary
+
+    value
+  end
+
+  defp u32_bytes(value) do
+    [
+      Bitwise.band(value, 0xFF),
+      Bitwise.band(Bitwise.bsr(value, 8), 0xFF),
+      Bitwise.band(Bitwise.bsr(value, 16), 0xFF),
+      Bitwise.band(Bitwise.bsr(value, 24), 0xFF)
+    ]
   end
 
   defp read_q4_k_tensor(_binary, _offset, count) when rem(count, @q4_k_block_size) != 0 do
@@ -958,22 +985,31 @@ defmodule Llamex.GGUF.Reader do
   end
 
   defp q6_k_value(ql, qh, scales, scale, index) do
+    group_index = div(index, 128)
+    group_offset = rem(index, 128)
+    quadrant = div(group_offset, 32)
+    offset = rem(group_offset, 32)
+
+    ql_index = group_index * 64 + offset + if(quadrant in [1, 3], do: 32, else: 0)
+
     low_bits =
       ql
-      |> :binary.at(div(index, 2))
+      |> :binary.at(ql_index)
       |> then(fn byte ->
-        if rem(index, 2) == 0, do: Bitwise.band(byte, 0x0F), else: Bitwise.bsr(byte, 4)
+        if quadrant in [0, 1], do: Bitwise.band(byte, 0x0F), else: Bitwise.bsr(byte, 4)
       end)
 
     high_bits =
       qh
-      |> :binary.at(div(index, 4))
-      |> Bitwise.bsr(rem(index, 4) * 2)
+      |> :binary.at(group_index * 32 + offset)
+      |> Bitwise.bsr(quadrant * 2)
       |> Bitwise.band(0x03)
       |> Bitwise.bsl(4)
 
     quant = low_bits + high_bits - 32
-    block_scale = scales |> :binary.at(div(index, 16)) |> signed_i8()
+
+    block_scale =
+      scales |> :binary.at(group_index * 8 + div(offset, 16) + quadrant * 2) |> signed_i8()
 
     quant * block_scale * scale
   end
