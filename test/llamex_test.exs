@@ -200,6 +200,15 @@ defmodule LlamexTest do
     assert Llamex.Tensor.matvec(rows, vector) == Enum.map(1..1001, &(&1 / 1000.0))
   end
 
+  test "runs paired matvecs with the same row order" do
+    vector = List.duplicate(1.0, 1000)
+    left_rows = Enum.map(1..1001, fn value -> [value / 1000.0 | List.duplicate(0.0, 999)] end)
+    right_rows = Enum.map(1..1001, fn value -> [value / 500.0 | List.duplicate(0.0, 999)] end)
+
+    assert Llamex.Tensor.matvec_pair(left_rows, right_rows, vector) ==
+             {Enum.map(1..1001, &(&1 / 1000.0)), Enum.map(1..1001, &(&1 / 500.0))}
+  end
+
   test "finds argmax matvec without materializing logits" do
     vector = [1.0, 2.0, 3.0]
 
@@ -240,6 +249,17 @@ defmodule LlamexTest do
     assert next_token == 0
     assert context.tokens == [0]
     assert [{_key, _value}] = Llamex.KVCache.entries(context.kv_cache, 0)
+  end
+
+  test "runs list SwiGLU with paired gate and up projections" do
+    layer = %{
+      w_gate: [[1.0, 0.0], [0.0, 1.0]],
+      w_up: [[2.0, 0.0], [0.0, 3.0]],
+      w_down: [[1.0, 0.0], [0.0, 1.0]]
+    }
+
+    assert Llamex.Layers.SwiGLU.forward([1.0, 2.0], layer, Llamex.Backend.List) ==
+             [2.0 / (1.0 + :math.exp(-1.0)), 6.0 * 2.0 / (1.0 + :math.exp(-2.0))]
   end
 
   test "profiles SwiGLU feed-forward substeps" do

@@ -68,6 +68,40 @@ defmodule Llamex.Tensor do
     end
   end
 
+  def matvec_pair(left_rows, right_rows, vector)
+      when is_list(left_rows) and is_list(right_rows) and is_list(vector) do
+    if length(left_rows) != length(right_rows) do
+      raise ArgumentError, "matrices must have matching row counts"
+    end
+
+    if parallel_matvec?(left_rows, vector) do
+      left_rows
+      |> Enum.chunk_every(matvec_chunk_size(left_rows))
+      |> Enum.zip(Enum.chunk_every(right_rows, matvec_chunk_size(right_rows)))
+      |> Task.async_stream(
+        fn {left_chunk, right_chunk} ->
+          left_values = Enum.map(left_chunk, &dot(&1, vector))
+          right_values = Enum.map(right_chunk, &dot(&1, vector))
+          {left_values, right_values}
+        end,
+        ordered: true,
+        timeout: :infinity,
+        max_concurrency: System.schedulers_online()
+      )
+      |> Enum.reduce({[], []}, fn {:ok, {left_values, right_values}}, {left_acc, right_acc} ->
+        {[left_values | left_acc], [right_values | right_acc]}
+      end)
+      |> then(fn {left_chunks, right_chunks} ->
+        {left_chunks |> Enum.reverse() |> List.flatten(),
+         right_chunks |> Enum.reverse() |> List.flatten()}
+      end)
+    else
+      left_values = Enum.map(left_rows, &dot(&1, vector))
+      right_values = Enum.map(right_rows, &dot(&1, vector))
+      {left_values, right_values}
+    end
+  end
+
   def argmax_matvec(rows, vector) when is_list(rows) and is_list(vector) do
     if parallel_matvec?(rows, vector) do
       chunk_size = argmax_matvec_chunk_size(rows)
