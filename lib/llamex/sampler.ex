@@ -72,9 +72,32 @@ defmodule Llamex.Sampler do
   defp top_k_candidates(values, top_k) when is_integer(top_k) and top_k > 0 do
     values
     |> Enum.with_index()
-    |> Enum.sort_by(fn {value, _index} -> value end, :desc)
-    |> Enum.take(top_k)
+    |> top_k_by_value(top_k)
   end
+
+  defp top_k_by_value(candidates, top_k) do
+    candidates
+    |> Enum.reduce([], fn candidate, top ->
+      insert_top_k(candidate, top, top_k)
+    end)
+    |> Enum.reverse()
+  end
+
+  defp insert_top_k(candidate, [], _top_k), do: [candidate]
+
+  defp insert_top_k({value, _index}, [{lowest, _lowest_index} | _rest] = top, top_k)
+       when length(top) == top_k and value <= lowest do
+    top
+  end
+
+  defp insert_top_k(candidate, top, top_k) do
+    [candidate | top]
+    |> Enum.sort_by(fn {value, _index} -> value end)
+    |> trim_lowest(top_k)
+  end
+
+  defp trim_lowest(top, top_k) when length(top) > top_k, do: tl(top)
+  defp trim_lowest(top, _top_k), do: top
 
   defp probabilities(candidates) do
     max = candidates |> Enum.map(fn {value, _index} -> value end) |> Enum.max()
