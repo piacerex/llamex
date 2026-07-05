@@ -45,6 +45,7 @@ defmodule Llamex.Natural do
         reject_open_ending? and Map.get(opts, :finish_reason) == :length and open_ending?(text),
         "length limit reached with open text ending"
       )
+      |> add_issue(repeated_adjacent_word?(text), "repeated adjacent word in text")
       |> Kernel.++(token_issues(model, generated_tokens))
 
     %{ok: issues == [], issues: issues}
@@ -105,6 +106,19 @@ defmodule Llamex.Natural do
     ~r/[[:alnum:]]+/u
     |> Regex.scan(text)
     |> length()
+  end
+
+  defp repeated_adjacent_word?(text) do
+    text
+    |> words()
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.any?(fn [left, right] -> String.downcase(left) == String.downcase(right) end)
+  end
+
+  defp words(text) do
+    ~r/[[:alnum:]]+/u
+    |> Regex.scan(text)
+    |> Enum.map(&List.first/1)
   end
 
   defp token_issues(%{tokenizer: nil}, _generated_tokens), do: []

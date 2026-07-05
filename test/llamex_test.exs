@@ -1211,6 +1211,18 @@ defmodule LlamexTest do
            }
   end
 
+  test "natural smoke check reports adjacent repeated words" do
+    assert Llamex.Natural.smoke_check(%{}, [], "brown Brown, and") == %{
+             ok: false,
+             issues: ["repeated adjacent word in text"]
+           }
+
+    assert Llamex.Natural.smoke_check(%{}, [], "brown and brown") == %{
+             ok: true,
+             issues: []
+           }
+  end
+
   test "natural smoke check can reject open length endings" do
     assert Llamex.Natural.smoke_check(%{}, [], ". They were", %{
              finish_reason: :length,

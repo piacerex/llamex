@@ -204,7 +204,7 @@ before loading tensors, so incompatible chat templates fail quickly.
 Use `mix llamex.natural.smoke MODEL [max_new_tokens] --json` to run the current
 natural-generation baseline prompts after loading the model once. Smoke results
 include `ok` and `issues` fields for raw `▁` markers, suppressed token types, or
-punctuation-only output.
+punctuation-only output, and adjacent repeated words.
 Add `--min-words N` to require generated text to contain at least that many word
 fragments.
 Add `--reject-open-ending` to report length-limited output that ends on an
