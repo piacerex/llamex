@@ -16,7 +16,7 @@ defmodule Llamex.Layers.Attention do
         rope_dimension_count \\ nil,
         backend \\ Llamex.Backend.List
       )
-      when is_list(input) and is_map(layer) and is_integer(layer_index) do
+      when is_map(layer) and is_integer(layer_index) do
     head_count = Map.get(layer, :head_count, 1)
     kv_head_count = Map.get(layer, :kv_head_count, head_count)
 

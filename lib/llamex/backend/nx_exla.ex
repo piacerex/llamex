@@ -82,11 +82,10 @@ defmodule Llamex.Backend.NxEXLA do
 
   @impl true
   def prepare_model(model) do
-    %{
-      model
-      | layers: Enum.map(model.layers, &prepare_layer/1),
-        output: prepare_output(model.output)
-    }
+    model
+    |> Map.update!(:layers, &Enum.map(&1, fn layer -> prepare_layer(layer) end))
+    |> Map.update(:output_norm, nil, &prepare_norm/1)
+    |> Map.update!(:output, &prepare_output/1)
   end
 
   @impl true
@@ -146,6 +145,28 @@ defmodule Llamex.Backend.NxEXLA do
     nx = nx!()
 
     apply(nx, :multiply, [apply_silu(gate, nx), up])
+  end
+
+  @impl true
+  def rms_norm(input, weight, epsilon) do
+    nx = nx!()
+    input = tensor(input)
+    weight = tensor(weight)
+
+    mean_square =
+      input
+      |> then(&apply(nx, :multiply, [&1, &1]))
+      |> then(&apply(nx, :mean, [&1]))
+
+    scale =
+      mean_square
+      |> then(&apply(nx, :add, [&1, epsilon]))
+      |> then(&apply(nx, :sqrt, [&1]))
+      |> then(&apply(nx, :divide, [1.0, &1]))
+
+    input
+    |> then(&apply(nx, :multiply, [&1, scale]))
+    |> then(&apply(nx, :multiply, [&1, weight]))
   end
 
   @impl true
@@ -257,7 +278,7 @@ defmodule Llamex.Backend.NxEXLA do
   defp normalize_target(target) when is_atom(target), do: target
 
   defp prepare_layer(layer) do
-    [:wq, :wk, :wv, :wo, :w_gate, :w_up, :w_down]
+    [:attention_norm, :feed_forward_norm, :wq, :wk, :wv, :wo, :w_gate, :w_up, :w_down]
     |> Enum.reduce(layer, fn key, layer ->
       case Map.fetch(layer, key) do
         {:ok, weights} -> Map.put(layer, key, tensor(weights))
@@ -270,9 +291,14 @@ defmodule Llamex.Backend.NxEXLA do
 
   defp prepare_output(nil), do: nil
 
-  defp prepare_output(%{weight: weight} = output) do
-    %{output | weight: tensor(weight)}
+  defp prepare_output(%{weight: _weight} = output) do
+    output
+    |> Map.update!(:weight, &tensor/1)
+    |> Map.update(:norm, nil, &tensor/1)
   end
+
+  defp prepare_norm(nil), do: nil
+  defp prepare_norm(weight), do: tensor(weight)
 
   defp row_count(rows) when is_list(rows), do: length(rows)
   defp row_count(rows), do: rows |> shape() |> elem(0)

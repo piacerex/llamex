@@ -4,7 +4,7 @@ defmodule Llamex.Profile do
   """
 
   alias Llamex.{Context, ContextWindow, Tensor}
-  alias Llamex.Layers.{Attention, Linear, RMSNorm}
+  alias Llamex.Layers.{Attention, Linear}
 
   def timed(label, fun) when is_binary(label) and is_function(fun, 0) do
     {microseconds, result} = :timer.tc(fun)
@@ -392,7 +392,12 @@ defmodule Llamex.Profile do
 
     {output_norm_time, hidden} =
       timed("output_norm", fn ->
-        maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+        maybe_apply_output_norm(
+          hidden,
+          context.model.output_norm,
+          context.model.config.epsilon,
+          context.backend
+        )
       end)
 
     {logits_time, logits} =
@@ -430,7 +435,12 @@ defmodule Llamex.Profile do
 
     {output_norm_time, hidden} =
       timed("output_norm", fn ->
-        maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+        maybe_apply_output_norm(
+          hidden,
+          context.model.output_norm,
+          context.model.config.epsilon,
+          context.backend
+        )
       end)
 
     {logits_time, logits} =
@@ -450,7 +460,11 @@ defmodule Llamex.Profile do
   defp timed_layer(context, hidden, layer, layer_index, position) do
     {attention_norm_time, normalized} =
       timed("attention_norm", fn ->
-        RMSNorm.forward(hidden, Map.fetch!(layer, :attention_norm), context.model.config.epsilon)
+        context.backend.rms_norm(
+          hidden,
+          Map.fetch!(layer, :attention_norm),
+          context.model.config.epsilon
+        )
       end)
 
     {attention_time, {kv_cache, attention}} =
@@ -487,7 +501,7 @@ defmodule Llamex.Profile do
        ) do
     {norm_time, normalized} =
       timed("feed_forward_norm", fn ->
-        RMSNorm.forward(hidden, feed_forward_norm, epsilon)
+        Llamex.Backend.List.rms_norm(hidden, feed_forward_norm, epsilon)
       end)
 
     {gate_up_time, {gate, up}} =
@@ -522,29 +536,25 @@ defmodule Llamex.Profile do
   defp timed_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon, backend) do
     {norm_time, normalized} =
       timed("feed_forward_norm", fn ->
-        RMSNorm.forward(hidden, feed_forward_norm, epsilon)
+        backend.rms_norm(hidden, feed_forward_norm, epsilon)
       end)
 
-    {gate_time, gate} =
-      timed("w_gate", fn ->
-        Linear.forward(normalized, Map.fetch!(layer, :w_gate), backend)
-      end)
-
-    {up_time, up} =
-      timed("w_up", fn ->
-        Linear.forward(normalized, Map.fetch!(layer, :w_up), backend)
+    {gate_up_time, {gate, up}} =
+      timed("w_gate_up", fn ->
+        gate_up_projection(layer, normalized, backend)
       end)
 
     {activation_time, activated} =
       timed("silu_multiply", fn ->
         gate
-        |> Tensor.silu()
-        |> Tensor.multiply(up)
+        |> backend.silu_multiply(up)
       end)
 
     {down_time, down} =
       timed("w_down", fn ->
-        Linear.forward(activated, Map.fetch!(layer, :w_down), backend)
+        Map.fetch!(layer, :w_down)
+        |> backend.matvec_tensor(activated)
+        |> backend.to_list()
       end)
 
     {residual_time, hidden} =
@@ -552,15 +562,31 @@ defmodule Llamex.Profile do
         Tensor.add(hidden, down)
       end)
 
-    {hidden, [norm_time, gate_time, up_time, activation_time, down_time, residual_time]}
+    {hidden, [norm_time, gate_up_time, activation_time, down_time, residual_time]}
   end
 
   defp timed_mlp(hidden, _layer, _epsilon, _backend), do: {hidden, []}
 
-  defp maybe_apply_output_norm(hidden, nil, _epsilon), do: hidden
+  defp maybe_apply_output_norm(hidden, nil, _epsilon, _backend), do: hidden
 
-  defp maybe_apply_output_norm(hidden, output_norm, epsilon) do
-    RMSNorm.forward(hidden, output_norm, epsilon)
+  defp maybe_apply_output_norm(hidden, output_norm, epsilon, backend) do
+    backend.rms_norm(hidden, output_norm, epsilon)
+  end
+
+  defp gate_up_projection(
+         %{w_gate_up: weight, w_gate_up_row_counts: [gate_count, _up_count]},
+         input,
+         backend
+       ) do
+    backend.matvec_split_pair_tensor(weight, gate_count, input)
+  end
+
+  defp gate_up_projection(layer, input, backend) do
+    backend.matvec_pair_tensor(
+      Map.fetch!(layer, :w_gate),
+      Map.fetch!(layer, :w_up),
+      input
+    )
   end
 
   defp timed_logits(%{model: %{output: %{weight: weight}}, backend: backend}, hidden) do

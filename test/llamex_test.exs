@@ -389,6 +389,23 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs rms norm through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      input = Llamex.Backend.NxEXLA.from_list([3.0, 4.0])
+      weight = Llamex.Backend.NxEXLA.from_list([1.0, 0.5])
+
+      result =
+        input
+        |> Llamex.Backend.NxEXLA.rms_norm(weight, 1.0e-5)
+        |> Llamex.Backend.NxEXLA.to_list()
+
+      expected = Llamex.Backend.List.rms_norm([3.0, 4.0], [1.0, 0.5], 1.0e-5)
+
+      assert_in_delta Enum.at(result, 0), Enum.at(expected, 0), 1.0e-6
+      assert_in_delta Enum.at(result, 1), Enum.at(expected, 1), 1.0e-6
+    end
+  end
+
   test "maps exla targets to clients" do
     assert Llamex.Backend.NxEXLA.client(:cpu) == :host
     assert Llamex.Backend.NxEXLA.client("cpu") == :host

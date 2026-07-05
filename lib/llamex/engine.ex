@@ -4,7 +4,7 @@ defmodule Llamex.Engine do
   """
 
   alias Llamex.Context
-  alias Llamex.Layers.{Attention, RMSNorm, SwiGLU}
+  alias Llamex.Layers.{Attention, SwiGLU}
   alias Llamex.Tensor
 
   def eval(%Context{} = context, token) when is_integer(token) and token >= 0 do
@@ -13,7 +13,12 @@ defmodule Llamex.Engine do
     {context, hidden} = run_layers(context, hidden, position)
 
     hidden =
-      maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+      maybe_apply_output_norm(
+        hidden,
+        context.model.output_norm,
+        context.model.config.epsilon,
+        context.backend
+      )
 
     logits =
       if context.model.output do
@@ -38,7 +43,12 @@ defmodule Llamex.Engine do
     {context, hidden} = run_layers(context, hidden, position)
 
     hidden =
-      maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+      maybe_apply_output_norm(
+        hidden,
+        context.model.output_norm,
+        context.model.config.epsilon,
+        context.backend
+      )
 
     candidates =
       Tensor.top_k_matvec(weight, hidden, top_k,
@@ -61,7 +71,12 @@ defmodule Llamex.Engine do
     {context, hidden} = run_layers(context, hidden, position)
 
     hidden =
-      maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+      maybe_apply_output_norm(
+        hidden,
+        context.model.output_norm,
+        context.model.config.epsilon,
+        context.backend
+      )
 
     next_token = greedy_token(context, hidden)
 
@@ -76,7 +91,11 @@ defmodule Llamex.Engine do
     |> Enum.with_index()
     |> Enum.reduce({context, hidden}, fn {layer, layer_index}, {context, hidden} ->
       normalized =
-        RMSNorm.forward(hidden, Map.fetch!(layer, :attention_norm), context.model.config.epsilon)
+        context.backend.rms_norm(
+          hidden,
+          Map.fetch!(layer, :attention_norm),
+          context.model.config.epsilon
+        )
 
       {kv_cache, attention} =
         Attention.forward(
@@ -100,7 +119,7 @@ defmodule Llamex.Engine do
   defp maybe_apply_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon, backend) do
     feed_forward =
       hidden
-      |> RMSNorm.forward(feed_forward_norm, epsilon)
+      |> backend.rms_norm(feed_forward_norm, epsilon)
       |> SwiGLU.forward(layer, backend)
 
     Tensor.add(hidden, feed_forward)
@@ -108,10 +127,10 @@ defmodule Llamex.Engine do
 
   defp maybe_apply_mlp(hidden, _layer, _epsilon, _backend), do: hidden
 
-  defp maybe_apply_output_norm(hidden, nil, _epsilon), do: hidden
+  defp maybe_apply_output_norm(hidden, nil, _epsilon, _backend), do: hidden
 
-  defp maybe_apply_output_norm(hidden, output_norm, epsilon) do
-    RMSNorm.forward(hidden, output_norm, epsilon)
+  defp maybe_apply_output_norm(hidden, output_norm, epsilon, backend) do
+    backend.rms_norm(hidden, output_norm, epsilon)
   end
 
   defp embedding_logits(context, hidden) do

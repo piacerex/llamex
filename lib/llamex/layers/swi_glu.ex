@@ -6,7 +6,7 @@ defmodule Llamex.Layers.SwiGLU do
   def forward(input, layer, backend \\ Llamex.Backend.List)
 
   def forward(input, layer, backend)
-      when is_list(input) and is_map(layer) do
+      when is_map(layer) do
     {gate, up} = gate_up_projection(layer, input, backend)
 
     activated = backend.silu_multiply(gate, up)

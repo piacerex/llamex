@@ -63,6 +63,12 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def rms_norm(input, weight, epsilon)
+      when is_list(input) and is_list(weight) and length(input) == length(weight) do
+    Llamex.Layers.RMSNorm.forward(input, weight, epsilon)
+  end
+
+  @impl true
   def matvec_triple(left_rows, middle_rows, right_rows, vector)
       when is_list(left_rows) and is_list(middle_rows) and is_list(right_rows) and is_list(vector) do
     {matvec(left_rows, vector), matvec(middle_rows, vector), matvec(right_rows, vector)}

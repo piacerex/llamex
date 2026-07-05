@@ -21,6 +21,7 @@ defmodule Llamex.Backend do
   @callback matvec_split_triple(tensor(), pos_integer(), pos_integer(), pos_integer(), tensor()) ::
               {list(number()), list(number()), list(number())}
   @callback silu_multiply(tensor(), tensor()) :: tensor()
+  @callback rms_norm(tensor(), tensor(), number()) :: tensor()
   @callback add(tensor(), tensor()) :: tensor()
   @callback argmax(tensor()) :: non_neg_integer()
   @callback to_list(tensor()) :: list(number())
