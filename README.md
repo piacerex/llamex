@@ -179,6 +179,7 @@ GGUF compatibility can be inspected without loading tensor data:
 
 ```bash
 mix llamex.gguf.inspect model.gguf
+mix llamex.gguf.inspect model.gguf --json
 ```
 
 The inspection output includes chat template support and missing marker tokens,

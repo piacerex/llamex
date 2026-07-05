@@ -716,6 +716,28 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "eager f32 lower bound: 16 B"
   end
 
+  test "gguf inspect task can print json diagnostics" do
+    path =
+      Path.join(System.tmp_dir!(), "llamex-inspect-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_gguf(:with_unsupported_tensor_type))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--json"])
+        end)
+
+      diagnostic = JSON.decode!(String.trim(output))
+
+      assert diagnostic["version"] == 3
+      assert diagnostic["chat_template"] == "none"
+      assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
+    after
+      File.rm(path)
+    end
+  end
+
   test "builds a tokenizer from gguf metadata" do
     parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
 
