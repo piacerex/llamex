@@ -57,6 +57,8 @@ defmodule LlamexTest do
         "<unk>"
       )
 
+    assert tokenizer.sentencepiece_vocab?
+    assert Enum.map(tokenizer.tokens_by_length, &byte_size/1) == [7, 6, 5, 3]
     assert Llamex.Tokenizer.encode(tokenizer, "binding pon") == [1, 2, 3]
   end
 

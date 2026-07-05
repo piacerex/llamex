@@ -13,6 +13,8 @@ defmodule Llamex.Tokenizer.Whitespace do
     :token_to_id,
     :id_to_token,
     :unknown_token,
+    :tokens_by_length,
+    :sentencepiece_vocab?,
     special_tokens: %{},
     token_types: [],
     chat_template: nil
@@ -22,6 +24,8 @@ defmodule Llamex.Tokenizer.Whitespace do
           token_to_id: %{required(String.t()) => non_neg_integer()},
           id_to_token: %{required(non_neg_integer()) => String.t()},
           unknown_token: String.t(),
+          tokens_by_length: list(String.t()),
+          sentencepiece_vocab?: boolean(),
           special_tokens: map(),
           token_types: list(map()),
           chat_template: String.t() | nil
@@ -40,6 +44,8 @@ defmodule Llamex.Tokenizer.Whitespace do
       token_to_id: vocab,
       id_to_token: Map.new(vocab, fn {token, id} -> {id, token} end),
       unknown_token: unknown_token,
+      tokens_by_length: tokens_by_length(vocab),
+      sentencepiece_vocab?: sentencepiece_vocab?(vocab),
       special_tokens: Keyword.get(opts, :special_tokens, %{}),
       token_types: Keyword.get(opts, :token_types, []),
       chat_template: Keyword.get(opts, :chat_template)
@@ -66,10 +72,8 @@ defmodule Llamex.Tokenizer.Whitespace do
 
   defp split_special_tokens(tokenizer, text) do
     special_tokens =
-      tokenizer.token_to_id
-      |> Map.keys()
+      tokenizer.tokens_by_length
       |> Enum.filter(&String.starts_with?(&1, "<|"))
-      |> Enum.sort_by(&byte_size/1, :desc)
 
     split_special_tokens(text, special_tokens, [])
   end
@@ -106,16 +110,12 @@ defmodule Llamex.Tokenizer.Whitespace do
       Map.has_key?(tokenizer.token_to_id, sentencepiece_token) ->
         [Map.fetch!(tokenizer.token_to_id, sentencepiece_token)]
 
-      sentencepiece_vocab?(tokenizer) ->
+      tokenizer.sentencepiece_vocab? ->
         encode_sentencepiece_word(tokenizer, sentencepiece_token, word)
 
       true ->
         encode_token(tokenizer, word)
     end
-  end
-
-  defp sentencepiece_vocab?(tokenizer) do
-    Enum.any?(Map.keys(tokenizer.token_to_id), &String.starts_with?(&1, "▁"))
   end
 
   defp encode_sentencepiece_word(tokenizer, sentencepiece_token, fallback_word) do
@@ -139,14 +139,24 @@ defmodule Llamex.Tokenizer.Whitespace do
   end
 
   defp longest_piece(tokenizer, text) do
-    tokenizer.token_to_id
-    |> Map.keys()
-    |> Enum.filter(&String.starts_with?(text, &1))
-    |> Enum.max_by(&byte_size/1, fn -> nil end)
+    tokenizer.tokens_by_length
+    |> Enum.find(&String.starts_with?(text, &1))
     |> case do
       nil -> nil
       piece -> {piece, Map.fetch!(tokenizer.token_to_id, piece)}
     end
+  end
+
+  defp tokens_by_length(vocab) do
+    vocab
+    |> Map.keys()
+    |> Enum.sort_by(&byte_size/1, :desc)
+  end
+
+  defp sentencepiece_vocab?(vocab) do
+    vocab
+    |> Map.keys()
+    |> Enum.any?(&String.starts_with?(&1, "▁"))
   end
 
   defp encode_token(tokenizer, token) do
