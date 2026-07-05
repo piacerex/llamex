@@ -185,6 +185,7 @@ mix llamex.gguf.inspect first.gguf second.gguf --json
 
 The inspection output includes chat template support and missing marker tokens,
 which is the fastest way to decide whether `--chat` is safe for a checkpoint.
+Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 

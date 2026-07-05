@@ -28,6 +28,8 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def inspect_binary(binary) when is_binary(binary) do
     gguf = Llamex.GGUF.Reader.read_binary(binary)
+    chat_template = chat_template_status(gguf.metadata)
+    missing_chat_template_tokens = missing_chat_template_tokens(gguf.metadata)
 
     %{
       version: gguf.version,
@@ -35,8 +37,9 @@ defmodule Llamex.GGUF.Diagnostic do
       metadata_count: gguf.metadata_count,
       architecture: metadata_value(gguf.metadata, "general.architecture"),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
-      chat_template: chat_template_status(gguf.metadata),
-      missing_chat_template_tokens: missing_chat_template_tokens(gguf.metadata),
+      chat_template: chat_template,
+      chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
+      missing_chat_template_tokens: missing_chat_template_tokens,
       tensor_element_count: tensor_element_count(gguf.tensors),
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
       supported_tensor_types: supported_tensor_types(gguf.tensors),
@@ -53,6 +56,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
       "chat template: #{diagnostic.chat_template}",
+      "chat usable: #{diagnostic.chat_usable}",
       format_missing_chat_template_tokens(diagnostic.missing_chat_template_tokens),
       "tensor elements: #{diagnostic.tensor_element_count}",
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
@@ -115,6 +119,9 @@ defmodule Llamex.GGUF.Diagnostic do
         if Llamex.ChatTemplate.supported?(template), do: "supported", else: "unsupported"
     end
   end
+
+  defp chat_usable?("supported", []), do: true
+  defp chat_usable?(_chat_template, _missing_tokens), do: false
 
   defp missing_chat_template_tokens(metadata) do
     template = metadata_value(metadata, "tokenizer.chat_template")

@@ -716,6 +716,7 @@ defmodule LlamexTest do
     assert diagnostic.supported_tensor_types == %{}
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
     assert diagnostic.chat_template == "none"
+    assert diagnostic.chat_usable == false
     assert diagnostic.missing_chat_template_tokens == []
 
     assert diagnostic.unsupported_tensors == [
@@ -747,6 +748,7 @@ defmodule LlamexTest do
       assert diagnostic["path"] == path
       assert diagnostic["version"] == 3
       assert diagnostic["chat_template"] == "none"
+      assert diagnostic["chat_usable"] == false
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
     after
       File.rm(path)
@@ -773,6 +775,7 @@ defmodule LlamexTest do
 
       assert Enum.map(diagnostics, & &1["path"]) == [first, second]
       assert Enum.map(diagnostics, & &1["chat_template"]) == ["none", "supported"]
+      assert Enum.map(diagnostics, & &1["chat_usable"]) == [false, false]
     after
       File.rm(first)
       File.rm(second)
@@ -811,12 +814,24 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_chat_template_gguf())
 
     assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_usable == false
     assert diagnostic.missing_chat_template_tokens == ["<|im_start|>", "<|im_end|>"]
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template: supported"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: false"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "chat template missing tokens: <|im_start|>, <|im_end|>"
+  end
+
+  test "diagnoses chat templates as usable when markers exist" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_usable_chat_template_gguf())
+
+    assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_usable == true
+    assert diagnostic.missing_chat_template_tokens == []
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
   end
 
   test "builds a tokenizer with gguf chat template metadata" do
@@ -1932,6 +1947,23 @@ defmodule LlamexTest do
     metadata = [
       kv_string("general.architecture", "llama"),
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "Hello"]),
+      kv_string("tokenizer.chat_template", chatml_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_usable_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "<|im_start|>", "<|im_end|>"]),
       kv_string("tokenizer.chat_template", chatml_template())
     ]
 
