@@ -197,19 +197,22 @@ Use `--chat` only after `mix llamex.gguf.inspect` reports that the chat template
 has no missing tokens. The generate task validates `.gguf --chat` from metadata
 before loading tensors, so incompatible chat templates fail quickly.
 
-Current GGUF smoke baseline on
+Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
 
 ```bash
-mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "Elixir is" 1 --natural --stop-control --profile
+mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "The" 3 --natural --stop-control
+mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "Once upon a time" 3 --natural --stop-control
 ```
 
-The verified one-token path generates the normal token piece `loyd` from prompt
-tokens `<s>`, `▁Eli`, `xi`, `r`, `▁is`. On the current development machine this
-is still a smoke test rather than natural multi-token generation: prefill is
-about 34s and the first generated step is about 11s. Profile timings show the
-next speed targets are the feed-forward `w_down` matvecs and the final `logits`
-matvec.
+Verified multi-token runs now reach ordinary text generation. The prompt `The`
+generated `Yarmed`, while `Once upon a time` generated `of high stress`. The
+shorter prompt is still low quality, but the longer prompt shows the existing
+GGUF path can produce natural word pieces instead of decode noise. On the
+current development machine this remains slow: one-token profiled runs spend
+tens of seconds in prefill and about 11s in the sampled step. Profile timings
+show the next speed targets are the feed-forward `w_down` matvecs and the final
+`logits` matvec.
 
 GGUF compatibility can be inspected without loading tensor data:
 
@@ -267,11 +270,9 @@ It can also run a sampled generation step:
 mix run -e 'model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf"); profile = Llamex.Profile.generation_steps(model, "Elixir is", %{backend: Llamex.Backend.List, max_new_tokens: 1, sampler: %{temperature: 0.8, top_k: 40, top_p: 0.9, repetition_penalty: 1.1, seed: 1}}); IO.inspect(profile, limit: :infinity)'
 ```
 
-On the current List backend this is still slow for natural prose. A verified
-single-token run took about 54 seconds for prefill plus 11 seconds for one
-sampled step and produced token `18966` (`"loyd"`). Treat this as the current
-known-good existing GGUF path; the remaining work for natural multi-sentence
-text is backend speed and tokenizer/template quality.
+On the current List backend this is still slow for natural prose. Treat the
+commands above as the current known-good existing GGUF path; the remaining work
+for natural multi-sentence text is backend speed and tokenizer/template quality.
 
 For iterative GGUF testing in IEx, load the model once and step tokens without
 reloading the file:
