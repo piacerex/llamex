@@ -41,6 +41,8 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp run_generation([model_path, prompt, max_new_tokens], options) do
     Mix.Task.run("app.start")
 
+    validate_chat_template(model_path, options)
+
     model = load_model(model_path)
     max_new_tokens = String.to_integer(max_new_tokens)
 
@@ -113,9 +115,42 @@ defmodule Mix.Tasks.Llamex.Generate do
     end
   end
 
+  defp validate_chat_template(model_path, %{chat: true}) do
+    if Path.extname(model_path) == ".gguf" do
+      model_path
+      |> Llamex.GGUF.Reader.read_metadata()
+      |> Map.fetch!(:metadata)
+      |> Llamex.GGUF.Tokenizer.from_metadata()
+      |> validate_chat_tokenizer!()
+    end
+  end
+
+  defp validate_chat_template(_model_path, _options), do: :ok
+
   defp maybe_apply_chat_template(model, prompt, %{chat: true}) do
-    Llamex.ChatTemplate.apply(model.tokenizer.chat_template, prompt)
+    tokenizer = model.tokenizer || Mix.raise("--chat requires a model tokenizer")
+    validate_chat_tokenizer!(tokenizer)
+
+    Llamex.ChatTemplate.apply(tokenizer.chat_template, prompt)
   end
 
   defp maybe_apply_chat_template(_model, prompt, _options), do: prompt
+
+  defp validate_chat_tokenizer!(tokenizer) do
+    template = tokenizer.chat_template || Mix.raise("--chat requires tokenizer.chat_template")
+
+    if not Llamex.ChatTemplate.supported?(template) do
+      Mix.raise("unsupported chat template; run mix llamex.gguf.inspect MODEL_GGUF first")
+    end
+
+    case Llamex.ChatTemplate.missing_tokens(template, tokenizer.token_to_id) do
+      [] ->
+        :ok
+
+      missing ->
+        Mix.raise(
+          "chat template references missing tokenizer tokens: #{Enum.join(missing, ", ")}"
+        )
+    end
+  end
 end

@@ -114,17 +114,8 @@ defmodule Llamex.GGUF.Diagnostic do
       end
 
     template
-    |> chat_template_markers()
+    |> Llamex.ChatTemplate.markers()
     |> Enum.reject(&MapSet.member?(tokens, &1))
-  end
-
-  defp chat_template_markers(nil), do: []
-
-  defp chat_template_markers(template) when is_binary(template) do
-    ~r/<\|[^>]+\|>/
-    |> Regex.scan(template)
-    |> Enum.map(&List.first/1)
-    |> Enum.uniq()
   end
 
   defp tokenizer_token_count(metadata) do

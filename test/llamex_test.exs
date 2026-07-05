@@ -75,6 +75,15 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.encode(tokenizer, "<|im_start|>user Hi<|im_end|>") == [1, 3, 4, 2]
   end
 
+  test "detects chat template markers missing from tokenizer vocab" do
+    assert Llamex.ChatTemplate.markers(chatml_template()) == ["<|im_start|>", "<|im_end|>"]
+
+    assert Llamex.ChatTemplate.missing_tokens(chatml_template(), %{
+             "<unk>" => 0,
+             "<|im_start|>" => 1
+           }) == ["<|im_end|>"]
+  end
+
   test "adds configured bos and eos tokens while encoding" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
@@ -471,6 +480,48 @@ defmodule LlamexTest do
       })
 
     assert Enum.map(profile.steps, & &1.token) == [2, 2]
+  end
+
+  test "generate task rejects chat templates with missing tokenizer tokens" do
+    path = Path.join(System.tmp_dir!(), "llamex-chat-#{System.unique_integer([:positive])}.json")
+
+    model = %{
+      "config" => %{"vocab_size" => 2, "embedding_size" => 2},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "chat_template" => chatml_template(),
+        "vocab" => %{"<unk>" => 0, "hello" => 1}
+      },
+      "token_embeddings" => %{
+        "0" => [0.0, 0.0],
+        "1" => [1.0, 0.0]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      assert_raise Mix.Error, ~r/chat template references missing tokenizer tokens/, fn ->
+        Mix.Tasks.Llamex.Generate.run([path, "hello", "1", "--chat"])
+      end
+    after
+      File.rm(path)
+    end
+  end
+
+  test "generate task validates gguf chat templates before loading tensors" do
+    path = Path.join(System.tmp_dir!(), "llamex-chat-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_chat_template_gguf())
+
+      assert_raise Mix.Error, ~r/chat template references missing tokenizer tokens/, fn ->
+        Mix.Tasks.Llamex.Generate.run([path, "hello", "1", "--chat"])
+      end
+    after
+      File.rm(path)
+    end
   end
 
   test "loads a tiny model from json" do
