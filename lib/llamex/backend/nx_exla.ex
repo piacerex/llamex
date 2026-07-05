@@ -508,23 +508,6 @@ defmodule Llamex.Backend.NxEXLA do
     apply(nx, :concatenate, [parts, [axis: 0]])
   end
 
-  defp grouped_kv_tensors(entries, kv_head_count) do
-    0..(kv_head_count - 1)
-    |> Map.new(fn head_index ->
-      keys =
-        Enum.map(entries, fn {cached_keys, _cached_values} ->
-          Enum.at(cached_keys, head_index)
-        end)
-
-      values =
-        Enum.map(entries, fn {_cached_keys, cached_values} ->
-          Enum.at(cached_values, head_index)
-        end)
-
-      {head_index, {stack_tensors(keys), stack_tensors(values)}}
-    end)
-  end
-
   defp stack_tensors(tensors) do
     apply(nx!(), :stack, [Enum.map(tensors, &tensor/1), [axis: 0]])
   end
@@ -623,8 +606,9 @@ defmodule Llamex.Backend.NxEXLA do
     nx = nx!()
     queries = stack_tensors(query_heads)
     {_head_count, head_size} = shape(queries)
-    keys = entries |> Enum.map(fn {[key], _values} -> key end) |> stack_tensors()
-    values = entries |> Enum.map(fn {_keys, [value]} -> value end) |> stack_tensors()
+    {keys, values} = kv_cache_tensors(entries)
+    keys = kv_cache_head_tensor(keys, 0)
+    values = kv_cache_head_tensor(values, 0)
     scale = 1.0 / :math.sqrt(head_size)
 
     weights =
@@ -639,16 +623,40 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   defp attend_grouped_kv_heads(query_heads, entries, head_count, kv_head_count) do
-    cache = grouped_kv_tensors(entries, kv_head_count)
+    {key_cache, value_cache} = kv_cache_tensors(entries)
 
     0..(kv_head_count - 1)
     |> Enum.map(fn kv_head_index ->
       queries = query_group(query_heads, kv_head_index, head_count, kv_head_count)
-      {keys, values} = Map.fetch!(cache, kv_head_index)
+      keys = kv_cache_head_tensor(key_cache, kv_head_index)
+      values = kv_cache_head_tensor(value_cache, kv_head_index)
 
       attend_query_group(queries, keys, values)
     end)
     |> then(&apply(nx!(), :concatenate, [&1, [axis: 0]]))
+  end
+
+  defp kv_cache_tensors(entries) do
+    keys =
+      entries
+      |> Enum.map(fn {key_heads, _value_heads} -> stack_tensors(key_heads) end)
+      |> stack_tensors()
+
+    values =
+      entries
+      |> Enum.map(fn {_key_heads, value_heads} -> stack_tensors(value_heads) end)
+      |> stack_tensors()
+
+    {keys, values}
+  end
+
+  defp kv_cache_head_tensor(cache, kv_head_index) do
+    nx = nx!()
+    {time_count, _kv_head_count, head_size} = shape(cache)
+
+    cache
+    |> then(&apply(nx, :slice, [&1, [0, kv_head_index, 0], [time_count, 1, head_size]]))
+    |> then(&apply(nx, :reshape, [&1, {time_count, head_size}]))
   end
 
   defp query_group(query_heads, kv_head_index, head_count, kv_head_count) do
