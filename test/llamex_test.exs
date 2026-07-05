@@ -357,6 +357,28 @@ defmodule LlamexTest do
     end
   end
 
+  test "prepares token embeddings as nx_exla tensors when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      model =
+        Llamex.new_model(%{
+          config: %{vocab_size: 2, embedding_size: 2},
+          token_embeddings: %{
+            0 => [1.0, 0.0],
+            1 => [0.0, 1.0]
+          }
+        })
+
+      context = Llamex.new_context(model, Llamex.Backend.NxEXLA)
+
+      assert match?(%Nx.Tensor{}, Map.fetch!(context.model.token_embeddings, 0))
+
+      {_context, logits} = Llamex.Engine.eval(context, 0)
+
+      assert match?(%Nx.Tensor{}, logits)
+      assert Llamex.Backend.NxEXLA.to_list(logits) == [1.0, 0.0]
+    end
+  end
+
   test "runs triple matvecs through prepared nx_exla tensors when Nx is available" do
     if Code.ensure_loaded?(Nx) do
       left_rows = Llamex.Backend.NxEXLA.from_list([[1.0, 0.0], [0.0, 1.0]])

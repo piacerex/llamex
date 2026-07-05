@@ -134,13 +134,11 @@ defmodule Llamex.Engine do
   end
 
   defp embedding_logits(context, hidden) do
-    hidden = context.backend.to_list(hidden)
-
     0..(context.model.config.vocab_size - 1)
     |> Enum.map(fn candidate ->
       candidate_embedding = Map.fetch!(context.model.token_embeddings, candidate)
 
-      Tensor.dot(hidden, candidate_embedding)
+      context.backend.dot(hidden, candidate_embedding)
     end)
   end
 
@@ -155,12 +153,10 @@ defmodule Llamex.Engine do
   end
 
   defp greedy_token(context, hidden) do
-    hidden = context.backend.to_list(hidden)
-
     0..(context.model.config.vocab_size - 1)
     |> Enum.reduce(nil, fn candidate, best ->
       candidate_embedding = Map.fetch!(context.model.token_embeddings, candidate)
-      value = Tensor.dot(hidden, candidate_embedding)
+      value = context.backend.dot(hidden, candidate_embedding)
 
       case best do
         nil -> {candidate, value}

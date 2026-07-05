@@ -697,13 +697,11 @@ defmodule Llamex.Profile do
   end
 
   defp timed_logits(context, hidden) do
-    hidden = context.backend.to_list(hidden)
-
     0..(context.model.config.vocab_size - 1)
     |> Enum.map(fn candidate ->
       candidate_embedding = Map.fetch!(context.model.token_embeddings, candidate)
 
-      Tensor.dot(hidden, candidate_embedding)
+      context.backend.dot(hidden, candidate_embedding)
     end)
     |> context.backend.from_list()
   end

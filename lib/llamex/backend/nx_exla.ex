@@ -83,6 +83,7 @@ defmodule Llamex.Backend.NxEXLA do
   @impl true
   def prepare_model(model) do
     model
+    |> maybe_prepare_token_embeddings()
     |> Map.update!(:layers, &Enum.map(&1, fn layer -> prepare_layer(layer) end))
     |> Map.update(:output_norm, nil, &prepare_norm/1)
     |> Map.update!(:output, &prepare_output/1)
@@ -386,6 +387,16 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   defp normalize_target(target) when is_atom(target), do: target
+
+  defp maybe_prepare_token_embeddings(%{token_embeddings: token_embeddings} = model) do
+    %{model | token_embeddings: prepare_token_embeddings(token_embeddings)}
+  end
+
+  defp maybe_prepare_token_embeddings(model), do: model
+
+  defp prepare_token_embeddings(token_embeddings) do
+    Map.new(token_embeddings, fn {token, embedding} -> {token, tensor(embedding)} end)
+  end
 
   defp prepare_layer(layer) do
     [:attention_norm, :feed_forward_norm, :wq, :wk, :wv, :wo, :w_gate, :w_up, :w_down]
