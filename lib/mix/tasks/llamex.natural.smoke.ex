@@ -6,6 +6,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       mix llamex.natural.smoke model.gguf 3 --json
       mix llamex.natural.smoke model.gguf 3 --json --fail-on-issue
       mix llamex.natural.smoke model.gguf 3 --json --min-words 2
+      mix llamex.natural.smoke model.gguf 8 --json --reject-open-ending
       mix llamex.natural.smoke model.gguf 3 --prompt "Elixir is"
   """
 
@@ -23,6 +24,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           backend: :string,
           fail_on_issue: :boolean,
           json: :boolean,
+          reject_open_ending: :boolean,
           prompt: :keep,
           min_words: :integer,
           max_new_tokens: :integer,
@@ -65,7 +67,9 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
         check =
           Llamex.Natural.smoke_check(model, result.generated_tokens, result.text, %{
-            min_words: min_words(options)
+            finish_reason: result.finish_reason,
+            min_words: min_words(options),
+            reject_open_ending: Map.get(options, :reject_open_ending, false)
           })
 
         %{

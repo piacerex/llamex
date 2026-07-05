@@ -26,6 +26,7 @@ defmodule Llamex.Natural do
       when is_list(generated_tokens) and is_binary(text) do
     min_words = Map.get(opts, :min_words, 1)
     has_text_content? = text_content?(text)
+    reject_open_ending? = Map.get(opts, :reject_open_ending, false)
 
     issues =
       []
@@ -34,6 +35,10 @@ defmodule Llamex.Natural do
       |> add_issue(
         has_text_content? and word_count(text) < min_words,
         "generated fewer than #{min_words} word(s)"
+      )
+      |> add_issue(
+        reject_open_ending? and Map.get(opts, :finish_reason) == :length and open_ending?(text),
+        "length limit reached with open text ending"
       )
       |> Kernel.++(token_issues(model, generated_tokens))
 
@@ -90,6 +95,8 @@ defmodule Llamex.Natural do
   defp add_issue(issues, false, _issue), do: issues
 
   defp text_content?(text), do: Regex.match?(~r/[[:alnum:]]/u, text)
+
+  defp open_ending?(text), do: Regex.match?(~r/[[:alnum:]]$/u, String.trim(text))
 
   defp word_count(text) do
     ~r/[[:alnum:]]+/u

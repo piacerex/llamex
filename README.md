@@ -206,6 +206,8 @@ include `ok` and `issues` fields for raw `▁` markers, suppressed token types, 
 punctuation-only output.
 Add `--min-words N` to require generated text to contain at least that many word
 fragments.
+Add `--reject-open-ending` to report length-limited output that ends on an
+alphanumeric fragment.
 Add `--fail-on-issue` to make the task raise when any prompt reports issues.
 
 Current GGUF generation baseline on
