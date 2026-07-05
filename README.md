@@ -73,6 +73,7 @@ Use `mix llamex.exla.info --target TARGET --json` and check
 `target_available?` before running a GPU target.
 The same configuration is available from Elixir with
 `Llamex.Backend.NxEXLA.configure!(:cpu | :cuda | :rocm)`.
+Generation profile JSON includes the configured EXLA target under `exla`.
 
 The NxEXLA backend prepares projection matrices as Nx tensors when a context is
 created, but selecting it alone does not yet make existing GGUF generation fast.

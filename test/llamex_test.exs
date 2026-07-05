@@ -890,6 +890,38 @@ defmodule LlamexTest do
     assert result.text == "world"
   end
 
+  test "generation result includes configured exla target" do
+    if Code.ensure_loaded?(EXLA) do
+      Llamex.Backend.NxEXLA.configure!(:cpu)
+
+      tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+      model =
+        Llamex.new_model(%{
+          config: %{vocab_size: 3, embedding_size: 2},
+          tokenizer: tokenizer,
+          token_embeddings: %{
+            0 => [0.0, 0.0],
+            1 => [1.0, 0.0],
+            2 => [2.0, 0.0]
+          },
+          output: %{weight: [[0.0, 0.0], [0.0, 1.0], [2.0, 0.0]]}
+        })
+
+      result =
+        Llamex.generate(model, "hello", %{
+          backend: Llamex.Backend.NxEXLA,
+          max_new_tokens: 1,
+          stop_tokens: [2]
+        })
+
+      assert result.generated_tokens == [2]
+      assert result.exla.target == :cpu
+      assert result.exla.client == :host
+      assert result.exla.target_available?
+    end
+  end
+
   test "top-k sampled generation can skip full output logits" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -1424,6 +1456,33 @@ defmodule LlamexTest do
 
     assert Enum.map(profile["steps"], & &1["piece"]) == ["world"]
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
+  end
+
+  test "generate task profile includes configured exla target" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello",
+          "1",
+          "--backend",
+          "nx_exla",
+          "--exla",
+          "cpu",
+          "--profile"
+        ])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert profile["backend"] == "Elixir.Llamex.Backend.NxEXLA"
+
+    assert profile["exla"] == %{
+             "target" => "cpu",
+             "client" => "host",
+             "target_available?" => true,
+             "xla_target" => System.get_env("XLA_TARGET")
+           }
   end
 
   test "generate task profile reports context window truncation" do
@@ -2156,6 +2215,17 @@ defmodule LlamexTest do
         Llamex.Backend.NxEXLA.configure!(:cuda)
       end
     end
+  end
+
+  test "nx_exla configure stores selected target info" do
+    assert :ok = Llamex.Backend.NxEXLA.configure!(:cpu)
+
+    assert Llamex.Backend.NxEXLA.configured() == %{
+             target: :cpu,
+             client: :host,
+             target_available?: true,
+             xla_target: System.get_env("XLA_TARGET")
+           }
   end
 
   test "exla info task rejects unknown targets" do

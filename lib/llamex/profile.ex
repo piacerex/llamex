@@ -29,6 +29,8 @@ defmodule Llamex.Profile do
       end)
 
     %{
+      backend: backend,
+      exla: exla_info(backend),
       prompt_tokens: length(state.prompt_tokens),
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
@@ -143,6 +145,7 @@ defmodule Llamex.Profile do
 
     %{
       backend: backend,
+      exla: exla_info(backend),
       max_new_tokens: max_new_tokens,
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
@@ -171,6 +174,12 @@ defmodule Llamex.Profile do
     |> Enum.reverse()
     |> Enum.map(& &1.token)
   end
+
+  defp exla_info(backend) when backend in [Llamex.Backend.Nx, Llamex.Backend.NxEXLA] do
+    Llamex.Backend.NxEXLA.configured()
+  end
+
+  defp exla_info(_backend), do: nil
 
   defp step_indexes(0), do: []
   defp step_indexes(max_new_tokens), do: 1..max_new_tokens

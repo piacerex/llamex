@@ -16,6 +16,7 @@ defmodule Llamex.Backend.NxEXLA do
     cuda: :cuda,
     rocm: :rocm
   }
+  @config_key {__MODULE__, :configured}
 
   @doc """
   Configures Nx to allocate tensors on EXLA for the selected target.
@@ -35,6 +36,8 @@ defmodule Llamex.Backend.NxEXLA do
     if Code.ensure_loaded?(Nx.Defn) do
       apply(Nx.Defn, :global_default_options, [[compiler: exla, client: client]])
     end
+
+    :persistent_term.put(@config_key, configured_info(target, client))
 
     :ok
   end
@@ -66,6 +69,10 @@ defmodule Llamex.Backend.NxEXLA do
       target_available?: client_available?(target_client),
       xla_target: System.get_env("XLA_TARGET")
     }
+  end
+
+  def configured do
+    :persistent_term.get(@config_key, nil)
   end
 
   @impl true
@@ -204,6 +211,15 @@ defmodule Llamex.Backend.NxEXLA do
     end
   rescue
     _exception -> %{}
+  end
+
+  defp configured_info(target, client) do
+    %{
+      target: normalize_target(target),
+      client: client,
+      target_available?: client_available?(client),
+      xla_target: System.get_env("XLA_TARGET")
+    }
   end
 
   defp validate_client_available!(client) do

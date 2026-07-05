@@ -218,6 +218,7 @@ defmodule Llamex.Generation do
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
       prompt_truncated?: state.prompt_truncated?,
+      exla: exla_info(context.backend),
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
       generated_tokens: generated_tokens,
@@ -291,6 +292,12 @@ defmodule Llamex.Generation do
   defp stop_tokens(_opts), do: []
 
   defp stop_token?(token, stop_tokens), do: token in stop_tokens
+
+  defp exla_info(backend) when backend in [Llamex.Backend.Nx, Llamex.Backend.NxEXLA] do
+    Llamex.Backend.NxEXLA.configured()
+  end
+
+  defp exla_info(_backend), do: nil
 
   defp finish_reason(:length, requested_max_new_tokens, effective_max_new_tokens) do
     if ContextWindow.context_limited?(requested_max_new_tokens, effective_max_new_tokens) do
