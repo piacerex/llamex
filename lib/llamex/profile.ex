@@ -30,4 +30,52 @@ defmodule Llamex.Profile do
       timings: [prefill_time, step_time]
     }
   end
+
+  def generation_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
+    backend = Map.get(opts, :backend, Llamex.Backend.List)
+    sampler = Map.get(opts, :sampler, :greedy)
+    max_new_tokens = Map.get(opts, :max_new_tokens, 1)
+
+    {prefill_time, state} =
+      timed("prefill", fn ->
+        Llamex.prefill(model, prompt, %{backend: backend})
+      end)
+
+    {steps, _context, _current_token, _sampler_state} =
+      Enum.reduce(1..max_new_tokens, {[], state.context, state.current_token, nil}, fn index,
+                                                                                       {steps,
+                                                                                        context,
+                                                                                        current_token,
+                                                                                        sampler_state} ->
+        {step_time, step} =
+          timed("step_#{index}", fn ->
+            Llamex.step(context, current_token, %{
+              sampler: sampler,
+              sampler_state: sampler_state,
+              history: context.tokens
+            })
+          end)
+
+        step_info = %{
+          index: index,
+          token: step.token,
+          piece: Map.fetch!(model.tokenizer.id_to_token, step.token),
+          text: step.text,
+          timing: step_time
+        }
+
+        {[step_info | steps], step.context, step.token, step.sampler_state}
+      end)
+
+    steps = Enum.reverse(steps)
+    generated_tokens = Enum.map(steps, & &1.token)
+
+    %{
+      prompt_tokens: length(state.prompt_tokens),
+      generated_tokens: generated_tokens,
+      text: Llamex.decode(model, generated_tokens),
+      timings: [prefill_time | Enum.map(steps, & &1.timing)],
+      steps: steps
+    }
+  end
 end

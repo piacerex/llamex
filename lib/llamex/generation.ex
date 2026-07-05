@@ -38,7 +38,7 @@ defmodule Llamex.Generation do
 
   defp step_token(context, current_token, sampler, opts) do
     history = Map.get(opts, :history, context.tokens)
-    sampler_state = Map.get(opts, :sampler_state, new_sampler_state(sampler))
+    sampler_state = Map.get(opts, :sampler_state) || new_sampler_state(sampler)
     {context, logits} = Engine.eval(context, current_token)
     {next_token, sampler_state} = sample(logits, context.backend, sampler, sampler_state, history)
 
