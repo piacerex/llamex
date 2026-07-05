@@ -56,12 +56,13 @@ defmodule Llamex.Tensor do
   def matvec(rows, vector) when is_list(rows) and is_list(vector) do
     if parallel_matvec?(rows, vector) do
       rows
-      |> Task.async_stream(&dot(&1, vector),
+      |> Enum.chunk_every(matvec_chunk_size())
+      |> Task.async_stream(fn chunk -> Enum.map(chunk, &dot(&1, vector)) end,
         ordered: true,
         timeout: :infinity,
         max_concurrency: System.schedulers_online()
       )
-      |> Enum.map(fn {:ok, value} -> value end)
+      |> Enum.flat_map(fn {:ok, values} -> values end)
     else
       Enum.map(rows, &dot(&1, vector))
     end
@@ -70,12 +71,12 @@ defmodule Llamex.Tensor do
   def argmax_matvec(rows, vector) when is_list(rows) and is_list(vector) do
     if parallel_matvec?(rows, vector) do
       rows
-      |> Enum.chunk_every(256)
+      |> Enum.chunk_every(matvec_chunk_size())
       |> Enum.with_index()
       |> Task.async_stream(
         fn {chunk, chunk_index} ->
           chunk
-          |> Enum.with_index(chunk_index * 256)
+          |> Enum.with_index(chunk_index * matvec_chunk_size())
           |> Enum.reduce(nil, fn {row, index}, best ->
             max_dot(best, index, dot(row, vector))
           end)
@@ -103,6 +104,8 @@ defmodule Llamex.Tensor do
   defp parallel_matvec?(rows, vector) do
     length(rows) * length(vector) >= 1_000_000 and System.schedulers_online() > 1
   end
+
+  defp matvec_chunk_size, do: 256
 
   def zero_like(values) when is_list(values), do: Enum.map(values, fn _ -> 0.0 end)
 
