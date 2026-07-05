@@ -12,8 +12,9 @@ defmodule Llamex.Tokenizer.ByteTokens do
   def decode(tokenizer, tokens, fallback) when is_function(fallback, 2) do
     if has_byte_tokens?(tokenizer, tokens) do
       tokens
+      |> Enum.reject(&control_token?(tokenizer, &1))
       |> Enum.map(&decode_token(tokenizer, &1))
-      |> IO.iodata_to_binary()
+      |> decode_pieces()
     else
       fallback.(tokenizer, tokens)
     end
@@ -31,6 +32,18 @@ defmodule Llamex.Tokenizer.ByteTokens do
     byte_token_ids = byte_token_ids(tokenizer)
 
     Enum.any?(tokens, &MapSet.member?(byte_token_ids, &1))
+  end
+
+  defp control_token?(tokenizer, id) do
+    Enum.any?(tokenizer.token_types, &(&1.id == id and &1.type == :control))
+  end
+
+  defp decode_pieces(pieces) do
+    if Enum.any?(pieces, &String.contains?(&1, "▁")) do
+      Llamex.Tokenizer.TextDecoder.decode_pieces(pieces)
+    else
+      IO.iodata_to_binary(pieces)
+    end
   end
 
   defp decode_token(tokenizer, id) do

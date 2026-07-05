@@ -148,6 +148,23 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.decode(tokenizer, [1, 2, 3, 4]) == "Hello world!"
   end
 
+  test "decodes sentencepiece markers when byte tokens are present" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "<s>" => 1, "," => 2, "▁" => 3, "<0x0A>" => 4},
+        "<unk>",
+        token_types: [
+          %{id: 0, token: "<unk>", type: :unknown, type_id: 2},
+          %{id: 1, token: "<s>", type: :control, type_id: 3},
+          %{id: 2, token: ",", type: :normal, type_id: 1},
+          %{id: 3, token: "▁", type: :normal, type_id: 1},
+          %{id: 4, token: "<0x0A>", type: :byte, type_id: 6}
+        ]
+      )
+
+    assert Llamex.Tokenizer.decode(tokenizer, [1, 2, 3, 4]) == ", \n"
+  end
+
   test "runs one transformer-style attention layer and stores kv cache" do
     model =
       Llamex.new_model(%{
