@@ -123,6 +123,34 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def matvec_triple(left_rows, middle_rows, right_rows, vector) do
+    nx = nx!()
+    left_count = row_count(left_rows)
+    middle_count = row_count(middle_rows)
+    right_count = row_count(right_rows)
+
+    matrix =
+      apply(nx, :concatenate, [
+        [tensor(left_rows), tensor(middle_rows), tensor(right_rows)],
+        [axis: 0]
+      ])
+
+    values =
+      matrix
+      |> matvec_tensor(vector)
+      |> then(&apply(nx, :to_flat_list, [&1]))
+
+    {left, rest} = Enum.split(values, left_count)
+    {middle, right} = Enum.split(rest, middle_count)
+
+    if length(right) != right_count do
+      raise ArgumentError, "matvec_triple split produced an unexpected row count"
+    end
+
+    {left, middle, right}
+  end
+
+  @impl true
   def add(left, right), do: apply(nx!(), :add, [left, right])
 
   @impl true

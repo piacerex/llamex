@@ -16,6 +16,7 @@ defmodule Llamex.Backend.FPGA do
   defdelegate matvec_tensor(rows, vector), to: Llamex.Backend.List
   defdelegate matvec_pair(left_rows, right_rows, vector), to: Llamex.Backend.List
   defdelegate matvec_pair_tensor(left_rows, right_rows, vector), to: Llamex.Backend.List
+  defdelegate matvec_triple(left_rows, middle_rows, right_rows, vector), to: Llamex.Backend.List
   defdelegate silu_multiply(gate, up), to: Llamex.Backend.List
   defdelegate add(left, right), to: Llamex.Backend.List
   defdelegate argmax(tensor), to: Llamex.Backend.List

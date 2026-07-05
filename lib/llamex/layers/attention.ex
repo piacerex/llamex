@@ -20,22 +20,26 @@ defmodule Llamex.Layers.Attention do
     head_count = Map.get(layer, :head_count, 1)
     kv_head_count = Map.get(layer, :kv_head_count, head_count)
 
+    {query, key, value} =
+      backend.matvec_triple(
+        Map.fetch!(layer, :wq),
+        Map.fetch!(layer, :wk),
+        Map.fetch!(layer, :wv),
+        input
+      )
+
     query_heads =
-      input
-      |> Linear.forward(Map.fetch!(layer, :wq), backend)
+      query
       |> split_heads(head_count)
       |> apply_rope(position, rope_theta, rope_dimension_count)
 
     key_heads =
-      input
-      |> Linear.forward(Map.fetch!(layer, :wk), backend)
+      key
       |> split_heads(kv_head_count)
       |> apply_rope(position, rope_theta, rope_dimension_count)
 
     value_heads =
-      input
-      |> Linear.forward(Map.fetch!(layer, :wv), backend)
-      |> split_heads(kv_head_count)
+      split_heads(value, kv_head_count)
 
     {cache, entries} = KVCache.append(cache, layer_index, key_heads, value_heads)
 

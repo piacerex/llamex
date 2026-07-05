@@ -55,6 +55,12 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def matvec_triple(left_rows, middle_rows, right_rows, vector)
+      when is_list(left_rows) and is_list(middle_rows) and is_list(right_rows) and is_list(vector) do
+    {matvec(left_rows, vector), matvec(middle_rows, vector), matvec(right_rows, vector)}
+  end
+
+  @impl true
   def add(left, right) when is_list(left) and is_list(right) and length(left) == length(right) do
     left
     |> Enum.zip(right)

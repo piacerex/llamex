@@ -301,6 +301,15 @@ defmodule LlamexTest do
              {[1.0, 2.0], [2.0, 6.0]}
   end
 
+  test "runs triple matvecs through list backend" do
+    left_rows = [[1.0, 0.0], [0.0, 1.0]]
+    middle_rows = [[2.0, 0.0], [0.0, 3.0]]
+    right_rows = [[4.0, 0.0], [0.0, 5.0]]
+
+    assert Llamex.Backend.List.matvec_triple(left_rows, middle_rows, right_rows, [1.0, 2.0]) ==
+             {[1.0, 2.0], [2.0, 6.0], [4.0, 10.0]}
+  end
+
   test "runs matvec tensor through list backend" do
     rows = [[1.0, 0.0], [0.0, 3.0]]
 
@@ -345,6 +354,21 @@ defmodule LlamexTest do
         |> Llamex.Backend.NxEXLA.to_list()
 
       assert result == [1.0, 6.0]
+    end
+  end
+
+  test "runs triple matvecs through prepared nx_exla tensors when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      left_rows = Llamex.Backend.NxEXLA.from_list([[1.0, 0.0], [0.0, 1.0]])
+      middle_rows = Llamex.Backend.NxEXLA.from_list([[2.0, 0.0], [0.0, 3.0]])
+      right_rows = Llamex.Backend.NxEXLA.from_list([[4.0, 0.0], [0.0, 5.0]])
+
+      assert Llamex.Backend.NxEXLA.matvec_triple(
+               left_rows,
+               middle_rows,
+               right_rows,
+               [1.0, 2.0]
+             ) == {[1.0, 2.0], [2.0, 6.0], [4.0, 10.0]}
     end
   end
 
@@ -417,6 +441,49 @@ defmodule LlamexTest do
     assert next_token == 0
     assert context.tokens == [0]
     assert [{_key, _value}] = Llamex.KVCache.entries(context.kv_cache, 0)
+  end
+
+  test "runs attention with nx_exla qkv projection path when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      layer = %{
+        head_count: 1,
+        kv_head_count: 1,
+        wq: [[1.0, 0.0], [0.0, 1.0]],
+        wk: [[1.0, 0.0], [0.0, 1.0]],
+        wv: [[1.0, 0.0], [0.0, 1.0]],
+        wo: [[1.0, 0.0], [0.0, 1.0]]
+      }
+
+      prepared = Llamex.Backend.NxEXLA.prepare_model(%{layers: [layer], output: nil})
+      [prepared_layer] = prepared.layers
+
+      {_list_cache, list_output} =
+        Llamex.Layers.Attention.forward(
+          [1.0, 2.0],
+          layer,
+          Llamex.KVCache.new(),
+          0,
+          0,
+          10_000.0,
+          nil,
+          Llamex.Backend.List
+        )
+
+      {_nx_cache, nx_output} =
+        Llamex.Layers.Attention.forward(
+          [1.0, 2.0],
+          prepared_layer,
+          Llamex.KVCache.new(),
+          0,
+          0,
+          10_000.0,
+          nil,
+          Llamex.Backend.NxEXLA
+        )
+
+      assert_in_delta Enum.at(nx_output, 0), Enum.at(list_output, 0), 1.0e-6
+      assert_in_delta Enum.at(nx_output, 1), Enum.at(list_output, 1), 1.0e-6
+    end
   end
 
   test "runs list SwiGLU with paired gate and up projections" do

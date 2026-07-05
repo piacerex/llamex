@@ -15,6 +15,8 @@ defmodule Llamex.Backend do
   @callback matvec_tensor(tensor(), tensor()) :: tensor()
   @callback matvec_pair(tensor(), tensor(), tensor()) :: {list(number()), list(number())}
   @callback matvec_pair_tensor(tensor(), tensor(), tensor()) :: {tensor(), tensor()}
+  @callback matvec_triple(tensor(), tensor(), tensor(), tensor()) ::
+              {list(number()), list(number()), list(number())}
   @callback silu_multiply(tensor(), tensor()) :: tensor()
   @callback add(tensor(), tensor()) :: tensor()
   @callback argmax(tensor()) :: non_neg_integer()
