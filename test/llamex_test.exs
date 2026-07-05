@@ -821,6 +821,39 @@ defmodule LlamexTest do
            ]
   end
 
+  test "generation profile reports final nx_exla prepared kv cache entries" do
+    if Code.ensure_loaded?(Nx) do
+      model =
+        Llamex.new_model(%{
+          config: %{vocab_size: 2, embedding_size: 2},
+          tokenizer: Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1}, "<unk>"),
+          token_embeddings: %{
+            0 => [1.0, 0.0],
+            1 => [0.0, 1.0]
+          },
+          layers: [
+            %{
+              attention_norm: [1.0, 1.0],
+              wq: [[1.0, 0.0], [0.0, 1.0]],
+              wk: [[1.0, 0.0], [0.0, 1.0]],
+              wv: [[1.0, 0.0], [0.0, 1.0]],
+              wo: [[1.0, 0.0], [0.0, 1.0]]
+            }
+          ],
+          output: %{weight: [[1.0, 0.0], [0.0, 1.0]]}
+        })
+
+      profile =
+        Llamex.Profile.generation_steps(model, "hello", %{
+          backend: Llamex.Backend.NxEXLA,
+          max_new_tokens: 1
+        })
+
+      assert profile.backend_profile.prepared_kv_cache_entries == 1
+      assert is_integer(profile.backend_profile.nx_exla_cache.rope_trig_entries)
+    end
+  end
+
   test "runs multi-head attention" do
     model =
       Llamex.new_model(%{

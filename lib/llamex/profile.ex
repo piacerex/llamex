@@ -102,7 +102,7 @@ defmodule Llamex.Profile do
         state.context_window
       )
 
-    {steps, _context, _current_token, _sampler_state, finish_reason} =
+    {steps, context, _current_token, _sampler_state, finish_reason} =
       Enum.reduce_while(
         step_indexes(effective_max_new_tokens),
         {[], state.context, state.current_token, nil, :length},
@@ -149,7 +149,7 @@ defmodule Llamex.Profile do
     %{
       backend: backend,
       exla: exla_info(backend),
-      backend_profile: backend_profile(state.context),
+      backend_profile: backend_profile(context),
       max_new_tokens: max_new_tokens,
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
