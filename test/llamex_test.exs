@@ -1048,6 +1048,48 @@ defmodule LlamexTest do
            }
   end
 
+  test "natural smoke task can fail on quality issues" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-natural-fail-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 1, "embedding_size" => 1},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "vocab" => %{"<unk>" => 0},
+        "token_types" => [
+          %{"id" => 0, "token" => "<unk>", "type" => "unknown", "type_id" => 2}
+        ]
+      },
+      "token_embeddings" => %{"0" => [1.0]}
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      assert_raise Mix.Error, ~r/natural smoke issues/, fn ->
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Natural.Smoke.run([
+            path,
+            "1",
+            "--json",
+            "--prompt",
+            "<unk>",
+            "--top-k",
+            "1",
+            "--fail-on-issue"
+          ])
+        end)
+      end
+    after
+      File.rm(path)
+    end
+  end
+
   test "generate task can disable inferred stop token for profiling" do
     output =
       capture_io(fn ->

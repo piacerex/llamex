@@ -18,7 +18,7 @@ mix llamex.generate model.gguf "Hello" 8 --natural --stop-control --profile
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx
 mix llamex.generate model.gguf "Hello" 8 --natural
 mix llamex.tokenize model.gguf "Elixir is"
-mix llamex.natural.smoke model.gguf 3 --json
+mix llamex.natural.smoke model.gguf 3 --json --fail-on-issue
 ```
 
 ## Backends
@@ -203,6 +203,7 @@ before loading tensors, so incompatible chat templates fail quickly.
 Use `mix llamex.natural.smoke MODEL [max_new_tokens] --json` to run the current
 natural-generation baseline prompts after loading the model once. Smoke results
 include `ok` and `issues` fields for raw `▁` markers or suppressed token types.
+Add `--fail-on-issue` to make the task raise when any prompt reports issues.
 
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:

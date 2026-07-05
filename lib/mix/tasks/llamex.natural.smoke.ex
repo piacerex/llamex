@@ -4,6 +4,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
       mix llamex.natural.smoke model.gguf
       mix llamex.natural.smoke model.gguf 3 --json
+      mix llamex.natural.smoke model.gguf 3 --json --fail-on-issue
       mix llamex.natural.smoke model.gguf 3 --prompt "Elixir is"
   """
 
@@ -19,6 +20,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       OptionParser.parse(args,
         strict: [
           backend: :string,
+          fail_on_issue: :boolean,
           json: :boolean,
           prompt: :keep,
           max_new_tokens: :integer,
@@ -72,6 +74,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       end)
 
     print_results(results, options)
+    maybe_fail_on_issue(results, options)
   end
 
   defp run_smoke(_args, _options) do
@@ -112,4 +115,14 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       Mix.shell().info("[#{status}] #{result.prompt} => #{result.text}")
     end)
   end
+
+  defp maybe_fail_on_issue(results, %{fail_on_issue: true}) do
+    failed = Enum.reject(results, & &1.ok)
+
+    if failed != [] do
+      Mix.raise("natural smoke issues: #{length(failed)} prompt(s) failed")
+    end
+  end
+
+  defp maybe_fail_on_issue(_results, _options), do: :ok
 end
