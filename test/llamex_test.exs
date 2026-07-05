@@ -587,6 +587,43 @@ defmodule LlamexTest do
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
   end
 
+  test "generate task can disable inferred stop token for profiling" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello",
+          "2",
+          "--profile",
+          "--no-stop"
+        ])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert profile["generated_tokens"] == [2, 2]
+    assert profile["finish_reason"] == "length"
+  end
+
+  test "generate task can use an explicit stop token" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello",
+          "2",
+          "--profile",
+          "--stop-token",
+          "2"
+        ])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert profile["generated_tokens"] == [2]
+    assert profile["finish_reason"] == "stop"
+  end
+
   test "tokenize task prints token ids and pieces" do
     output =
       capture_io(fn ->

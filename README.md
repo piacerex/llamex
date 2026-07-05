@@ -9,6 +9,8 @@ mix test
 mix llamex.generate priv/models/tiny.json hello 2
 mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --top-p 0.9 --seed 42
 mix llamex.generate priv/models/tiny.json hello 2 --profile
+mix llamex.generate priv/models/tiny.json hello 2 --profile --no-stop
+mix llamex.generate priv/models/tiny.json hello 2 --stop-token 2
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx
 mix llamex.generate model.gguf "Hello" 8 --natural
 mix llamex.tokenize model.gguf "Elixir is"
@@ -173,6 +175,8 @@ for them. Use `--natural` to select a conservative text sampling preset
 (`temperature=0.8`, `top-k=40`, `top-p=0.9`, `repetition-penalty=1.1`).
 Use `--profile` to inspect token pieces, timings, and `finish_reason`
 (`stop` or `length`) for generation experiments.
+Use `--stop-token ID` to override inferred EOS/stop behavior, or `--no-stop`
+to force generation to continue until `max_new_tokens`.
 Use `--chat` only after `mix llamex.gguf.inspect` reports that the chat template
 has no missing tokens. The generate task validates `.gguf --chat` from metadata
 before loading tensors, so incompatible chat templates fail quickly.

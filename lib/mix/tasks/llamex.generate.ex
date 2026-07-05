@@ -23,7 +23,9 @@ defmodule Mix.Tasks.Llamex.Generate do
           seed: :integer,
           chat: :boolean,
           natural: :boolean,
-          profile: :boolean
+          profile: :boolean,
+          stop_token: :integer,
+          no_stop: :boolean
         ],
         aliases: [t: :temperature, k: :top_k, p: :top_p, s: :seed]
       )
@@ -84,6 +86,8 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> Map.delete(:natural)
     |> Map.delete(:chat)
     |> Map.delete(:profile)
+    |> Map.delete(:stop_token)
+    |> Map.delete(:no_stop)
   end
 
   defp backend(%{backend: "list"}), do: Llamex.Backend.List
@@ -92,9 +96,13 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp backend(%{backend: backend}), do: Mix.raise("unsupported backend: #{backend}")
   defp backend(%{}), do: Llamex.Backend.List
 
-  defp stop_token(%{tokenizer: nil}), do: nil
+  defp stop_token(_model, %{no_stop: true}), do: nil
 
-  defp stop_token(model) do
+  defp stop_token(_model, %{stop_token: stop_token}), do: stop_token
+
+  defp stop_token(%{tokenizer: nil}, _options), do: nil
+
+  defp stop_token(model, _options) do
     get_in(model.tokenizer.special_tokens, [:eos, :id]) ||
       model.tokenizer.token_to_id["<eos>"] ||
       model.tokenizer.token_to_id["</s>"] ||
@@ -106,7 +114,7 @@ defmodule Mix.Tasks.Llamex.Generate do
       Llamex.Profile.generation_steps(model, prompt, %{
         backend: backend(options),
         max_new_tokens: max_new_tokens,
-        stop_token: stop_token(model),
+        stop_token: stop_token(model, options),
         sampler: sampler(options)
       })
 
@@ -118,7 +126,7 @@ defmodule Mix.Tasks.Llamex.Generate do
       Llamex.generate(model, prompt, %{
         backend: backend(options),
         max_new_tokens: max_new_tokens,
-        stop_token: stop_token(model),
+        stop_token: stop_token(model, options),
         sampler: sampler(options)
       })
 
