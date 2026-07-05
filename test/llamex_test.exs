@@ -656,6 +656,65 @@ defmodule LlamexTest do
     end
   end
 
+  test "generate task can use an explicit special stop token" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-stop-special-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 3, "embedding_size" => 2},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "vocab" => %{"<unk>" => 0, "hello" => 1, "world" => 2},
+        "special_tokens" => %{"eos" => %{"id" => 2, "token" => "world"}}
+      },
+      "token_embeddings" => %{
+        "0" => [0.0, 0.0],
+        "1" => [1.0, 0.0],
+        "2" => [2.0, 0.0]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Generate.run([
+            path,
+            "hello",
+            "2",
+            "--profile",
+            "--stop-special",
+            "eos"
+          ])
+        end)
+
+      profile = JSON.decode!(String.trim(output))
+
+      assert profile["generated_tokens"] == [2]
+      assert profile["finish_reason"] == "stop"
+    after
+      File.rm(path)
+    end
+  end
+
+  test "generate task rejects unknown special stop token names" do
+    assert_raise Mix.Error, ~r/unsupported special stop token: nope/, fn ->
+      Mix.Tasks.Llamex.Generate.run([
+        "priv/models/tiny.json",
+        "hello",
+        "2",
+        "--profile",
+        "--stop-special",
+        "nope"
+      ])
+    end
+  end
+
   test "tokenize task prints token ids and pieces" do
     output =
       capture_io(fn ->

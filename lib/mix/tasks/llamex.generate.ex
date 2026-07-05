@@ -26,6 +26,7 @@ defmodule Mix.Tasks.Llamex.Generate do
           profile: :boolean,
           stop_token: :integer,
           stop_piece: :string,
+          stop_special: :string,
           no_stop: :boolean
         ],
         aliases: [t: :temperature, k: :top_k, p: :top_p, s: :seed]
@@ -89,6 +90,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> Map.delete(:profile)
     |> Map.delete(:stop_token)
     |> Map.delete(:stop_piece)
+    |> Map.delete(:stop_special)
     |> Map.delete(:no_stop)
   end
 
@@ -109,6 +111,14 @@ defmodule Mix.Tasks.Llamex.Generate do
       Mix.raise("stop piece not found in tokenizer vocab: #{piece}")
   end
 
+  defp stop_token(model, %{stop_special: name}) do
+    tokenizer = model.tokenizer || Mix.raise("--stop-special requires a model tokenizer")
+    key = special_token_key(name)
+
+    get_in(tokenizer.special_tokens, [key, :id]) ||
+      Mix.raise("special stop token not found: #{name}")
+  end
+
   defp stop_token(%{tokenizer: nil}, _options), do: nil
 
   defp stop_token(model, _options) do
@@ -117,6 +127,12 @@ defmodule Mix.Tasks.Llamex.Generate do
       model.tokenizer.token_to_id["</s>"] ||
       model.tokenizer.token_to_id["world"]
   end
+
+  defp special_token_key("unknown"), do: :unknown
+  defp special_token_key("bos"), do: :bos
+  defp special_token_key("eos"), do: :eos
+  defp special_token_key("padding"), do: :padding
+  defp special_token_key(name), do: Mix.raise("unsupported special stop token: #{name}")
 
   defp run_model(model, prompt, max_new_tokens, %{profile: true} = options) do
     profile =
