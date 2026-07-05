@@ -180,10 +180,13 @@ GGUF compatibility can be inspected without loading tensor data:
 ```bash
 mix llamex.gguf.inspect model.gguf
 mix llamex.gguf.inspect model.gguf --json
+mix llamex.gguf.inspect first.gguf second.gguf --json
 ```
 
 The inspection output includes chat template support and missing marker tokens,
 which is the fastest way to decide whether `--chat` is safe for a checkpoint.
+With `--json`, multiple GGUF paths can be inspected in one command for model
+candidate comparison.
 
 An existing tiny GGUF model can be smoke-tested without checking the model file
 into the repository:

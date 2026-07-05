@@ -728,13 +728,40 @@ defmodule LlamexTest do
           Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--json"])
         end)
 
-      diagnostic = JSON.decode!(String.trim(output))
+      [diagnostic] = JSON.decode!(String.trim(output))
 
+      assert diagnostic["path"] == path
       assert diagnostic["version"] == 3
       assert diagnostic["chat_template"] == "none"
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
     after
       File.rm(path)
+    end
+  end
+
+  test "gguf inspect task can print json diagnostics for multiple files" do
+    first =
+      Path.join(System.tmp_dir!(), "llamex-inspect-a-#{System.unique_integer([:positive])}.gguf")
+
+    second =
+      Path.join(System.tmp_dir!(), "llamex-inspect-b-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(first, tiny_gguf(:with_unsupported_tensor_type))
+      File.write!(second, tiny_chat_template_gguf())
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([first, second, "--json"])
+        end)
+
+      diagnostics = JSON.decode!(String.trim(output))
+
+      assert Enum.map(diagnostics, & &1["path"]) == [first, second]
+      assert Enum.map(diagnostics, & &1["chat_template"]) == ["none", "supported"]
+    after
+      File.rm(first)
+      File.rm(second)
     end
   end
 
