@@ -15,7 +15,10 @@ defmodule Llamex.Backend do
   @callback matvec_tensor(tensor(), tensor()) :: tensor()
   @callback matvec_pair(tensor(), tensor(), tensor()) :: {list(number()), list(number())}
   @callback matvec_pair_tensor(tensor(), tensor(), tensor()) :: {tensor(), tensor()}
+  @callback matvec_split_pair_tensor(tensor(), pos_integer(), tensor()) :: {tensor(), tensor()}
   @callback matvec_triple(tensor(), tensor(), tensor(), tensor()) ::
+              {list(number()), list(number()), list(number())}
+  @callback matvec_split_triple(tensor(), pos_integer(), pos_integer(), pos_integer(), tensor()) ::
               {list(number()), list(number()), list(number())}
   @callback silu_multiply(tensor(), tensor()) :: tensor()
   @callback add(tensor(), tensor()) :: tensor()

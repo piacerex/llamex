@@ -48,6 +48,14 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def matvec_split_pair_tensor(rows, left_count, vector)
+      when is_list(rows) and is_integer(left_count) and left_count > 0 and is_list(vector) do
+    {left_rows, right_rows} = Enum.split(rows, left_count)
+
+    matvec_pair_tensor(left_rows, right_rows, vector)
+  end
+
+  @impl true
   def silu_multiply(gate, up) when is_list(gate) and is_list(up) do
     gate
     |> Llamex.Tensor.silu()
@@ -58,6 +66,21 @@ defmodule Llamex.Backend.List do
   def matvec_triple(left_rows, middle_rows, right_rows, vector)
       when is_list(left_rows) and is_list(middle_rows) and is_list(right_rows) and is_list(vector) do
     {matvec(left_rows, vector), matvec(middle_rows, vector), matvec(right_rows, vector)}
+  end
+
+  @impl true
+  def matvec_split_triple(rows, left_count, middle_count, right_count, vector)
+      when is_list(rows) and is_integer(left_count) and left_count > 0 and
+             is_integer(middle_count) and middle_count > 0 and is_integer(right_count) and
+             right_count > 0 and is_list(vector) do
+    {left_rows, rest} = Enum.split(rows, left_count)
+    {middle_rows, right_rows} = Enum.split(rest, middle_count)
+
+    if length(right_rows) != right_count do
+      raise ArgumentError, "matvec_split_triple split produced an unexpected row count"
+    end
+
+    matvec_triple(left_rows, middle_rows, right_rows, vector)
   end
 
   @impl true

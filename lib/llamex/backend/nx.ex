@@ -12,7 +12,12 @@ defmodule Llamex.Backend.Nx do
   defdelegate matvec_tensor(rows, vector), to: Llamex.Backend.NxEXLA
   defdelegate matvec_pair(left_rows, right_rows, vector), to: Llamex.Backend.NxEXLA
   defdelegate matvec_pair_tensor(left_rows, right_rows, vector), to: Llamex.Backend.NxEXLA
+  defdelegate matvec_split_pair_tensor(rows, left_count, vector), to: Llamex.Backend.NxEXLA
   defdelegate matvec_triple(left_rows, middle_rows, right_rows, vector), to: Llamex.Backend.NxEXLA
+
+  defdelegate matvec_split_triple(rows, left_count, middle_count, right_count, vector),
+    to: Llamex.Backend.NxEXLA
+
   defdelegate silu_multiply(gate, up), to: Llamex.Backend.NxEXLA
   defdelegate add(left, right), to: Llamex.Backend.NxEXLA
   defdelegate argmax(tensor), to: Llamex.Backend.NxEXLA

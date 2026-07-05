@@ -125,17 +125,20 @@ defmodule Llamex.Backend.NxEXLA do
 
   @impl true
   def matvec_pair_tensor(left_rows, right_rows, vector) do
-    nx = nx!()
     left_count = row_count(left_rows)
-    matrix = apply(nx, :concatenate, [[tensor(left_rows), tensor(right_rows)], [axis: 0]])
-    vector = tensor(vector)
+    matrix = concatenate_rows([left_rows, right_rows])
 
-    values = apply(nx, :dot, [matrix, vector])
+    matvec_split_pair_tensor(matrix, left_count, vector)
+  end
 
-    {
-      apply(nx, :slice, [values, [0], [left_count]]),
-      apply(nx, :slice, [values, [left_count], [left_count]])
-    }
+  @impl true
+  def matvec_split_pair_tensor(rows, left_count, vector) do
+    nx = nx!()
+    values = matvec_tensor(rows, vector)
+    right_count = row_count(rows) - left_count
+
+    {apply(nx, :slice, [values, [0], [left_count]]),
+     apply(nx, :slice, [values, [left_count], [right_count]])}
   end
 
   @impl true
@@ -147,19 +150,20 @@ defmodule Llamex.Backend.NxEXLA do
 
   @impl true
   def matvec_triple(left_rows, middle_rows, right_rows, vector) do
-    nx = nx!()
     left_count = row_count(left_rows)
     middle_count = row_count(middle_rows)
     right_count = row_count(right_rows)
+    matrix = concatenate_rows([left_rows, middle_rows, right_rows])
 
-    matrix =
-      apply(nx, :concatenate, [
-        [tensor(left_rows), tensor(middle_rows), tensor(right_rows)],
-        [axis: 0]
-      ])
+    matvec_split_triple(matrix, left_count, middle_count, right_count, vector)
+  end
+
+  @impl true
+  def matvec_split_triple(rows, left_count, middle_count, right_count, vector) do
+    nx = nx!()
 
     values =
-      matrix
+      rows
       |> matvec_tensor(vector)
       |> then(&apply(nx, :to_flat_list, [&1]))
 
@@ -260,6 +264,8 @@ defmodule Llamex.Backend.NxEXLA do
         :error -> layer
       end
     end)
+    |> maybe_prepare_combined(:w_qkv, [:wq, :wk, :wv])
+    |> maybe_prepare_combined(:w_gate_up, [:w_gate, :w_up])
   end
 
   defp prepare_output(nil), do: nil
@@ -281,6 +287,22 @@ defmodule Llamex.Backend.NxEXLA do
       |> then(&apply(nx, :add, [&1, 1.0]))
 
     apply(nx, :divide, [tensor, denominator])
+  end
+
+  defp maybe_prepare_combined(layer, combined_key, keys) do
+    if Enum.all?(keys, &Map.has_key?(layer, &1)) do
+      weights = Enum.map(keys, &Map.fetch!(layer, &1))
+
+      layer
+      |> Map.put(combined_key, concatenate_rows(weights))
+      |> Map.put(:"#{combined_key}_row_counts", Enum.map(weights, &row_count/1))
+    else
+      layer
+    end
+  end
+
+  defp concatenate_rows(rows) do
+    apply(nx!(), :concatenate, [Enum.map(rows, &tensor/1), [axis: 0]])
   end
 
   defp tensor(values) when is_list(values), do: apply(nx!(), :tensor, [values, [type: {:f, 32}]])

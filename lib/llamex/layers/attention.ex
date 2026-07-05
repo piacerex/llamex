@@ -20,13 +20,7 @@ defmodule Llamex.Layers.Attention do
     head_count = Map.get(layer, :head_count, 1)
     kv_head_count = Map.get(layer, :kv_head_count, head_count)
 
-    {query, key, value} =
-      backend.matvec_triple(
-        Map.fetch!(layer, :wq),
-        Map.fetch!(layer, :wk),
-        Map.fetch!(layer, :wv),
-        input
-      )
+    {query, key, value} = qkv_projection(layer, input, backend)
 
     query_heads =
       query
@@ -56,6 +50,23 @@ defmodule Llamex.Layers.Attention do
 
   defp kv_head_index(head_index, head_count, kv_head_count) do
     div(head_index * kv_head_count, head_count)
+  end
+
+  defp qkv_projection(
+         %{w_qkv: weight, w_qkv_row_counts: [q_count, k_count, v_count]},
+         input,
+         backend
+       ) do
+    backend.matvec_split_triple(weight, q_count, k_count, v_count, input)
+  end
+
+  defp qkv_projection(layer, input, backend) do
+    backend.matvec_triple(
+      Map.fetch!(layer, :wq),
+      Map.fetch!(layer, :wk),
+      Map.fetch!(layer, :wv),
+      input
+    )
   end
 
   defp split_heads(vector, head_count) do
