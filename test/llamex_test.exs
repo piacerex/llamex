@@ -542,6 +542,38 @@ defmodule LlamexTest do
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1", "step_2"]
   end
 
+  test "tokenize task prints token ids and pieces" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Tokenize.run(["priv/models/tiny.json", "hello world"])
+      end)
+
+    result = JSON.decode!(String.trim(output))
+
+    assert result["prompt"] == "hello world"
+    assert result["token_count"] == 2
+
+    assert result["tokens"] == [
+             %{"id" => 1, "piece" => "hello"},
+             %{"id" => 2, "piece" => "world"}
+           ]
+  end
+
+  test "tokenize task validates gguf chat templates before tensor loading" do
+    path =
+      Path.join(System.tmp_dir!(), "llamex-tokenize-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_chat_template_gguf())
+
+      assert_raise Mix.Error, ~r/chat template references missing tokenizer tokens/, fn ->
+        Mix.Tasks.Llamex.Tokenize.run([path, "hello", "--chat"])
+      end
+    after
+      File.rm(path)
+    end
+  end
+
   test "loads a tiny model from json" do
     model = Llamex.ModelLoader.load_json("priv/models/tiny.json")
 

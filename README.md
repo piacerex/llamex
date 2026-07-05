@@ -11,6 +11,7 @@ mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --
 mix llamex.generate priv/models/tiny.json hello 2 --profile
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx
 mix llamex.generate model.gguf "Hello" 8 --natural
+mix llamex.tokenize model.gguf "Elixir is"
 ```
 
 ## Backends
