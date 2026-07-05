@@ -181,7 +181,9 @@ Use `--profile` to inspect the model path, prompt, prompt token IDs/pieces,
 generation settings, generated token IDs/pieces/types, timings, and
 `finish_reason` (`stop` or `length`) for generation experiments. Profile output
 also splits prefill into `prompt_encode`, `backend_prepare`, and `prompt_eval`
-timings so backend setup cost is visible.
+timings so backend setup cost is visible. Each generated step includes
+`eval_timings` with per-layer `attention_norm`, `attention`, `mlp`,
+`output_norm`, and `logits` timings.
 Use `--stop-token ID`, `--stop-piece TOKEN`, `--stop-special eos`, or
 `--stop-control` to override inferred EOS/stop behavior, or `--no-stop` to force
 generation to continue until `max_new_tokens`.

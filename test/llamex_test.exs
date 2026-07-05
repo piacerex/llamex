@@ -473,6 +473,9 @@ defmodule LlamexTest do
     assert profile.prompt_tokens == 1
     assert profile.token == 2
     assert profile.text == "world"
+    assert profile.eval_timings.layers == []
+    assert profile.eval_timings.output_norm.label == "output_norm"
+    assert profile.eval_timings.logits.label == "logits"
 
     assert Enum.map(profile.prefill_timings, & &1.label) == [
              "prompt_encode",
@@ -565,6 +568,7 @@ defmodule LlamexTest do
     assert profile.text == "world world"
     assert Enum.map(profile.steps, & &1.token) == [2, 2]
     assert Enum.map(profile.steps, & &1.piece) == ["world", "world"]
+    assert Enum.map(profile.steps, & &1.eval_timings.logits.label) == ["logits", "logits"]
 
     assert Enum.map(profile.steps, &Map.take(&1, [:token, :piece, :type, :type_id])) == [
              %{token: 2, piece: "world", type: :normal, type_id: 1},
@@ -690,6 +694,10 @@ defmodule LlamexTest do
     assert profile["generated_token_info"] == [%{"token" => 2, "piece" => "world"}]
     assert profile["finish_reason"] == "stop"
     assert profile["text"] == "world"
+
+    assert Enum.map(profile["steps"], &get_in(&1, ["eval_timings", "logits", "label"])) == [
+             "logits"
+           ]
 
     assert Enum.map(profile["prefill_timings"], & &1["label"]) == [
              "prompt_encode",

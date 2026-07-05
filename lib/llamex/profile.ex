@@ -3,6 +3,9 @@ defmodule Llamex.Profile do
   Small profiling helpers for local GGUF generation experiments.
   """
 
+  alias Llamex.{Context, Tensor}
+  alias Llamex.Layers.{Attention, Linear, RMSNorm, SwiGLU}
+
   def timed(label, fun) when is_binary(label) and is_function(fun, 0) do
     {microseconds, result} = :timer.tc(fun)
 
@@ -17,13 +20,14 @@ defmodule Llamex.Profile do
 
     {step_time, step} =
       timed("step", fn ->
-        Llamex.step(state.context, state.current_token, %{sampler: sampler})
+        timed_step(state.context, state.current_token, %{sampler: sampler})
       end)
 
     %{
       prompt_tokens: length(state.prompt_tokens),
       token: step.token,
       text: step.text,
+      eval_timings: step.eval_timings,
       prefill_timings: prefill_timings,
       timings: [prefill_time, step_time]
     }
@@ -78,7 +82,7 @@ defmodule Llamex.Profile do
         fn index, {steps, context, current_token, sampler_state, _finish_reason} ->
           {step_time, step} =
             timed("step_#{index}", fn ->
-              Llamex.step(context, current_token, %{
+              timed_step(context, current_token, %{
                 sampler: sampler,
                 sampler_state: sampler_state,
                 history: context.tokens
@@ -91,7 +95,8 @@ defmodule Llamex.Profile do
             |> Map.merge(%{
               index: index,
               text: step.text,
-              timing: step_time
+              timing: step_time,
+              eval_timings: step.eval_timings
             })
 
           finish_reason = if stop_token?(step.token, stop_tokens), do: :stop, else: :length
@@ -147,7 +152,7 @@ defmodule Llamex.Profile do
           prompt_tokens
           |> Enum.drop(-1)
           |> Enum.reduce(context, fn token, context ->
-            {context, _logits} = Llamex.Engine.eval(context, token)
+            {context, _logits, _eval_timings} = timed_eval(context, token)
             context
           end)
         end)
@@ -164,6 +169,157 @@ defmodule Llamex.Profile do
 
   defp seed_token([]), do: raise(ArgumentError, "prompt must encode to at least one token")
   defp seed_token(prompt_tokens), do: List.last(prompt_tokens)
+
+  defp timed_step(context, current_token, opts) do
+    sampler = Map.get(opts, :sampler, :greedy)
+    history = Map.get(opts, :history, context.tokens)
+    sampler_state = Map.get(opts, :sampler_state) || new_sampler_state(sampler)
+
+    {context, logits, eval_timings} = timed_eval(context, current_token)
+
+    {token, sampler_state} =
+      case sampler do
+        :greedy ->
+          {Llamex.Sampler.greedy(logits, context.backend), sampler_state}
+
+        sampler when is_map(sampler) ->
+          {random, sampler_state} = next_random(sampler, sampler_state)
+
+          token =
+            logits
+            |> Llamex.Sampler.sample(
+              context.backend,
+              sampler |> Map.put(:random, random) |> Map.put(:history, history)
+            )
+
+          {token, sampler_state}
+      end
+
+    %{
+      context: context,
+      token: token,
+      text: Llamex.decode(context.model, [token]),
+      sampler_state: sampler_state,
+      eval_timings: eval_timings
+    }
+  end
+
+  defp new_sampler_state(:greedy), do: nil
+
+  defp new_sampler_state(opts) when is_map(opts) do
+    seed = Map.get(opts, :seed)
+
+    if seed do
+      :rand.seed_s(:exsss, {seed, seed + 1, seed + 2})
+    end
+  end
+
+  defp next_random(%{random: random}, sampler_state) when is_float(random),
+    do: {random, sampler_state}
+
+  defp next_random(_opts, sampler_state) do
+    :rand.uniform_s(sampler_state)
+  end
+
+  defp timed_eval(%Context{} = context, token) when is_integer(token) and token >= 0 do
+    hidden = Map.fetch!(context.model.token_embeddings, token)
+    position = length(context.tokens)
+
+    {layer_timings, {context, hidden}} =
+      context.model.layers
+      |> Enum.with_index()
+      |> Enum.reduce({[], {context, hidden}}, fn {layer, layer_index},
+                                                 {timings, {context, hidden}} ->
+        {layer_time, {context, hidden, component_timings}} =
+          timed("layer_#{layer_index}", fn ->
+            timed_layer(context, hidden, layer, layer_index, position)
+          end)
+
+        step = Map.put(layer_time, :components, component_timings)
+        {[step | timings], {context, hidden}}
+      end)
+
+    {output_norm_time, hidden} =
+      timed("output_norm", fn ->
+        maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+      end)
+
+    {logits_time, logits} =
+      timed("logits", fn ->
+        timed_logits(context, hidden)
+      end)
+
+    eval_timings = %{
+      layers: Enum.reverse(layer_timings),
+      output_norm: output_norm_time,
+      logits: logits_time
+    }
+
+    {Context.append(context, token), logits, eval_timings}
+  end
+
+  defp timed_layer(context, hidden, layer, layer_index, position) do
+    {attention_norm_time, normalized} =
+      timed("attention_norm", fn ->
+        RMSNorm.forward(hidden, Map.fetch!(layer, :attention_norm), context.model.config.epsilon)
+      end)
+
+    {attention_time, {kv_cache, attention}} =
+      timed("attention", fn ->
+        Attention.forward(
+          normalized,
+          layer,
+          context.kv_cache,
+          layer_index,
+          position,
+          context.model.config.rope_theta,
+          context.backend
+        )
+      end)
+
+    hidden = Tensor.add(hidden, attention)
+
+    {mlp_time, hidden} =
+      timed("mlp", fn ->
+        maybe_apply_mlp(hidden, layer, context.model.config.epsilon, context.backend)
+      end)
+
+    component_timings = [attention_norm_time, attention_time, mlp_time]
+    {%{context | kv_cache: kv_cache}, hidden, component_timings}
+  end
+
+  defp maybe_apply_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon, backend) do
+    feed_forward =
+      hidden
+      |> RMSNorm.forward(feed_forward_norm, epsilon)
+      |> SwiGLU.forward(layer, backend)
+
+    Tensor.add(hidden, feed_forward)
+  end
+
+  defp maybe_apply_mlp(hidden, _layer, _epsilon, _backend), do: hidden
+
+  defp maybe_apply_output_norm(hidden, nil, _epsilon), do: hidden
+
+  defp maybe_apply_output_norm(hidden, output_norm, epsilon) do
+    RMSNorm.forward(hidden, output_norm, epsilon)
+  end
+
+  defp timed_logits(%{model: %{output: %{weight: weight}}, backend: backend}, hidden) do
+    hidden
+    |> Linear.forward(weight, backend)
+    |> backend.from_list()
+  end
+
+  defp timed_logits(context, hidden) do
+    0..(context.model.config.vocab_size - 1)
+    |> Enum.map(fn candidate ->
+      candidate_embedding = Map.fetch!(context.model.token_embeddings, candidate)
+
+      Tensor.dot(hidden, candidate_embedding)
+    end)
+    |> context.backend.from_list()
+  end
 
   defp token_pieces(model, token_ids) do
     Enum.map(token_ids, &Map.fetch!(model.tokenizer.id_to_token, &1))
