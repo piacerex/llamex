@@ -176,6 +176,15 @@ defmodule LlamexTest do
     assert tail == 3.0
   end
 
+  test "keeps RoPE rotated halves in split order" do
+    [x0, x1, x2, x3] = Llamex.Layers.RoPE.apply([1.0, 2.0, 3.0, 4.0], 1, 10_000.0, 4)
+
+    assert_in_delta x0, 1.0 * :math.cos(1.0) - 3.0 * :math.sin(1.0), 1.0e-12
+    assert_in_delta x1, 2.0 * :math.cos(0.01) - 4.0 * :math.sin(0.01), 1.0e-12
+    assert_in_delta x2, 1.0 * :math.sin(1.0) + 3.0 * :math.cos(1.0), 1.0e-12
+    assert_in_delta x3, 2.0 * :math.sin(0.01) + 4.0 * :math.cos(0.01), 1.0e-12
+  end
+
   test "backend list dot checks vector lengths in one pass" do
     assert Llamex.Backend.List.dot([1.0, 2.0], [3.0, 4.0]) == 11.0
 

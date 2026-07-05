@@ -22,19 +22,19 @@ defmodule Llamex.Layers.RoPE do
       half = div(dimension_count, 2)
       {left, right} = Enum.split(rotary, half)
 
-      rotated =
+      {rotated_left, rotated_right} =
         left
         |> Enum.zip(right)
         |> Enum.with_index()
-        |> Enum.flat_map(fn {{x0, x1}, pair_index} ->
+        |> Enum.reduce({[], []}, fn {{x0, x1}, pair_index}, {rotated_left, rotated_right} ->
           angle = position / :math.pow(theta, 2 * pair_index / dimension_count)
           cos = :math.cos(angle)
           sin = :math.sin(angle)
 
-          [x0 * cos - x1 * sin, x0 * sin + x1 * cos]
+          {[x0 * cos - x1 * sin | rotated_left], [x0 * sin + x1 * cos | rotated_right]}
         end)
 
-      rotated ++ pass_through
+      Enum.reverse(rotated_left) ++ Enum.reverse(rotated_right) ++ pass_through
     end
   end
 end
