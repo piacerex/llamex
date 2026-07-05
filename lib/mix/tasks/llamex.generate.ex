@@ -98,6 +98,7 @@ defmodule Mix.Tasks.Llamex.Generate do
 
   defp backend(%{backend: "list"}), do: Llamex.Backend.List
   defp backend(%{backend: "nx"}), do: Llamex.Backend.Nx
+  defp backend(%{backend: "nx_exla"}), do: Llamex.Backend.NxEXLA
   defp backend(%{backend: nil}), do: Llamex.Backend.List
   defp backend(%{backend: backend}), do: Mix.raise("unsupported backend: #{backend}")
   defp backend(%{}), do: Llamex.Backend.List
