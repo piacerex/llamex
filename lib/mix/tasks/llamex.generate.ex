@@ -27,6 +27,7 @@ defmodule Mix.Tasks.Llamex.Generate do
           system: :string,
           natural: :boolean,
           profile: :boolean,
+          context_window: :integer,
           candidates: :integer,
           stop_token: :integer,
           stop_piece: :string,
@@ -90,6 +91,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> Map.delete(:chat)
     |> Map.delete(:system)
     |> Map.delete(:profile)
+    |> Map.delete(:context_window)
     |> Map.delete(:candidates)
     |> Map.delete(:stop_token)
     |> Map.delete(:stop_piece)
@@ -175,6 +177,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     profile =
       Llamex.Profile.generation_steps(model, prompt, %{
         backend: backend(options),
+        context_window: Map.get(options, :context_window),
         max_new_tokens: max_new_tokens,
         stop_tokens: stop_tokens(model, options),
         sampler: sampler(model, options),
@@ -191,6 +194,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     result =
       Llamex.generate(model, prompt, %{
         backend: backend(options),
+        context_window: Map.get(options, :context_window),
         max_new_tokens: max_new_tokens,
         stop_tokens: stop_tokens(model, options),
         sampler: sampler(model, options)

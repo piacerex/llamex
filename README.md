@@ -15,6 +15,7 @@ mix llamex.generate priv/models/tiny.json hello 2 --stop-token 2
 mix llamex.generate priv/models/tiny.json hello 2 --stop-piece world
 mix llamex.generate model.gguf "Hello" 8 --stop-special eos
 mix llamex.generate model.gguf "Hello" 8 --natural --stop-control --profile
+mix llamex.generate model.gguf "Long prompt..." 32 --context-window 2048
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx_exla
 mix llamex.generate priv/models/tiny.json hello 2 --backend fpga
 mix llamex.generate model.gguf "Hello" 8 --natural

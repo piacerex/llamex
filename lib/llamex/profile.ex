@@ -3,7 +3,7 @@ defmodule Llamex.Profile do
   Small profiling helpers for local GGUF generation experiments.
   """
 
-  alias Llamex.{Context, Tensor}
+  alias Llamex.{Context, ContextWindow, Tensor}
   alias Llamex.Layers.{Attention, Linear, RMSNorm}
 
   def timed(label, fun) when is_binary(label) and is_function(fun, 0) do
@@ -17,7 +17,7 @@ defmodule Llamex.Profile do
     sampler = Map.get(opts, :sampler, :greedy)
     candidate_count = Map.get(opts, :candidate_count, 0)
 
-    {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend)
+    {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend, opts)
 
     {step_time, step} =
       timed("step", fn ->
@@ -30,6 +30,9 @@ defmodule Llamex.Profile do
 
     %{
       prompt_tokens: length(state.prompt_tokens),
+      original_prompt_token_count: state.original_prompt_token_count,
+      context_window: state.context_window,
+      prompt_truncated?: state.prompt_truncated?,
       token: step.token,
       text: step.text,
       candidates: token_candidates(model, step.candidates),
@@ -41,7 +44,9 @@ defmodule Llamex.Profile do
 
   def prefill_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
     backend = Map.get(opts, :backend, Llamex.Backend.List)
-    prompt_tokens = Llamex.encode(model, prompt)
+    original_prompt_tokens = Llamex.encode(model, prompt)
+    context_window = ContextWindow.resolve(model, opts)
+    prompt_tokens = ContextWindow.apply(original_prompt_tokens, context_window)
     context = Llamex.Context.new(model, backend)
     prefill_tokens = Enum.drop(prompt_tokens, -1)
 
@@ -66,6 +71,9 @@ defmodule Llamex.Profile do
 
     %{
       prompt_tokens: prompt_tokens,
+      original_prompt_token_count: length(original_prompt_tokens),
+      context_window: context_window,
+      prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),
       current_token: List.last(prompt_tokens),
       current_piece: Map.fetch!(model.tokenizer.id_to_token, List.last(prompt_tokens)),
       context_tokens: context.tokens,
@@ -80,7 +88,7 @@ defmodule Llamex.Profile do
     stop_tokens = stop_tokens(opts)
     candidate_count = Map.get(opts, :candidate_count, 0)
 
-    {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend)
+    {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend, opts)
 
     {steps, _context, _current_token, _sampler_state, finish_reason} =
       Enum.reduce_while(
@@ -133,6 +141,9 @@ defmodule Llamex.Profile do
       stop_tokens: stop_tokens,
       sampler: display_sampler(sampler),
       prompt_tokens: length(state.prompt_tokens),
+      original_prompt_token_count: state.original_prompt_token_count,
+      context_window: state.context_window,
+      prompt_truncated?: state.prompt_truncated?,
       prompt_token_ids: state.prompt_tokens,
       prompt_pieces: token_pieces(model, state.prompt_tokens),
       generated_tokens: generated_tokens,
@@ -162,12 +173,16 @@ defmodule Llamex.Profile do
   defp display_sampler(sampler) when is_map(sampler), do: sampler
   defp display_sampler(sampler), do: sampler
 
-  defp timed_prefill(model, prompt, backend) do
+  defp timed_prefill(model, prompt, backend, opts) do
     timed("prefill", fn ->
-      {encode_time, prompt_tokens} =
+      context_window = ContextWindow.resolve(model, opts)
+
+      {encode_time, original_prompt_tokens} =
         timed("prompt_encode", fn ->
           Llamex.encode(model, prompt)
         end)
+
+      prompt_tokens = ContextWindow.apply(original_prompt_tokens, context_window)
 
       {prepare_time, context} =
         timed("backend_prepare", fn ->
@@ -187,6 +202,9 @@ defmodule Llamex.Profile do
       state = %{
         context: context,
         prompt_tokens: prompt_tokens,
+        original_prompt_token_count: length(original_prompt_tokens),
+        context_window: context_window,
+        prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),
         current_token: seed_token(prompt_tokens)
       }
 

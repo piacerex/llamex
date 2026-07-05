@@ -32,6 +32,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           prompt: :keep,
           min_words: :integer,
           max_new_tokens: :integer,
+          context_window: :integer,
           seed: :integer,
           top_p: :float,
           top_k: :integer,
@@ -67,6 +68,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
         result =
           Llamex.generate(model, prompt, %{
             backend: backend(options),
+            context_window: Map.get(options, :context_window),
             max_new_tokens: max_new_tokens,
             stop_tokens: stop_tokens,
             sampler: sampler
@@ -131,6 +133,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       reject_open_ending: Map.get(options, :reject_open_ending, false),
       complete_open_ending: complete_open_ending(options),
       trim_to_sentence: Map.get(options, :trim_to_sentence, false),
+      context_window: Map.get(options, :context_window),
       stop_tokens: stop_tokens,
       sampler: display_sampler(sampler)
     }
@@ -183,6 +186,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     completion =
       Llamex.generate(model, continuation_prompt(prompt, result.text), %{
         backend: backend(options),
+        context_window: Map.get(options, :context_window),
         max_new_tokens: chunk_tokens,
         stop_tokens: stop_tokens,
         sampler: sampler

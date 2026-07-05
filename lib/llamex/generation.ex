@@ -3,17 +3,22 @@ defmodule Llamex.Generation do
   Prompt-to-text generation loop.
   """
 
-  alias Llamex.{Context, Engine, Model, Sampler}
+  alias Llamex.{Context, ContextWindow, Engine, Model, Sampler}
 
   def prefill(%Model{} = model, prompt, opts) when is_binary(prompt) and is_map(opts) do
     backend = Map.fetch!(opts, :backend)
-    prompt_tokens = Llamex.encode(model, prompt)
+    original_prompt_tokens = Llamex.encode(model, prompt)
+    context_window = ContextWindow.resolve(model, opts)
+    prompt_tokens = ContextWindow.apply(original_prompt_tokens, context_window)
     context = Context.new(model, backend)
     context = ingest_prompt(context, prompt_tokens)
 
     %{
       context: context,
       prompt_tokens: prompt_tokens,
+      original_prompt_token_count: length(original_prompt_tokens),
+      context_window: context_window,
+      prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),
       current_token: seed_token(prompt_tokens)
     }
   end
@@ -179,7 +184,6 @@ defmodule Llamex.Generation do
 
   def generate(%Model{} = model, prompt, opts)
       when is_binary(prompt) and is_map(opts) do
-    backend = Map.fetch!(opts, :backend)
     max_new_tokens = Map.fetch!(opts, :max_new_tokens)
     stop_tokens = stop_tokens(opts)
     sampler = Map.get(opts, :sampler, :greedy)
@@ -188,8 +192,8 @@ defmodule Llamex.Generation do
       raise ArgumentError, "max_new_tokens must be zero or positive"
     end
 
-    %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} =
-      prefill(model, prompt, %{backend: backend})
+    state = prefill(model, prompt, Map.take(opts, [:backend, :context_window]))
+    %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} = state
 
     sampler_state = new_sampler_state(sampler)
 
@@ -208,6 +212,9 @@ defmodule Llamex.Generation do
     %{
       text: Llamex.decode(model, generated_tokens),
       prompt_tokens: prompt_tokens,
+      original_prompt_token_count: state.original_prompt_token_count,
+      context_window: state.context_window,
+      prompt_truncated?: state.prompt_truncated?,
       generated_tokens: generated_tokens,
       finish_reason: finish_reason,
       context: context

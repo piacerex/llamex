@@ -561,6 +561,51 @@ defmodule LlamexTest do
     assert result.text == "B A C"
   end
 
+  test "prefill can keep the tail of a long prompt within a context window" do
+    tokenizer = Llamex.Tokenizer.new(%{"A" => 0, "B" => 1, "C" => 2}, "A")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 3},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0, 0.0, 0.0],
+          1 => [0.0, 1.0, 0.0],
+          2 => [0.0, 0.0, 1.0]
+        }
+      })
+
+    state = Llamex.prefill(model, "A B C", %{backend: Llamex.Backend.List, context_window: 2})
+
+    assert state.prompt_tokens == [1, 2]
+    assert state.original_prompt_token_count == 3
+    assert state.context_window == 2
+    assert state.prompt_truncated?
+    assert state.context.tokens == [1]
+    assert state.current_token == 2
+  end
+
+  test "prefill uses model context size as the default context window" do
+    tokenizer = Llamex.Tokenizer.new(%{"A" => 0, "B" => 1, "C" => 2}, "A")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 3, context_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0, 0.0, 0.0],
+          1 => [0.0, 1.0, 0.0],
+          2 => [0.0, 0.0, 1.0]
+        }
+      })
+
+    state = Llamex.prefill(model, "A B C", %{backend: Llamex.Backend.List})
+
+    assert state.prompt_tokens == [1, 2]
+    assert state.context_window == 2
+    assert state.prompt_truncated?
+  end
+
   test "generation can suppress adjacent repeated words" do
     tokenizer = Llamex.Tokenizer.new(%{"brown" => 0, "and" => 1}, "brown")
 
@@ -1200,6 +1245,27 @@ defmodule LlamexTest do
 
     assert Enum.map(profile["steps"], & &1["piece"]) == ["world"]
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
+  end
+
+  test "generate task profile reports context window truncation" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello world",
+          "1",
+          "--profile",
+          "--context-window",
+          "1"
+        ])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert profile["prompt_token_ids"] == [2]
+    assert profile["original_prompt_token_count"] == 2
+    assert profile["context_window"] == 1
+    assert profile["prompt_truncated?"]
   end
 
   test "generate task can print candidate tokens in a generation profile" do
