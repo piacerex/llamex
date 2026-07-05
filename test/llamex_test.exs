@@ -551,7 +551,10 @@ defmodule LlamexTest do
       vector = Llamex.Backend.NxEXLA.from_list([1.0, 2.0, 3.0, 4.0, 5.0])
 
       result = Llamex.Backend.NxEXLA.rope(vector, 1, 10_000.0, 4)
+      cached_result = Llamex.Backend.NxEXLA.rope(vector, 1, 10_000.0, 4)
       expected = Llamex.Backend.List.rope([1.0, 2.0, 3.0, 4.0, 5.0], 1, 10_000.0, 4)
+
+      assert cached_result == result
 
       Enum.zip(result, expected)
       |> Enum.each(fn {actual, expected} ->

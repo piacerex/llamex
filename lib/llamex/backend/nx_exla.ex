@@ -17,6 +17,7 @@ defmodule Llamex.Backend.NxEXLA do
     rocm: :rocm
   }
   @config_key {__MODULE__, :configured}
+  @rope_trig_cache_key {__MODULE__, :rope_trig_cache}
 
   @doc """
   Configures Nx to allocate tensors on EXLA for the selected target.
@@ -730,6 +731,21 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   defp rope_trig_tensors(position, theta, dimension_count, half) do
+    key = {configured(), position, theta, dimension_count, half}
+    cache = Process.get(@rope_trig_cache_key, %{})
+
+    case Map.fetch(cache, key) do
+      {:ok, tensors} ->
+        tensors
+
+      :error ->
+        tensors = build_rope_trig_tensors(position, theta, dimension_count, half)
+        Process.put(@rope_trig_cache_key, Map.put(cache, key, tensors))
+        tensors
+    end
+  end
+
+  defp build_rope_trig_tensors(position, theta, dimension_count, half) do
     angles = rope_angles(position, theta, dimension_count, half)
 
     {
