@@ -1,0 +1,110 @@
+defmodule Mix.Tasks.Llamex.Natural.Smoke do
+  @moduledoc """
+  Runs a small natural-generation smoke suite against a model.
+
+      mix llamex.natural.smoke model.gguf
+      mix llamex.natural.smoke model.gguf 3 --json
+      mix llamex.natural.smoke model.gguf 3 --prompt "Elixir is"
+  """
+
+  use Mix.Task
+
+  @shortdoc "Runs natural generation smoke prompts"
+
+  @default_prompts ["Elixir is", "Once upon a time", "The quick brown fox"]
+
+  @impl true
+  def run(args) do
+    {options, positional, invalid} =
+      OptionParser.parse(args,
+        strict: [
+          backend: :string,
+          json: :boolean,
+          prompt: :keep,
+          max_new_tokens: :integer,
+          seed: :integer,
+          top_p: :float,
+          top_k: :integer,
+          temperature: :float,
+          repetition_penalty: :float
+        ],
+        aliases: [p: :prompt, s: :seed]
+      )
+
+    if invalid != [] do
+      Mix.raise("invalid options: #{inspect(invalid)}")
+    end
+
+    run_smoke(positional, Map.new(options))
+  end
+
+  defp run_smoke([model_path], options), do: run_smoke([model_path, "3"], options)
+
+  defp run_smoke([model_path, max_new_tokens], options) do
+    Mix.Task.run("app.start")
+
+    model = load_model(model_path)
+    max_new_tokens = Map.get(options, :max_new_tokens, String.to_integer(max_new_tokens))
+    prompts = prompts(options)
+    sampler = natural_sampler(model, options)
+    stop_tokens = Llamex.Natural.control_stop_tokens(model)
+
+    results =
+      Enum.map(prompts, fn prompt ->
+        result =
+          Llamex.generate(model, prompt, %{
+            backend: backend(options),
+            max_new_tokens: max_new_tokens,
+            stop_tokens: stop_tokens,
+            sampler: sampler
+          })
+
+        %{
+          prompt: prompt,
+          text: result.text,
+          generated_tokens: result.generated_tokens,
+          finish_reason: result.finish_reason
+        }
+      end)
+
+    print_results(results, options)
+  end
+
+  defp run_smoke(_args, _options) do
+    Mix.raise(~s(usage: mix llamex.natural.smoke MODEL [max_new_tokens] [--json] [--prompt TEXT]))
+  end
+
+  defp prompts(%{prompt: prompts}) when is_list(prompts), do: prompts
+  defp prompts(%{prompt: prompt}) when is_binary(prompt), do: [prompt]
+  defp prompts(_options), do: @default_prompts
+
+  defp natural_sampler(model, options) do
+    options
+    |> Map.take([:temperature, :top_k, :top_p, :repetition_penalty, :seed])
+    |> Llamex.Natural.sampler(model)
+  end
+
+  defp backend(%{backend: "list"}), do: Llamex.Backend.List
+  defp backend(%{backend: "nx"}), do: Llamex.Backend.Nx
+  defp backend(%{backend: nil}), do: Llamex.Backend.List
+  defp backend(%{backend: backend}), do: Mix.raise("unsupported backend: #{backend}")
+  defp backend(%{}), do: Llamex.Backend.List
+
+  defp load_model(model_path) do
+    if Path.extname(model_path) == ".gguf" do
+      Llamex.GGUF.ModelLoader.load(model_path)
+    else
+      Llamex.ModelLoader.load_json(model_path)
+    end
+  end
+
+  defp print_results(results, %{json: true}) do
+    Mix.shell().info(JSON.encode!(results))
+  end
+
+  defp print_results(results, _options) do
+    Enum.each(results, fn result ->
+      Mix.shell().info("#{result.prompt} => #{result.text}")
+    end)
+  end
+end

@@ -66,11 +66,6 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp sampler(%{natural: true} = options) do
     options
     |> sampling_options()
-    |> Map.put_new(:temperature, 0.8)
-    |> Map.put_new(:top_k, 40)
-    |> Map.put_new(:top_p, 0.5)
-    |> Map.put_new(:repetition_penalty, 1.1)
-    |> Map.put_new(:seed, 1)
   end
 
   defp sampler(options) do
@@ -152,9 +147,7 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp control_stop_tokens(%{tokenizer: nil}, _options), do: []
 
   defp control_stop_tokens(model, %{stop_control: true}) do
-    model.tokenizer.token_types
-    |> Enum.filter(&(&1.type == :control))
-    |> Enum.map(& &1.id)
+    Llamex.Natural.control_stop_tokens(model)
   end
 
   defp control_stop_tokens(_model, _options), do: []
@@ -204,52 +197,11 @@ defmodule Mix.Tasks.Llamex.Generate do
     sampler = sampler(options)
 
     if Map.get(options, :natural) == true and is_map(sampler) do
-      suppress_tokens = natural_suppressed_token_ids(model)
-
-      if suppress_tokens == [] do
-        sampler
-      else
-        Map.update(sampler, :suppress_tokens, suppress_tokens, &Enum.uniq(&1 ++ suppress_tokens))
-      end
+      Llamex.Natural.sampler(model, sampler)
     else
       sampler
     end
   end
-
-  defp natural_suppressed_token_ids(%{tokenizer: nil}), do: []
-
-  defp natural_suppressed_token_ids(model) do
-    type_ids =
-      model.tokenizer.token_types
-      |> Enum.filter(&natural_suppressed_token?/1)
-      |> Enum.map(& &1.id)
-
-    special_ids =
-      [:unknown]
-      |> Enum.map(&get_in(model.tokenizer.special_tokens, [&1, :id]))
-      |> Enum.reject(&is_nil/1)
-
-    control_ids =
-      model.tokenizer.token_types
-      |> Enum.filter(&(&1.type == :control))
-      |> Enum.map(& &1.id)
-      |> Enum.reject(&(&1 == get_in(model.tokenizer.special_tokens, [:eos, :id])))
-
-    Enum.uniq(type_ids ++ special_ids ++ control_ids)
-  end
-
-  defp natural_suppressed_token?(%{type: type})
-       when type in [:unknown, :unused, :user_defined, :undefined],
-       do: true
-
-  defp natural_suppressed_token?(%{type: :byte}), do: true
-  defp natural_suppressed_token?(%{token: "▁"}), do: true
-
-  defp natural_suppressed_token?(%{token: token}) when is_binary(token) do
-    String.contains?(token, ["\n", "\r"])
-  end
-
-  defp natural_suppressed_token?(_token), do: false
 
   defp load_model(model_path) do
     if Path.extname(model_path) == ".gguf" do

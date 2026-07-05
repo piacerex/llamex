@@ -18,6 +18,7 @@ mix llamex.generate model.gguf "Hello" 8 --natural --stop-control --profile
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx
 mix llamex.generate model.gguf "Hello" 8 --natural
 mix llamex.tokenize model.gguf "Elixir is"
+mix llamex.natural.smoke model.gguf 3 --json
 ```
 
 ## Backends
@@ -199,6 +200,8 @@ types before choosing stop pieces or chat prompts.
 Use `--chat` only after `mix llamex.gguf.inspect` reports that the chat template
 has no missing tokens. The generate task validates `.gguf --chat` from metadata
 before loading tensors, so incompatible chat templates fail quickly.
+Use `mix llamex.natural.smoke MODEL [max_new_tokens] --json` to run the current
+natural-generation baseline prompts after loading the model once.
 
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:

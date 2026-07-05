@@ -1020,6 +1020,25 @@ defmodule LlamexTest do
     end
   end
 
+  test "natural smoke task runs prompts with one model load" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Natural.Smoke.run([
+          "priv/models/tiny.json",
+          "1",
+          "--json",
+          "--prompt",
+          "hello"
+        ])
+      end)
+
+    [result] = JSON.decode!(String.trim(output))
+
+    assert result["prompt"] == "hello"
+    assert result["text"] == "world"
+    assert result["generated_tokens"] == [2]
+  end
+
   test "generate task can disable inferred stop token for profiling" do
     output =
       capture_io(fn ->
