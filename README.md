@@ -8,6 +8,7 @@ Minimal Elixir LLM engine experiment.
 mix test
 mix llamex.generate priv/models/tiny.json hello 2
 mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --top-p 0.9 --seed 42
+mix llamex.generate model.gguf "Hello" 8 --natural
 ```
 
 ## Model JSON
@@ -143,7 +144,8 @@ Llamex.GGUF.ModelLoader.load("model.gguf")
 ```
 
 The `mix llamex.generate` task accepts `.gguf` paths and uses the GGUF loader
-for them.
+for them. Use `--natural` to select a conservative text sampling preset
+(`temperature=0.8`, `top-k=40`, `top-p=0.9`, `repetition-penalty=1.1`).
 
 GGUF compatibility can be inspected without loading tensor data:
 

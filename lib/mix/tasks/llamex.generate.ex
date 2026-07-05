@@ -20,7 +20,8 @@ defmodule Mix.Tasks.Llamex.Generate do
           top_p: :float,
           repetition_penalty: :float,
           seed: :integer,
-          chat: :boolean
+          chat: :boolean,
+          natural: :boolean
         ],
         aliases: [t: :temperature, k: :top_k, p: :top_p, s: :seed]
       )
@@ -61,8 +62,19 @@ defmodule Mix.Tasks.Llamex.Generate do
 
   defp sampler(options) when map_size(options) == 0, do: :greedy
 
+  defp sampler(%{natural: true} = options) do
+    options
+    |> Map.delete(:natural)
+    |> Map.put_new(:temperature, 0.8)
+    |> Map.put_new(:top_k, 40)
+    |> Map.put_new(:top_p, 0.9)
+    |> Map.put_new(:repetition_penalty, 1.1)
+    |> Map.put_new(:seed, 1)
+  end
+
   defp sampler(options) do
     options
+    |> Map.delete(:natural)
     |> Map.put_new(:temperature, 1.0)
     |> Map.put_new(:seed, 1)
   end
