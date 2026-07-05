@@ -1594,6 +1594,9 @@ defmodule LlamexTest do
     assert profile["prompt_token_ids"] == [1]
     assert profile["prompt_pieces"] == ["hello"]
     assert profile["backend"] == "Elixir.Llamex.Backend.Nx"
+    assert profile["backend_profile"]["tensor_backend?"] == true
+    assert profile["backend_profile"]["layer_count"] == 0
+    assert is_boolean(profile["backend_profile"]["output_weight_tensor?"])
     assert profile["max_new_tokens"] == 2
     assert profile["sampler"] == "greedy"
     assert profile["generated_tokens"] == [2]
@@ -1642,6 +1645,7 @@ defmodule LlamexTest do
     profile = JSON.decode!(String.trim(output))
 
     assert profile["backend"] == "Elixir.Llamex.Backend.NxEXLA"
+    assert profile["backend_profile"]["tensor_backend?"] == true
 
     assert profile["exla"] == %{
              "target" => "cpu",

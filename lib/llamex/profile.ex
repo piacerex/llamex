@@ -31,6 +31,7 @@ defmodule Llamex.Profile do
     %{
       backend: backend,
       exla: exla_info(backend),
+      backend_profile: backend_profile(state.context),
       prompt_tokens: length(state.prompt_tokens),
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
@@ -148,6 +149,7 @@ defmodule Llamex.Profile do
     %{
       backend: backend,
       exla: exla_info(backend),
+      backend_profile: backend_profile(state.context),
       max_new_tokens: max_new_tokens,
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
@@ -251,6 +253,36 @@ defmodule Llamex.Profile do
   end
 
   defp exla_info(_backend), do: nil
+
+  defp backend_profile(%Context{backend: backend, model: model})
+       when backend in [Llamex.Backend.Nx, Llamex.Backend.NxEXLA] do
+    layer_count = length(model.layers)
+
+    %{
+      tensor_backend?: true,
+      layer_count: layer_count,
+      qkv_combined_layers: count_layers(model.layers, :w_qkv),
+      gate_up_combined_layers: count_layers(model.layers, :w_gate_up),
+      tensor_attention_norm_layers: count_layers(model.layers, :attention_norm),
+      tensor_feed_forward_norm_layers: count_layers(model.layers, :feed_forward_norm),
+      output_norm_tensor?: tensor?(model.output_norm),
+      output_weight_tensor?: tensor?(get_in(model.output, [:weight]))
+    }
+  end
+
+  defp backend_profile(%Context{model: model}) do
+    %{
+      tensor_backend?: false,
+      layer_count: length(model.layers)
+    }
+  end
+
+  defp count_layers(layers, key) do
+    Enum.count(layers, fn layer -> tensor?(Map.get(layer, key)) end)
+  end
+
+  defp tensor?(%Nx.Tensor{}), do: true
+  defp tensor?(_value), do: false
 
   defp step_indexes(0), do: []
   defp step_indexes(max_new_tokens), do: 1..max_new_tokens
