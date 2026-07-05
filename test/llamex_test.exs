@@ -247,6 +247,14 @@ defmodule LlamexTest do
              {[1.0, 2.0], [2.0, 6.0]}
   end
 
+  test "runs paired matvecs through fpga backend fallback" do
+    left_rows = [[1.0, 0.0], [0.0, 1.0]]
+    right_rows = [[2.0, 0.0], [0.0, 3.0]]
+
+    assert Llamex.Backend.FPGA.matvec_pair(left_rows, right_rows, [1.0, 2.0]) ==
+             {[1.0, 2.0], [2.0, 6.0]}
+  end
+
   test "runs paired matvecs through nx_exla backend when Nx is available" do
     if Code.ensure_loaded?(Nx) do
       left_rows = [[1.0, 0.0], [0.0, 1.0]]
@@ -765,6 +773,32 @@ defmodule LlamexTest do
       assert result.generated_tokens == [2]
       assert result.finish_reason == :stop
     end
+  end
+
+  test "fpga backend fallback can generate through output weights" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        },
+        output: %{weight: [[0.0, 0.0], [0.0, 1.0], [2.0, 0.0]]}
+      })
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.FPGA,
+        max_new_tokens: 1,
+        stop_tokens: [2]
+      })
+
+    assert result.generated_tokens == [2]
+    assert result.finish_reason == :stop
   end
 
   test "profiles one generation step" do
