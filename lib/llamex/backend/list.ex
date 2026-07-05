@@ -42,6 +42,19 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def matvec_pair_tensor(left_rows, right_rows, vector)
+      when is_list(left_rows) and is_list(right_rows) and is_list(vector) do
+    matvec_pair(left_rows, right_rows, vector)
+  end
+
+  @impl true
+  def silu_multiply(gate, up) when is_list(gate) and is_list(up) do
+    gate
+    |> Llamex.Tensor.silu()
+    |> Llamex.Tensor.multiply(up)
+  end
+
+  @impl true
   def add(left, right) when is_list(left) and is_list(right) and length(left) == length(right) do
     left
     |> Enum.zip(right)

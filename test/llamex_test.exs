@@ -348,6 +348,23 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs silu multiply through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      gate = Llamex.Backend.NxEXLA.from_list([1.0, 2.0])
+      up = Llamex.Backend.NxEXLA.from_list([2.0, 3.0])
+
+      result =
+        gate
+        |> Llamex.Backend.NxEXLA.silu_multiply(up)
+        |> Llamex.Backend.NxEXLA.to_list()
+
+      expected = Llamex.Backend.List.silu_multiply([1.0, 2.0], [2.0, 3.0])
+
+      assert_in_delta Enum.at(result, 0), Enum.at(expected, 0), 1.0e-6
+      assert_in_delta Enum.at(result, 1), Enum.at(expected, 1), 1.0e-6
+    end
+  end
+
   test "maps exla targets to clients" do
     assert Llamex.Backend.NxEXLA.client(:cpu) == :host
     assert Llamex.Backend.NxEXLA.client("cpu") == :host
@@ -411,6 +428,25 @@ defmodule LlamexTest do
 
     assert Llamex.Layers.SwiGLU.forward([1.0, 2.0], layer, Llamex.Backend.List) ==
              [2.0 / (1.0 + :math.exp(-1.0)), 6.0 * 2.0 / (1.0 + :math.exp(-2.0))]
+  end
+
+  test "runs nx_exla SwiGLU with tensor activation path when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      layer = %{
+        w_gate: [[1.0, 0.0], [0.0, 1.0]],
+        w_up: [[2.0, 0.0], [0.0, 3.0]],
+        w_down: [[1.0, 0.0], [0.0, 1.0]]
+      }
+
+      prepared = Llamex.Backend.NxEXLA.prepare_model(%{layers: [layer], output: nil})
+      [prepared_layer] = prepared.layers
+
+      result = Llamex.Layers.SwiGLU.forward([1.0, 2.0], prepared_layer, Llamex.Backend.NxEXLA)
+      expected = Llamex.Layers.SwiGLU.forward([1.0, 2.0], layer, Llamex.Backend.List)
+
+      assert_in_delta Enum.at(result, 0), Enum.at(expected, 0), 1.0e-6
+      assert_in_delta Enum.at(result, 1), Enum.at(expected, 1), 1.0e-6
+    end
   end
 
   test "profiles SwiGLU feed-forward substeps" do

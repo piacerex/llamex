@@ -74,7 +74,7 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
-  def matvec(rows, vector) when is_list(vector) do
+  def matvec(rows, vector) do
     nx = nx!()
 
     rows
@@ -83,27 +83,43 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
-  def matvec_tensor(rows, vector) when is_list(vector) do
+  def matvec_tensor(rows, vector) do
     nx = nx!()
     matrix = tensor(rows)
-    vector = apply(nx, :tensor, [vector, [type: {:f, 32}]])
+    vector = tensor(vector)
 
     apply(nx, :dot, [matrix, vector])
   end
 
   @impl true
-  def matvec_pair(left_rows, right_rows, vector) when is_list(vector) do
+  def matvec_pair(left_rows, right_rows, vector) do
+    nx = nx!()
+
+    {gate, up} = matvec_pair_tensor(left_rows, right_rows, vector)
+
+    {apply(nx, :to_flat_list, [gate]), apply(nx, :to_flat_list, [up])}
+  end
+
+  @impl true
+  def matvec_pair_tensor(left_rows, right_rows, vector) do
     nx = nx!()
     left_count = row_count(left_rows)
     matrix = apply(nx, :concatenate, [[tensor(left_rows), tensor(right_rows)], [axis: 0]])
-    vector = apply(nx, :tensor, [vector, [type: {:f, 32}]])
+    vector = tensor(vector)
 
-    values =
-      nx
-      |> apply(:dot, [matrix, vector])
-      |> then(&apply(nx, :to_flat_list, [&1]))
+    values = apply(nx, :dot, [matrix, vector])
 
-    Enum.split(values, left_count)
+    {
+      apply(nx, :slice, [values, [0], [left_count]]),
+      apply(nx, :slice, [values, [left_count], [left_count]])
+    }
+  end
+
+  @impl true
+  def silu_multiply(gate, up) do
+    nx = nx!()
+
+    apply(nx, :multiply, [apply_silu(gate, nx), up])
   end
 
   @impl true
@@ -155,6 +171,16 @@ defmodule Llamex.Backend.NxEXLA do
   defp row_count(rows), do: rows |> shape() |> elem(0)
 
   defp shape(tensor), do: apply(nx!(), :shape, [tensor])
+
+  defp apply_silu(tensor, nx) do
+    denominator =
+      tensor
+      |> then(&apply(nx, :negate, [&1]))
+      |> then(&apply(nx, :exp, [&1]))
+      |> then(&apply(nx, :add, [&1, 1.0]))
+
+    apply(nx, :divide, [tensor, denominator])
+  end
 
   defp tensor(values) when is_list(values), do: apply(nx!(), :tensor, [values, [type: {:f, 32}]])
   defp tensor(value), do: value
