@@ -152,7 +152,14 @@ defmodule Llamex.Profile do
     |> Enum.map(& &1.token)
   end
 
-  defp display_sampler(sampler) when is_map(sampler), do: Map.delete(sampler, :suppress_tokens)
+  defp display_sampler(%{suppress_tokens: suppress_tokens} = sampler)
+       when is_list(suppress_tokens) do
+    sampler
+    |> Map.delete(:suppress_tokens)
+    |> Map.put(:suppressed_token_count, length(suppress_tokens))
+  end
+
+  defp display_sampler(sampler) when is_map(sampler), do: sampler
   defp display_sampler(sampler), do: sampler
 
   defp timed_prefill(model, prompt, backend) do

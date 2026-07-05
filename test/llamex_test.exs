@@ -996,6 +996,7 @@ defmodule LlamexTest do
 
       assert profile["generated_tokens"] == [2]
       assert profile["sampler"]["top_p"] == 0.5
+      assert profile["sampler"]["suppressed_token_count"] == 3
       refute Map.has_key?(profile["sampler"], "suppress_tokens")
     after
       File.rm(path)
