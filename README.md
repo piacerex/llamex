@@ -288,23 +288,120 @@ For quick manual comparisons, shorter direct generation still works:
 mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "The quick brown fox" 3 --natural --stop-control
 ```
 
+### IEx Backend Examples
+
+Use these snippets for quick backend comparisons against the same loaded GGUF
+model and prompt.
+
+#### Default Nx Backend
+
 ```elixir
+prompt = "The quick brown fox"
 model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf")
 
 start_time = DateTime.utc_now()
 
 result =
-  Llamex.generate(model, "The quick brown fox", %{
+  Llamex.generate(model, prompt, %{
+    backend: Llamex.Backend.Nx,
+    max_new_tokens: 8,
+    stop_tokens: Llamex.Natural.control_stop_tokens(model),
+    sampler: Llamex.Natural.sampler(model)
+  })
+
+IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
+
+result.text
+```
+
+#### Nx EXLA CPU
+
+```elixir
+Llamex.Backend.NxEXLA.configure!(:cpu)
+
+prompt = "The quick brown fox"
+model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf")
+
+start_time = DateTime.utc_now()
+
+result =
+  Llamex.generate(model, prompt, %{
+    backend: Llamex.Backend.NxEXLA,
+    max_new_tokens: 8,
+    stop_tokens: Llamex.Natural.control_stop_tokens(model),
+    sampler: Llamex.Natural.sampler(model)
+  })
+
+IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
+
+result.text
+```
+
+#### Nx EXLA CUDA GPU
+
+```elixir
+Llamex.Backend.NxEXLA.configure!(:cuda)
+
+prompt = "The quick brown fox"
+model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf")
+
+start_time = DateTime.utc_now()
+
+result =
+  Llamex.generate(model, prompt, %{
+    backend: Llamex.Backend.NxEXLA,
+    max_new_tokens: 8,
+    stop_tokens: Llamex.Natural.control_stop_tokens(model),
+    sampler: Llamex.Natural.sampler(model)
+  })
+
+IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
+
+result.text
+```
+
+#### Nx EXLA ROCm GPU
+
+```elixir
+Llamex.Backend.NxEXLA.configure!(:rocm)
+
+prompt = "The quick brown fox"
+model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf")
+
+start_time = DateTime.utc_now()
+
+result =
+  Llamex.generate(model, prompt, %{
+    backend: Llamex.Backend.NxEXLA,
+    max_new_tokens: 8,
+    stop_tokens: Llamex.Natural.control_stop_tokens(model),
+    sampler: Llamex.Natural.sampler(model)
+  })
+
+IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
+
+result.text
+```
+
+#### List Backend
+
+```elixir
+prompt = "The quick brown fox"
+model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf")
+
+start_time = DateTime.utc_now()
+
+result =
+  Llamex.generate(model, prompt, %{
     backend: Llamex.Backend.List,
     max_new_tokens: 8,
     stop_tokens: Llamex.Natural.control_stop_tokens(model),
     sampler: Llamex.Natural.sampler(model)
   })
 
-result.text
+IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
 
-end_time = DateTime.utc_now()
-minutes = DateTime.diff(end_time, start_time, :second) / 60
+result.text
 ```
 
 GGUF compatibility can be inspected without loading tensor data:
