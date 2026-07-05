@@ -76,6 +76,12 @@ defmodule Llamex.Backend.NxEXLA do
     :persistent_term.get(@config_key, nil)
   end
 
+  def cache_stats do
+    %{
+      rope_trig_entries: Process.get(@rope_trig_cache_key, %{}) |> map_size()
+    }
+  end
+
   @impl true
   def from_list(values) when is_list(values) do
     apply(nx!(), :tensor, [values, [type: {:f, 32}]])

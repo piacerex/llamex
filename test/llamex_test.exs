@@ -1705,6 +1705,8 @@ defmodule LlamexTest do
     assert profile["backend_profile"]["tensor_backend?"] == true
     assert profile["backend_profile"]["layer_count"] == 0
     assert is_boolean(profile["backend_profile"]["output_weight_tensor?"])
+    assert profile["backend_profile"]["prepared_kv_cache_entries"] == 0
+    assert is_integer(profile["backend_profile"]["nx_exla_cache"]["rope_trig_entries"])
     assert profile["max_new_tokens"] == 2
     assert profile["sampler"] == "greedy"
     assert profile["generated_tokens"] == [2]
@@ -1754,6 +1756,8 @@ defmodule LlamexTest do
 
     assert profile["backend"] == "Elixir.Llamex.Backend.NxEXLA"
     assert profile["backend_profile"]["tensor_backend?"] == true
+    assert profile["backend_profile"]["prepared_kv_cache_entries"] == 0
+    assert is_integer(profile["backend_profile"]["nx_exla_cache"]["rope_trig_entries"])
 
     assert profile["exla"] == %{
              "target" => "cpu",

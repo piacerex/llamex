@@ -254,7 +254,7 @@ defmodule Llamex.Profile do
 
   defp exla_info(_backend), do: nil
 
-  defp backend_profile(%Context{backend: backend, model: model})
+  defp backend_profile(%Context{backend: backend, model: model} = context)
        when backend in [Llamex.Backend.Nx, Llamex.Backend.NxEXLA] do
     layer_count = length(model.layers)
 
@@ -266,7 +266,9 @@ defmodule Llamex.Profile do
       tensor_attention_norm_layers: count_layers(model.layers, :attention_norm),
       tensor_feed_forward_norm_layers: count_layers(model.layers, :feed_forward_norm),
       output_norm_tensor?: tensor?(model.output_norm),
-      output_weight_tensor?: tensor?(get_in(model.output, [:weight]))
+      output_weight_tensor?: tensor?(get_in(model.output, [:weight])),
+      prepared_kv_cache_entries: map_size(context.kv_cache.prepared_layers),
+      nx_exla_cache: Llamex.Backend.NxEXLA.cache_stats()
     }
   end
 
