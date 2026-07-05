@@ -14,6 +14,7 @@ defmodule Llamex.Backend.FPGA do
   defdelegate dot(left, right), to: Llamex.Backend.List
   defdelegate matvec(rows, vector), to: Llamex.Backend.List
   defdelegate matvec_tensor(rows, vector), to: Llamex.Backend.List
+  defdelegate top_k_matvec(rows, vector, top_k, opts), to: Llamex.Backend.List
   defdelegate matvec_pair(left_rows, right_rows, vector), to: Llamex.Backend.List
   defdelegate matvec_pair_tensor(left_rows, right_rows, vector), to: Llamex.Backend.List
   defdelegate matvec_split_pair_tensor(rows, left_count, vector), to: Llamex.Backend.List

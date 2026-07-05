@@ -114,6 +114,26 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def top_k_matvec(rows, vector, top_k, opts)
+      when is_integer(top_k) and top_k > 0 and is_list(opts) do
+    nx = nx!()
+    vocab_size = row_count(rows)
+
+    logits =
+      rows
+      |> matvec_tensor(vector)
+      |> apply_repetition_penalty_tensor(opts, vocab_size, nx)
+      |> suppress_tokens_tensor(opts, vocab_size, nx)
+
+    {values, indices} = apply(nx, :top_k, [logits, [k: min(top_k, vocab_size)]])
+
+    values = apply(nx, :to_flat_list, [values])
+    indices = apply(nx, :to_flat_list, [indices])
+
+    Enum.zip(values, indices)
+  end
+
+  @impl true
   def matvec_pair(left_rows, right_rows, vector) do
     nx = nx!()
 
@@ -342,6 +362,48 @@ defmodule Llamex.Backend.NxEXLA do
       |> then(&apply(nx, :exp, [&1]))
 
     apply(nx, :divide, [exps, apply(nx, :sum, [exps])])
+  end
+
+  defp apply_repetition_penalty_tensor(logits, opts, vocab_size, nx) do
+    penalty = Keyword.get(opts, :repetition_penalty)
+    history = Keyword.get(opts, :history, [])
+
+    if is_number(penalty) and penalty > 0.0 and history != [] do
+      repeated =
+        index_mask(history, vocab_size) |> tensor() |> then(&apply(nx, :equal, [&1, 1.0]))
+
+      positive = apply(nx, :greater_equal, [logits, 0.0])
+
+      penalized =
+        apply(nx, :select, [
+          positive,
+          apply(nx, :divide, [logits, penalty]),
+          apply(nx, :multiply, [logits, penalty])
+        ])
+
+      apply(nx, :select, [repeated, penalized, logits])
+    else
+      logits
+    end
+  end
+
+  defp suppress_tokens_tensor(logits, opts, vocab_size, nx) do
+    suppressed = Keyword.get(opts, :suppress_tokens, [])
+
+    if is_list(suppressed) and suppressed != [] do
+      mask = suppressed |> index_mask(vocab_size) |> Enum.map(&(&1 * -1.0e30))
+      apply(nx, :add, [logits, tensor(mask)])
+    else
+      logits
+    end
+  end
+
+  defp index_mask(indices, size) do
+    selected = indices |> Enum.filter(&(&1 >= 0 and &1 < size)) |> MapSet.new()
+
+    Enum.map(0..(size - 1), fn index ->
+      if MapSet.member?(selected, index), do: 1.0, else: 0.0
+    end)
   end
 
   defp maybe_prepare_combined(layer, combined_key, keys) do

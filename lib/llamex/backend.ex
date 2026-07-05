@@ -13,6 +13,8 @@ defmodule Llamex.Backend do
   @callback dot(tensor(), tensor()) :: number()
   @callback matvec(tensor(), tensor()) :: list(number())
   @callback matvec_tensor(tensor(), tensor()) :: tensor()
+  @callback top_k_matvec(tensor(), tensor(), pos_integer(), keyword()) ::
+              list({number(), non_neg_integer()})
   @callback matvec_pair(tensor(), tensor(), tensor()) :: {list(number()), list(number())}
   @callback matvec_pair_tensor(tensor(), tensor(), tensor()) :: {tensor(), tensor()}
   @callback matvec_split_pair_tensor(tensor(), pos_integer(), tensor()) :: {tensor(), tensor()}

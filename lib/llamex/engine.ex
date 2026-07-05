@@ -32,7 +32,7 @@ defmodule Llamex.Engine do
   end
 
   def eval_top_k(
-        %Context{backend: Llamex.Backend.List, model: %{output: %{weight: weight}}} = context,
+        %Context{model: %{output: %{weight: weight}}} = context,
         token,
         top_k,
         opts
@@ -51,7 +51,7 @@ defmodule Llamex.Engine do
       )
 
     candidates =
-      Tensor.top_k_matvec(weight, hidden, top_k,
+      context.backend.top_k_matvec(weight, hidden, top_k,
         history: Map.get(opts, :history, []),
         repetition_penalty: Map.get(opts, :repetition_penalty),
         suppress_tokens: Map.get(opts, :suppress_tokens, [])

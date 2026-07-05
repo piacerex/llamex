@@ -420,6 +420,32 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs top k matvec through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      rows = Llamex.Backend.NxEXLA.from_list([[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]])
+      vector = Llamex.Backend.NxEXLA.from_list([1.0, 2.0])
+
+      result =
+        Llamex.Backend.NxEXLA.top_k_matvec(rows, vector, 2,
+          history: [1],
+          repetition_penalty: 2.0,
+          suppress_tokens: [2]
+        )
+
+      expected =
+        Llamex.Backend.List.top_k_matvec(
+          [[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]],
+          [1.0, 2.0],
+          2,
+          history: [1],
+          repetition_penalty: 2.0,
+          suppress_tokens: [2]
+        )
+
+      assert result == expected
+    end
+  end
+
   test "maps exla targets to clients" do
     assert Llamex.Backend.NxEXLA.client(:cpu) == :host
     assert Llamex.Backend.NxEXLA.client("cpu") == :host

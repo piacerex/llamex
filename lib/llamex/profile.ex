@@ -321,10 +321,11 @@ defmodule Llamex.Profile do
   end
 
   defp fast_top_k_sampling?(%{
-         backend: Llamex.Backend.List,
+         backend: backend,
          model: %{output: %{weight: weight}}
        })
-       when is_list(weight),
+       when backend in [Llamex.Backend.List, Llamex.Backend.Nx, Llamex.Backend.NxEXLA] and
+              not is_nil(weight),
        do: true
 
   defp fast_top_k_sampling?(_context), do: false
@@ -606,12 +607,12 @@ defmodule Llamex.Profile do
   end
 
   defp timed_top_k_logits(
-         %{model: %{output: %{weight: weight}}},
+         %{model: %{output: %{weight: weight}}, backend: backend},
          hidden,
          top_k,
          opts
        ) do
-    Tensor.top_k_matvec(weight, hidden, top_k,
+    backend.top_k_matvec(weight, hidden, top_k,
       history: Map.get(opts, :history, []),
       repetition_penalty: Map.get(opts, :repetition_penalty),
       suppress_tokens: Map.get(opts, :suppress_tokens, [])

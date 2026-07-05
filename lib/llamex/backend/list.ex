@@ -36,6 +36,13 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def top_k_matvec(rows, vector, top_k, opts)
+      when is_list(rows) and is_list(vector) and is_integer(top_k) and top_k > 0 and
+             is_list(opts) do
+    Llamex.Tensor.top_k_matvec(rows, vector, top_k, opts)
+  end
+
+  @impl true
   def matvec_pair(left_rows, right_rows, vector)
       when is_list(left_rows) and is_list(right_rows) and is_list(vector) do
     Llamex.Tensor.matvec_pair(left_rows, right_rows, vector)

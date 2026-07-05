@@ -92,8 +92,12 @@ defmodule Llamex.Generation do
     {token, context, sampler_state}
   end
 
-  defp fast_top_k_sampling?(%{backend: Llamex.Backend.List, model: %{output: %{weight: weight}}})
-       when is_list(weight),
+  defp fast_top_k_sampling?(%{
+         backend: backend,
+         model: %{output: %{weight: weight}}
+       })
+       when backend in [Llamex.Backend.List, Llamex.Backend.Nx, Llamex.Backend.NxEXLA] and
+              not is_nil(weight),
        do: true
 
   defp fast_top_k_sampling?(_context), do: false
