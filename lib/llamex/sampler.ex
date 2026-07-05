@@ -15,6 +15,14 @@ defmodule Llamex.Sampler do
     |> draw(random)
   end
 
+  def sample_candidates(candidates, opts) when is_list(candidates) and is_map(opts) do
+    random = Map.fetch!(opts, :random)
+
+    candidates
+    |> candidate_distribution(opts)
+    |> draw(random)
+  end
+
   def candidates(logits, backend, opts, limit)
       when is_atom(backend) and is_map(opts) and is_integer(limit) and limit > 0 do
     logits
@@ -36,6 +44,20 @@ defmodule Llamex.Sampler do
     |> apply_repetition_penalty(Map.get(opts, :history, []), Map.get(opts, :repetition_penalty))
     |> apply_temperature(temperature)
     |> top_k_candidates(Map.get(opts, :top_k))
+    |> probabilities()
+    |> apply_top_p(Map.get(opts, :top_p))
+    |> normalize()
+  end
+
+  defp candidate_distribution(candidates, opts) do
+    temperature = Map.fetch!(opts, :temperature)
+
+    if temperature <= 0.0 do
+      raise ArgumentError, "temperature must be greater than zero"
+    end
+
+    candidates
+    |> Enum.map(fn {value, index} -> {value / temperature, index} end)
     |> probabilities()
     |> apply_top_p(Map.get(opts, :top_p))
     |> normalize()

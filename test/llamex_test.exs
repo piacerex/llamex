@@ -394,6 +394,26 @@ defmodule LlamexTest do
            }) == 1
   end
 
+  test "samples from prefiltered top-k candidates" do
+    candidates = [{2.9, 1}]
+
+    assert Llamex.Sampler.sample_candidates(candidates, %{
+             temperature: 1.0,
+             top_p: 1.0,
+             random: 0.0
+           }) == 1
+  end
+
+  test "top-k matvec applies repetition penalty before keeping candidates" do
+    rows = [[3.0], [2.9], [0.0]]
+    vector = [1.0]
+
+    assert Llamex.Tensor.top_k_matvec(rows, vector, 1,
+             history: [0],
+             repetition_penalty: 2.0
+           ) == [{2.9, 1}]
+  end
+
   test "generates with seed-based sampling" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -423,6 +443,37 @@ defmodule LlamexTest do
     assert result.generated_tokens == [2]
     assert result.finish_reason == :stop
     assert result.text == "world"
+  end
+
+  test "top-k sampled generation can skip full output logits" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0],
+          1 => [1.0],
+          2 => [1.0]
+        },
+        output: %{weight: [[3.0], [2.9], [0.0]]}
+      })
+
+    result =
+      Llamex.generate(model, "<unk>", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: %{
+          temperature: 1.0,
+          top_k: 1,
+          repetition_penalty: 2.0,
+          random: 0.0
+        }
+      })
+
+    assert result.generated_tokens == [1]
+    assert result.text == "hello"
   end
 
   test "generates ordinary text from a prompt" do

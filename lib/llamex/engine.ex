@@ -26,6 +26,29 @@ defmodule Llamex.Engine do
     {Context.append(context, token), logits}
   end
 
+  def eval_top_k(
+        %Context{backend: Llamex.Backend.List, model: %{output: %{weight: weight}}} = context,
+        token,
+        top_k,
+        opts
+      )
+      when is_integer(token) and token >= 0 and is_integer(top_k) and top_k > 0 and is_map(opts) do
+    hidden = Map.fetch!(context.model.token_embeddings, token)
+    position = length(context.tokens)
+    {context, hidden} = run_layers(context, hidden, position)
+
+    hidden =
+      maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+
+    candidates =
+      Tensor.top_k_matvec(weight, hidden, top_k,
+        history: Map.get(opts, :history, []),
+        repetition_penalty: Map.get(opts, :repetition_penalty)
+      )
+
+    {Context.append(context, token), candidates}
+  end
+
   def next_token(%Context{} = context, token, sampler) when is_function(sampler, 2) do
     {context, logits} = eval(context, token)
     {context, sampler.(logits, context.backend)}

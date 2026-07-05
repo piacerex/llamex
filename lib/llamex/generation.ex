@@ -39,11 +39,55 @@ defmodule Llamex.Generation do
   defp step_token(context, current_token, sampler, opts) do
     history = Map.get(opts, :history, context.tokens)
     sampler_state = Map.get(opts, :sampler_state) || new_sampler_state(sampler)
-    {context, logits} = Engine.eval(context, current_token)
-    {next_token, sampler_state} = sample(logits, context.backend, sampler, sampler_state, history)
+
+    {next_token, context, sampler_state} =
+      sample_next(context, current_token, sampler, sampler_state, history)
 
     {context, next_token, sampler_state}
   end
+
+  defp sample_next(context, current_token, :greedy, sampler_state, _history) do
+    {context, next_token} = Engine.greedy_next_token(context, current_token)
+    {next_token, context, sampler_state}
+  end
+
+  defp sample_next(context, current_token, %{top_k: top_k} = sampler, sampler_state, history)
+       when is_integer(top_k) and top_k > 0 do
+    {random, sampler_state} = next_random(sampler, sampler_state)
+
+    opts =
+      sampler
+      |> Map.put(:random, random)
+      |> Map.put(:history, history)
+
+    if fast_top_k_sampling?(context) do
+      {context, candidates} = Engine.eval_top_k(context, current_token, top_k, opts)
+      {Sampler.sample_candidates(candidates, opts), context, sampler_state}
+    else
+      {context, logits} = Engine.eval(context, current_token)
+      {Sampler.sample(logits, context.backend, opts), context, sampler_state}
+    end
+  end
+
+  defp sample_next(context, current_token, sampler, sampler_state, history) do
+    {random, sampler_state} = next_random(sampler, sampler_state)
+    {context, logits} = Engine.eval(context, current_token)
+
+    token =
+      logits
+      |> Sampler.sample(
+        context.backend,
+        sampler |> Map.put(:random, random) |> Map.put(:history, history)
+      )
+
+    {token, context, sampler_state}
+  end
+
+  defp fast_top_k_sampling?(%{backend: Llamex.Backend.List, model: %{output: %{weight: weight}}})
+       when is_list(weight),
+       do: true
+
+  defp fast_top_k_sampling?(_context), do: false
 
   def generate(%Model{} = model, prompt, opts)
       when is_binary(prompt) and is_map(opts) do
@@ -120,16 +164,10 @@ defmodule Llamex.Generation do
          prompt_tokens,
          generated_tokens
        ) do
-    {context, logits} = Engine.eval(context, current_token)
+    history = prompt_tokens ++ Enum.reverse(generated_tokens)
 
-    {next_token, sampler_state} =
-      sample(
-        logits,
-        context.backend,
-        sampler,
-        sampler_state,
-        prompt_tokens ++ Enum.reverse(generated_tokens)
-      )
+    {next_token, context, sampler_state} =
+      sample_next(context, current_token, sampler, sampler_state, history)
 
     if stop_token?(next_token, stop_tokens) do
       {context, Enum.reverse([next_token | generated_tokens]), :stop}
@@ -162,20 +200,6 @@ defmodule Llamex.Generation do
     if seed do
       :rand.seed_s(:exsss, {seed, seed + 1, seed + 2})
     end
-  end
-
-  defp sample(logits, backend, :greedy, sampler_state, _history) do
-    {Sampler.greedy(logits, backend), sampler_state}
-  end
-
-  defp sample(logits, backend, opts, sampler_state, history) when is_map(opts) do
-    {random, sampler_state} = next_random(opts, sampler_state)
-
-    token =
-      logits
-      |> Sampler.sample(backend, opts |> Map.put(:random, random) |> Map.put(:history, history))
-
-    {token, sampler_state}
   end
 
   defp next_random(%{random: random}, sampler_state) when is_float(random),

@@ -97,6 +97,46 @@ defmodule Llamex.Tensor do
     end
   end
 
+  def top_k_matvec(rows, vector, top_k, opts \\ [])
+      when is_list(rows) and is_list(vector) and is_integer(top_k) and top_k > 0 and
+             is_list(opts) do
+    history = opts |> Keyword.get(:history, []) |> MapSet.new()
+    penalty = Keyword.get(opts, :repetition_penalty)
+
+    if parallel_matvec?(rows, vector) do
+      chunk_size = top_k_matvec_chunk_size(rows)
+
+      rows
+      |> Enum.chunk_every(chunk_size)
+      |> Enum.with_index()
+      |> Task.async_stream(
+        fn {chunk, chunk_index} ->
+          chunk
+          |> Enum.with_index(chunk_index * chunk_size)
+          |> Enum.reduce([], fn {row, index}, top ->
+            value = row |> dot(vector) |> maybe_penalize(index, history, penalty)
+            insert_top_k({value, index}, top, top_k)
+          end)
+        end,
+        ordered: false,
+        timeout: :infinity,
+        max_concurrency: System.schedulers_online()
+      )
+      |> Enum.reduce([], fn {:ok, chunk_top}, top ->
+        Enum.reduce(chunk_top, top, &insert_top_k(&1, &2, top_k))
+      end)
+      |> Enum.reverse()
+    else
+      rows
+      |> Enum.with_index()
+      |> Enum.reduce([], fn {row, index}, top ->
+        value = row |> dot(vector) |> maybe_penalize(index, history, penalty)
+        insert_top_k({value, index}, top, top_k)
+      end)
+      |> Enum.reverse()
+    end
+  end
+
   defp max_dot(nil, index, value), do: {index, value}
 
   defp max_dot({best_index, best_value}, index, value) do
@@ -109,6 +149,34 @@ defmodule Llamex.Tensor do
 
   defp matvec_chunk_size(_rows), do: 64
   defp argmax_matvec_chunk_size(_rows), do: 256
+  defp top_k_matvec_chunk_size(_rows), do: 256
+
+  defp maybe_penalize(value, index, history, penalty)
+       when is_number(penalty) and penalty > 0.0 do
+    if MapSet.member?(history, index) do
+      if value >= 0.0, do: value / penalty, else: value * penalty
+    else
+      value
+    end
+  end
+
+  defp maybe_penalize(value, _index, _history, _penalty), do: value
+
+  defp insert_top_k(candidate, [], _top_k), do: [candidate]
+
+  defp insert_top_k({value, _index}, [{lowest, _lowest_index} | _rest] = top, top_k)
+       when length(top) == top_k and value <= lowest do
+    top
+  end
+
+  defp insert_top_k(candidate, top, top_k) do
+    [candidate | top]
+    |> Enum.sort_by(fn {value, _index} -> value end)
+    |> trim_lowest(top_k)
+  end
+
+  defp trim_lowest(top, top_k) when length(top) > top_k, do: tl(top)
+  defp trim_lowest(top, _top_k), do: top
 
   def zero_like(values) when is_list(values), do: Enum.map(values, fn _ -> 0.0 end)
 
