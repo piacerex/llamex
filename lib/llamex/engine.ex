@@ -109,7 +109,7 @@ defmodule Llamex.Engine do
           context.backend
         )
 
-      hidden = Tensor.add(hidden, attention)
+      hidden = context.backend.add(hidden, attention)
       hidden = maybe_apply_mlp(hidden, layer, context.model.config.epsilon, context.backend)
 
       {%{context | kv_cache: kv_cache}, hidden}
@@ -122,7 +122,7 @@ defmodule Llamex.Engine do
       |> backend.rms_norm(feed_forward_norm, epsilon)
       |> SwiGLU.forward(layer, backend)
 
-    Tensor.add(hidden, feed_forward)
+    backend.add(hidden, feed_forward)
   end
 
   defp maybe_apply_mlp(hidden, _layer, _epsilon, _backend), do: hidden
@@ -134,6 +134,8 @@ defmodule Llamex.Engine do
   end
 
   defp embedding_logits(context, hidden) do
+    hidden = context.backend.to_list(hidden)
+
     0..(context.model.config.vocab_size - 1)
     |> Enum.map(fn candidate ->
       candidate_embedding = Map.fetch!(context.model.token_embeddings, candidate)
@@ -153,6 +155,8 @@ defmodule Llamex.Engine do
   end
 
   defp greedy_token(context, hidden) do
+    hidden = context.backend.to_list(hidden)
+
     0..(context.model.config.vocab_size - 1)
     |> Enum.reduce(nil, fn candidate, best ->
       candidate_embedding = Map.fetch!(context.model.token_embeddings, candidate)

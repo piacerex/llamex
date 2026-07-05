@@ -481,7 +481,7 @@ defmodule Llamex.Profile do
         )
       end)
 
-    hidden = Tensor.add(hidden, attention)
+    hidden = context.backend.add(hidden, attention)
 
     {mlp_time, {hidden, mlp_timings}} =
       timed("mlp", fn ->
@@ -527,7 +527,7 @@ defmodule Llamex.Profile do
 
     {residual_time, hidden} =
       timed("residual", fn ->
-        Tensor.add(hidden, down)
+        Llamex.Backend.List.add(hidden, down)
       end)
 
     {hidden, [norm_time, gate_up_time, activation_time, down_time, residual_time]}
@@ -559,7 +559,7 @@ defmodule Llamex.Profile do
 
     {residual_time, hidden} =
       timed("residual", fn ->
-        Tensor.add(hidden, down)
+        backend.add(hidden, down)
       end)
 
     {hidden, [norm_time, gate_up_time, activation_time, down_time, residual_time]}
@@ -594,6 +594,8 @@ defmodule Llamex.Profile do
   end
 
   defp timed_logits(context, hidden) do
+    hidden = context.backend.to_list(hidden)
+
     0..(context.model.config.vocab_size - 1)
     |> Enum.map(fn candidate ->
       candidate_embedding = Map.fetch!(context.model.token_embeddings, candidate)

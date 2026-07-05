@@ -199,7 +199,7 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
-  def add(left, right), do: apply(nx!(), :add, [left, right])
+  def add(left, right), do: apply(nx!(), :add, [tensor(left), tensor(right)])
 
   @impl true
   def argmax(tensor) do
@@ -209,6 +209,7 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def to_list(values) when is_list(values), do: values
   def to_list(tensor), do: apply(nx!(), :to_flat_list, [tensor])
 
   defp nx! do
