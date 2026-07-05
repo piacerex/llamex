@@ -229,7 +229,13 @@ defmodule Mix.Tasks.Llamex.Generate do
       |> Enum.map(&get_in(model.tokenizer.special_tokens, [&1, :id]))
       |> Enum.reject(&is_nil/1)
 
-    Enum.uniq(type_ids ++ special_ids)
+    control_ids =
+      model.tokenizer.token_types
+      |> Enum.filter(&(&1.type == :control))
+      |> Enum.map(& &1.id)
+      |> Enum.reject(&(&1 == get_in(model.tokenizer.special_tokens, [:eos, :id])))
+
+    Enum.uniq(type_ids ++ special_ids ++ control_ids)
   end
 
   defp natural_suppressed_token?(%{type: type})

@@ -216,11 +216,11 @@ can still produce weak continuations, but the existing GGUF path can produce
 natural word pieces instead of decode noise. Byte-token output is normalized
 through the same SentencePiece-style decoder, so standalone `▁` markers are not
 leaked into generated text. The `--natural` preset also suppresses byte tokens,
-unknown/unused tokens, standalone `▁`, and newline/carriage-return pieces while
-sampling. On the current development machine this remains slow: one-token
-profiled runs spend tens of seconds in prefill and about 11s in the sampled
-step. Profile timings show the next speed targets are the feed-forward `w_down`
-matvecs and remaining layer matvec work.
+unknown/unused tokens, non-EOS control tokens, standalone `▁`, and
+newline/carriage-return pieces while sampling. On the current development
+machine this remains slow: one-token profiled runs spend tens of seconds in
+prefill and about 11s in the sampled step. Profile timings show the next speed
+targets are the feed-forward `w_down` matvecs and remaining layer matvec work.
 
 GGUF compatibility can be inspected without loading tensor data:
 

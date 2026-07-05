@@ -961,17 +961,32 @@ defmodule LlamexTest do
       Path.join(System.tmp_dir!(), "llamex-natural-#{System.unique_integer([:positive])}.json")
 
     model = %{
-      "config" => %{"vocab_size" => 5, "embedding_size" => 1},
+      "config" => %{"vocab_size" => 7, "embedding_size" => 1},
       "tokenizer" => %{
         "type" => "whitespace",
         "unknown_token" => "<unk>",
-        "vocab" => %{"<unk>" => 0, "hello" => 1, "world" => 2, "<0x0A>" => 3, "<unused0>" => 4},
+        "special_tokens" => %{
+          "unknown" => %{"id" => 0, "token" => "<unk>"},
+          "bos" => %{"id" => 5, "token" => "<s>"},
+          "eos" => %{"id" => 6, "token" => "</s>"}
+        },
+        "vocab" => %{
+          "<unk>" => 0,
+          "hello" => 1,
+          "world" => 2,
+          "<0x0A>" => 3,
+          "<unused0>" => 4,
+          "<s>" => 5,
+          "</s>" => 6
+        },
         "token_types" => [
           %{"id" => 0, "token" => "<unk>", "type" => "unknown", "type_id" => 2},
           %{"id" => 1, "token" => "hello", "type" => "normal", "type_id" => 1},
           %{"id" => 2, "token" => "world", "type" => "normal", "type_id" => 1},
           %{"id" => 3, "token" => "<0x0A>", "type" => "byte", "type_id" => 6},
-          %{"id" => 4, "token" => "<unused0>", "type" => "unused", "type_id" => 5}
+          %{"id" => 4, "token" => "<unused0>", "type" => "unused", "type_id" => 5},
+          %{"id" => 5, "token" => "<s>", "type" => "control", "type_id" => 3},
+          %{"id" => 6, "token" => "</s>", "type" => "control", "type_id" => 3}
         ]
       },
       "token_embeddings" => %{
@@ -979,9 +994,11 @@ defmodule LlamexTest do
         "1" => [1.0],
         "2" => [1.0],
         "3" => [1.0],
-        "4" => [1.0]
+        "4" => [1.0],
+        "5" => [1.0],
+        "6" => [1.0]
       },
-      "output" => %{"weight" => [[4.0], [0.0], [2.0], [3.0], [5.0]]}
+      "output" => %{"weight" => [[4.0], [0.0], [2.0], [3.0], [5.0], [6.0], [1.0]]}
     }
 
     try do
@@ -996,7 +1013,7 @@ defmodule LlamexTest do
 
       assert profile["generated_tokens"] == [2]
       assert profile["sampler"]["top_p"] == 0.5
-      assert profile["sampler"]["suppressed_token_count"] == 3
+      assert profile["sampler"]["suppressed_token_count"] == 4
       refute Map.has_key?(profile["sampler"], "suppress_tokens")
     after
       File.rm(path)
