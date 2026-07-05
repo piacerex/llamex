@@ -69,6 +69,17 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def attend_head(query, keys, values)
+      when is_list(query) and is_list(keys) and is_list(values) do
+    scale = 1.0 / :math.sqrt(length(query))
+
+    keys
+    |> Enum.map(&(Llamex.Tensor.dot(query, &1) * scale))
+    |> Llamex.Tensor.softmax()
+    |> Llamex.Tensor.weighted_sum(values)
+  end
+
+  @impl true
   def matvec_triple(left_rows, middle_rows, right_rows, vector)
       when is_list(left_rows) and is_list(middle_rows) and is_list(right_rows) and is_list(vector) do
     {matvec(left_rows, vector), matvec(middle_rows, vector), matvec(right_rows, vector)}

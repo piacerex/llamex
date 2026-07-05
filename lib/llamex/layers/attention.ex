@@ -41,7 +41,12 @@ defmodule Llamex.Layers.Attention do
       query_heads
       |> Enum.with_index()
       |> Enum.flat_map(fn {query, head_index} ->
-        attend_head(query, entries, kv_head_index(head_index, head_count, kv_head_count))
+        attend_head(
+          query,
+          entries,
+          kv_head_index(head_index, head_count, kv_head_count),
+          backend
+        )
       end)
       |> Linear.forward(Map.fetch!(layer, :wo), backend)
 
@@ -77,22 +82,17 @@ defmodule Llamex.Layers.Attention do
     Enum.map(heads, &RoPE.apply(&1, position, rope_theta, rope_dimension_count))
   end
 
-  defp attend_head(query, entries, head_index) do
-    scale = 1.0 / :math.sqrt(length(query))
-
-    weights =
-      entries
-      |> Enum.map(fn {cached_keys, _cached_values} ->
-        cached_key = Enum.at(cached_keys, head_index)
-        Tensor.dot(query, cached_key) * scale
+  defp attend_head(query, entries, head_index, backend) do
+    keys =
+      Enum.map(entries, fn {cached_keys, _cached_values} ->
+        Enum.at(cached_keys, head_index)
       end)
-      |> Tensor.softmax()
 
     values =
       Enum.map(entries, fn {_cached_keys, cached_values} ->
         Enum.at(cached_values, head_index)
       end)
 
-    Tensor.weighted_sum(weights, values)
+    backend.attend_head(query, keys, values)
   end
 end

@@ -406,6 +406,20 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs attention head through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      query = [1.0, 0.0]
+      keys = [[1.0, 0.0], [0.0, 1.0]]
+      values = [[2.0, 0.0], [0.0, 4.0]]
+
+      result = Llamex.Backend.NxEXLA.attend_head(query, keys, values)
+      expected = Llamex.Backend.List.attend_head(query, keys, values)
+
+      assert_in_delta Enum.at(result, 0), Enum.at(expected, 0), 1.0e-6
+      assert_in_delta Enum.at(result, 1), Enum.at(expected, 1), 1.0e-6
+    end
+  end
+
   test "maps exla targets to clients" do
     assert Llamex.Backend.NxEXLA.client(:cpu) == :host
     assert Llamex.Backend.NxEXLA.client("cpu") == :host

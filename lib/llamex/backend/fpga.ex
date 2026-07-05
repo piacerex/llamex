@@ -24,6 +24,7 @@ defmodule Llamex.Backend.FPGA do
 
   defdelegate silu_multiply(gate, up), to: Llamex.Backend.List
   defdelegate rms_norm(input, weight, epsilon), to: Llamex.Backend.List
+  defdelegate attend_head(query, keys, values), to: Llamex.Backend.List
   defdelegate add(left, right), to: Llamex.Backend.List
   defdelegate argmax(tensor), to: Llamex.Backend.List
   defdelegate to_list(tensor), to: Llamex.Backend.List

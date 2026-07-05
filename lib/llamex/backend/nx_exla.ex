@@ -170,6 +170,25 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def attend_head(query, keys, values) do
+    nx = nx!()
+    query = tensor(query)
+    keys = tensor(keys)
+    values = tensor(values)
+    scale = 1.0 / :math.sqrt(query |> shape() |> elem(0))
+
+    weights =
+      keys
+      |> then(&apply(nx, :dot, [&1, query]))
+      |> then(&apply(nx, :multiply, [&1, scale]))
+      |> softmax(nx)
+
+    weights
+    |> then(&apply(nx, :dot, [&1, values]))
+    |> then(&apply(nx, :to_flat_list, [&1]))
+  end
+
+  @impl true
   def matvec_triple(left_rows, middle_rows, right_rows, vector) do
     left_count = row_count(left_rows)
     middle_count = row_count(middle_rows)
@@ -314,6 +333,15 @@ defmodule Llamex.Backend.NxEXLA do
       |> then(&apply(nx, :add, [&1, 1.0]))
 
     apply(nx, :divide, [tensor, denominator])
+  end
+
+  defp softmax(values, nx) do
+    exps =
+      values
+      |> then(&apply(nx, :subtract, [&1, apply(nx, :reduce_max, [&1])]))
+      |> then(&apply(nx, :exp, [&1]))
+
+    apply(nx, :divide, [exps, apply(nx, :sum, [exps])])
   end
 
   defp maybe_prepare_combined(layer, combined_key, keys) do
