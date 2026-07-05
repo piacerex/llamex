@@ -603,23 +603,15 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   defp attend_shared_kv_heads(query_heads, entries, head_count) do
-    nx = nx!()
     queries = stack_tensors(query_heads)
     {_head_count, head_size} = shape(queries)
     {keys, values} = kv_cache_tensors(entries)
     keys = kv_cache_head_tensor(keys, 0)
     values = kv_cache_head_tensor(values, 0)
-    scale = 1.0 / :math.sqrt(head_size)
 
-    weights =
-      queries
-      |> then(&apply(nx, :dot, [&1, apply(nx, :transpose, [keys])]))
-      |> then(&apply(nx, :multiply, [&1, scale]))
-      |> softmax_rows(nx)
-
-    weights
-    |> then(&apply(nx, :dot, [&1, values]))
-    |> then(&apply(nx, :reshape, [&1, {head_count * head_size}]))
+    queries
+    |> attend_query_group_tensors(keys, values)
+    |> then(&apply(nx!(), :reshape, [&1, {head_count * head_size}]))
   end
 
   defp attend_grouped_kv_heads(query_heads, entries, head_count, kv_head_count) do
@@ -671,8 +663,16 @@ defmodule Llamex.Backend.NxEXLA do
   defp attend_query_group([query], keys, values), do: attend_head_tensors(query, keys, values)
 
   defp attend_query_group(queries, keys, values) do
-    nx = nx!()
     queries = stack_tensors(queries)
+    {_query_count, head_size} = shape(queries)
+
+    queries
+    |> attend_query_group_tensors(keys, values)
+    |> then(&apply(nx!(), :reshape, [&1, {row_count(queries) * head_size}]))
+  end
+
+  defp attend_query_group_tensors(queries, keys, values) do
+    nx = nx!()
     {_query_count, head_size} = shape(queries)
     scale = 1.0 / :math.sqrt(head_size)
 
@@ -684,7 +684,6 @@ defmodule Llamex.Backend.NxEXLA do
 
     weights
     |> then(&apply(nx, :dot, [&1, values]))
-    |> then(&apply(nx, :reshape, [&1, {row_count(queries) * head_size}]))
   end
 
   defp rope_angles(position, theta, dimension_count, half) do
