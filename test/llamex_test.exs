@@ -294,8 +294,7 @@ defmodule LlamexTest do
 
     assert Enum.map(mlp.components, & &1.label) == [
              "feed_forward_norm",
-             "w_gate",
-             "w_up",
+             "w_gate_up",
              "silu_multiply",
              "w_down",
              "residual"
@@ -774,6 +773,41 @@ defmodule LlamexTest do
 
     assert Enum.map(profile.steps, & &1.token) == [2, 2]
     assert profile.sampler == %{temperature: 1.0, top_k: 1, seed: 1}
+  end
+
+  test "profiles top-k sampled generation without full output logits" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0],
+          1 => [1.0],
+          2 => [1.0]
+        },
+        output: %{weight: [[3.0], [2.9], [0.0]]}
+      })
+
+    profile =
+      Llamex.Profile.generation_steps(model, "<unk>", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        candidate_count: 1,
+        sampler: %{
+          temperature: 1.0,
+          top_k: 1,
+          repetition_penalty: 2.0,
+          random: 0.0
+        }
+      })
+
+    assert profile.generated_tokens == [1]
+    assert [step] = profile.steps
+    assert step.eval_timings.logits.label == "top_k_logits"
+    assert [%{piece: "hello", probability: probability}] = step.candidates
+    assert probability == 1.0
   end
 
   test "generate task rejects chat templates with missing tokenizer tokens" do

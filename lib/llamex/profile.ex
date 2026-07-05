@@ -23,6 +23,7 @@ defmodule Llamex.Profile do
       timed("step", fn ->
         timed_step(state.context, state.current_token, %{
           sampler: sampler,
+          history: state.prompt_tokens,
           candidate_count: candidate_count
         })
       end)
@@ -86,12 +87,14 @@ defmodule Llamex.Profile do
         1..max_new_tokens,
         {[], state.context, state.current_token, nil, :length},
         fn index, {steps, context, current_token, sampler_state, _finish_reason} ->
+          history = state.prompt_tokens ++ generated_tokens_from_acc(steps)
+
           {step_time, step} =
             timed("step_#{index}", fn ->
               timed_step(context, current_token, %{
                 sampler: sampler,
                 sampler_state: sampler_state,
-                history: context.tokens,
+                history: history,
                 candidate_count: candidate_count
               })
             end)
@@ -143,6 +146,12 @@ defmodule Llamex.Profile do
     }
   end
 
+  defp generated_tokens_from_acc(steps) do
+    steps
+    |> Enum.reverse()
+    |> Enum.map(& &1.token)
+  end
+
   defp timed_prefill(model, prompt, backend) do
     timed("prefill", fn ->
       {encode_time, prompt_tokens} =
@@ -184,26 +193,8 @@ defmodule Llamex.Profile do
     sampler_state = Map.get(opts, :sampler_state) || new_sampler_state(sampler)
     candidate_count = Map.get(opts, :candidate_count, 0)
 
-    {context, logits, eval_timings} = timed_eval(context, current_token)
-    candidates = candidates(logits, context, sampler, history, candidate_count)
-
-    {token, sampler_state} =
-      case sampler do
-        :greedy ->
-          {Llamex.Sampler.greedy(logits, context.backend), sampler_state}
-
-        sampler when is_map(sampler) ->
-          {random, sampler_state} = next_random(sampler, sampler_state)
-
-          token =
-            logits
-            |> Llamex.Sampler.sample(
-              context.backend,
-              sampler |> Map.put(:random, random) |> Map.put(:history, history)
-            )
-
-          {token, sampler_state}
-      end
+    {context, token, sampler_state, candidates, eval_timings} =
+      timed_sample(context, current_token, sampler, sampler_state, history, candidate_count)
 
     %{
       context: context,
@@ -214,6 +205,70 @@ defmodule Llamex.Profile do
       eval_timings: eval_timings
     }
   end
+
+  defp timed_sample(context, current_token, :greedy, sampler_state, history, candidate_count) do
+    {context, logits, eval_timings} = timed_eval(context, current_token)
+    candidates = candidates(logits, context, :greedy, history, candidate_count)
+    token = Llamex.Sampler.greedy(logits, context.backend)
+
+    {context, token, sampler_state, candidates, eval_timings}
+  end
+
+  defp timed_sample(
+         context,
+         current_token,
+         %{top_k: top_k} = sampler,
+         sampler_state,
+         history,
+         candidate_count
+       )
+       when is_integer(top_k) and top_k > 0 do
+    {random, sampler_state} = next_random(sampler, sampler_state)
+
+    sampler =
+      sampler
+      |> Map.put(:random, random)
+      |> Map.put(:history, history)
+
+    if fast_top_k_sampling?(context) do
+      {context, logits, eval_timings} = timed_eval_top_k(context, current_token, top_k, sampler)
+      candidates = candidate_probabilities(logits, sampler, candidate_count)
+      token = Llamex.Sampler.sample_candidates(logits, sampler)
+
+      {context, token, sampler_state, candidates, eval_timings}
+    else
+      {context, logits, eval_timings} = timed_eval(context, current_token)
+      candidates = candidates(logits, context, sampler, history, candidate_count)
+      token = Llamex.Sampler.sample(logits, context.backend, sampler)
+
+      {context, token, sampler_state, candidates, eval_timings}
+    end
+  end
+
+  defp timed_sample(context, current_token, sampler, sampler_state, history, candidate_count)
+       when is_map(sampler) do
+    {random, sampler_state} = next_random(sampler, sampler_state)
+
+    sampler =
+      sampler
+      |> Map.put(:random, random)
+      |> Map.put(:history, history)
+
+    {context, logits, eval_timings} = timed_eval(context, current_token)
+    candidates = candidates(logits, context, sampler, history, candidate_count)
+    token = Llamex.Sampler.sample(logits, context.backend, sampler)
+
+    {context, token, sampler_state, candidates, eval_timings}
+  end
+
+  defp fast_top_k_sampling?(%{
+         backend: Llamex.Backend.List,
+         model: %{output: %{weight: weight}}
+       })
+       when is_list(weight),
+       do: true
+
+  defp fast_top_k_sampling?(_context), do: false
 
   defp candidates(_logits, _context, _sampler, _history, count) when count <= 0, do: []
 
@@ -233,6 +288,12 @@ defmodule Llamex.Profile do
       sampler |> Map.put(:history, history) |> Map.put_new(:random, 0.0),
       count
     )
+  end
+
+  defp candidate_probabilities(_logits, _sampler, count) when count <= 0, do: []
+
+  defp candidate_probabilities(logits, sampler, count) do
+    Llamex.Sampler.candidate_probabilities(logits, sampler, count)
   end
 
   defp new_sampler_state(:greedy), do: nil
@@ -289,6 +350,44 @@ defmodule Llamex.Profile do
     {Context.append(context, token), logits, eval_timings}
   end
 
+  defp timed_eval_top_k(%Context{} = context, token, top_k, opts)
+       when is_integer(token) and token >= 0 and is_integer(top_k) and top_k > 0 and is_map(opts) do
+    hidden = Map.fetch!(context.model.token_embeddings, token)
+    position = length(context.tokens)
+
+    {layer_timings, {context, hidden}} =
+      context.model.layers
+      |> Enum.with_index()
+      |> Enum.reduce({[], {context, hidden}}, fn {layer, layer_index},
+                                                 {timings, {context, hidden}} ->
+        {layer_time, {context, hidden, component_timings}} =
+          timed("layer_#{layer_index}", fn ->
+            timed_layer(context, hidden, layer, layer_index, position)
+          end)
+
+        step = Map.put(layer_time, :components, component_timings)
+        {[step | timings], {context, hidden}}
+      end)
+
+    {output_norm_time, hidden} =
+      timed("output_norm", fn ->
+        maybe_apply_output_norm(hidden, context.model.output_norm, context.model.config.epsilon)
+      end)
+
+    {logits_time, logits} =
+      timed("top_k_logits", fn ->
+        timed_top_k_logits(context, hidden, top_k, opts)
+      end)
+
+    eval_timings = %{
+      layers: Enum.reverse(layer_timings),
+      output_norm: output_norm_time,
+      logits: logits_time
+    }
+
+    {Context.append(context, token), logits, eval_timings}
+  end
+
   defp timed_layer(context, hidden, layer, layer_index, position) do
     {attention_norm_time, normalized} =
       timed("attention_norm", fn ->
@@ -319,6 +418,46 @@ defmodule Llamex.Profile do
     mlp_time = Map.put(mlp_time, :components, mlp_timings)
     component_timings = [attention_norm_time, attention_time, mlp_time]
     {%{context | kv_cache: kv_cache}, hidden, component_timings}
+  end
+
+  defp timed_mlp(
+         hidden,
+         %{feed_forward_norm: feed_forward_norm} = layer,
+         epsilon,
+         Llamex.Backend.List
+       ) do
+    {norm_time, normalized} =
+      timed("feed_forward_norm", fn ->
+        RMSNorm.forward(hidden, feed_forward_norm, epsilon)
+      end)
+
+    {gate_up_time, {gate, up}} =
+      timed("w_gate_up", fn ->
+        Tensor.matvec_pair(
+          Map.fetch!(layer, :w_gate),
+          Map.fetch!(layer, :w_up),
+          normalized
+        )
+      end)
+
+    {activation_time, activated} =
+      timed("silu_multiply", fn ->
+        gate
+        |> Tensor.silu()
+        |> Tensor.multiply(up)
+      end)
+
+    {down_time, down} =
+      timed("w_down", fn ->
+        Linear.forward(activated, Map.fetch!(layer, :w_down), Llamex.Backend.List)
+      end)
+
+    {residual_time, hidden} =
+      timed("residual", fn ->
+        Tensor.add(hidden, down)
+      end)
+
+    {hidden, [norm_time, gate_up_time, activation_time, down_time, residual_time]}
   end
 
   defp timed_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon, backend) do
@@ -379,6 +518,18 @@ defmodule Llamex.Profile do
       Tensor.dot(hidden, candidate_embedding)
     end)
     |> context.backend.from_list()
+  end
+
+  defp timed_top_k_logits(
+         %{model: %{output: %{weight: weight}}},
+         hidden,
+         top_k,
+         opts
+       ) do
+    Tensor.top_k_matvec(weight, hidden, top_k,
+      history: Map.get(opts, :history, []),
+      repetition_penalty: Map.get(opts, :repetition_penalty)
+    )
   end
 
   defp token_pieces(model, token_ids) do

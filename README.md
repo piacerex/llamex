@@ -184,10 +184,12 @@ generation settings, generated token IDs/pieces/types, timings, and
 also splits prefill into `prompt_encode`, `backend_prepare`, and `prompt_eval`
 timings so backend setup cost is visible. Each generated step includes
 `eval_timings` with per-layer `attention_norm`, `attention`, `mlp`,
-`output_norm`, and `logits` timings; `mlp` is further split into
-`feed_forward_norm`, `w_gate`, `w_up`, `silu_multiply`, `w_down`, and
-`residual`. Add `--candidates N` with `--profile` to inspect the top sampled
-candidate token pieces and probabilities for each generated step.
+`output_norm`, and `logits` timings. For List backend top-k sampling, the
+profile labels the shortened output projection as `top_k_logits`. `mlp` is
+further split into `feed_forward_norm`, `w_gate_up`, `silu_multiply`, `w_down`,
+and `residual` on the List backend. Add `--candidates N` with `--profile` to
+inspect the top sampled candidate token pieces and probabilities for each
+generated step.
 Use `--stop-token ID`, `--stop-piece TOKEN`, `--stop-special eos`, or
 `--stop-control` to override inferred EOS/stop behavior, or `--no-stop` to force
 generation to continue until `max_new_tokens`.

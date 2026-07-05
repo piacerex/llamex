@@ -32,6 +32,15 @@ defmodule Llamex.Sampler do
     |> Enum.map(fn {probability, index} -> %{token: index, probability: probability} end)
   end
 
+  def candidate_probabilities(candidates, opts, limit)
+      when is_list(candidates) and is_map(opts) and is_integer(limit) and limit > 0 do
+    candidates
+    |> candidate_distribution(opts)
+    |> Enum.sort_by(fn {probability, _index} -> probability end, :desc)
+    |> Enum.take(limit)
+    |> Enum.map(fn {probability, index} -> %{token: index, probability: probability} end)
+  end
+
   defp distribution(logits, backend, opts) do
     values = backend.to_list(logits)
     temperature = Map.fetch!(opts, :temperature)
