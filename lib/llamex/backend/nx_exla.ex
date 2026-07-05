@@ -43,7 +43,17 @@ defmodule Llamex.Backend.NxEXLA do
 
   @impl true
   def matvec_pair(left_rows, right_rows, vector) when is_list(vector) do
-    {matvec(left_rows, vector), matvec(right_rows, vector)}
+    nx = nx!()
+    left_count = row_count(left_rows)
+    matrix = apply(nx, :concatenate, [[tensor(left_rows), tensor(right_rows)], [axis: 0]])
+    vector = apply(nx, :tensor, [vector, [type: {:f, 32}]])
+
+    values =
+      nx
+      |> apply(:dot, [matrix, vector])
+      |> then(&apply(nx, :to_flat_list, [&1]))
+
+    Enum.split(values, left_count)
   end
 
   @impl true
@@ -82,6 +92,11 @@ defmodule Llamex.Backend.NxEXLA do
   defp prepare_output(%{weight: weight} = output) do
     %{output | weight: tensor(weight)}
   end
+
+  defp row_count(rows) when is_list(rows), do: length(rows)
+  defp row_count(rows), do: rows |> shape() |> elem(0)
+
+  defp shape(tensor), do: apply(nx!(), :shape, [tensor])
 
   defp tensor(values) when is_list(values), do: apply(nx!(), :tensor, [values, [type: {:f, 32}]])
   defp tensor(value), do: value

@@ -319,6 +319,16 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs paired matvecs through prepared nx_exla tensors when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      left_rows = Llamex.Backend.NxEXLA.from_list([[1.0, 0.0], [0.0, 1.0]])
+      right_rows = Llamex.Backend.NxEXLA.from_list([[2.0, 0.0], [0.0, 3.0]])
+
+      assert Llamex.Backend.NxEXLA.matvec_pair(left_rows, right_rows, [1.0, 2.0]) ==
+               {[1.0, 2.0], [2.0, 6.0]}
+    end
+  end
+
   test "finds argmax matvec without materializing logits" do
     vector = [1.0, 2.0, 3.0]
 
