@@ -479,6 +479,53 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs qkv heads through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      weight =
+        Llamex.Backend.NxEXLA.from_list([
+          [1.0, 0.0],
+          [0.0, 1.0],
+          [2.0, 0.0],
+          [0.0, 3.0],
+          [4.0, 0.0],
+          [0.0, 5.0]
+        ])
+
+      input = Llamex.Backend.NxEXLA.from_list([1.0, 2.0])
+      result = Llamex.Backend.NxEXLA.qkv_heads(weight, [2, 2, 2], input, 1, 1, 1, 10_000.0, 2)
+
+      expected =
+        Llamex.Backend.List.qkv_heads(
+          [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [2.0, 0.0],
+            [0.0, 3.0],
+            [4.0, 0.0],
+            [0.0, 5.0]
+          ],
+          [2, 2, 2],
+          [1.0, 2.0],
+          1,
+          1,
+          1,
+          10_000.0,
+          2
+        )
+
+      {result_query, result_key, result_value} = result
+      {expected_query, expected_key, expected_value} = expected
+
+      for {actual, expected} <-
+            Enum.zip(
+              List.flatten(result_query ++ result_key ++ result_value),
+              List.flatten(expected_query ++ expected_key ++ expected_value)
+            ) do
+        assert_in_delta actual, expected, 1.0e-6
+      end
+    end
+  end
+
   test "maps exla targets to clients" do
     assert Llamex.Backend.NxEXLA.client(:cpu) == :host
     assert Llamex.Backend.NxEXLA.client("cpu") == :host

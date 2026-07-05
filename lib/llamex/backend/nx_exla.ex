@@ -261,6 +261,44 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def qkv_heads(
+        weight,
+        [q_count, k_count, v_count],
+        input,
+        head_count,
+        kv_head_count,
+        position,
+        rope_theta,
+        rope_dimension_count
+      )
+      when is_integer(head_count) and head_count > 0 and is_integer(kv_head_count) and
+             kv_head_count > 0 do
+    nx = nx!()
+
+    values = matvec_tensor(weight, input)
+    query = apply(nx, :slice, [values, [0], [q_count]])
+    key = apply(nx, :slice, [values, [q_count], [k_count]])
+    value = apply(nx, :slice, [values, [q_count + k_count], [v_count]])
+
+    query_heads =
+      query
+      |> split_tensor_heads(head_count, nx)
+      |> Enum.map(&rope(&1, position, rope_theta, rope_dimension_count))
+
+    key_heads =
+      key
+      |> split_tensor_heads(kv_head_count, nx)
+      |> Enum.map(&rope(&1, position, rope_theta, rope_dimension_count))
+
+    value_heads =
+      value
+      |> split_tensor_heads(kv_head_count, nx)
+      |> Enum.map(&to_list/1)
+
+    {query_heads, key_heads, value_heads}
+  end
+
+  @impl true
   def add(left, right), do: apply(nx!(), :add, [tensor(left), tensor(right)])
 
   @impl true
@@ -429,6 +467,20 @@ defmodule Llamex.Backend.NxEXLA do
         end)
 
       {head_index, {tensor(keys), tensor(values)}}
+    end)
+  end
+
+  defp split_tensor_heads(vector, head_count, nx) do
+    size = vector |> shape() |> elem(0)
+
+    if rem(size, head_count) != 0 do
+      raise ArgumentError, "vector length must be divisible by split size"
+    end
+
+    head_size = div(size, head_count)
+
+    Enum.map(0..(head_count - 1), fn head_index ->
+      apply(nx, :slice, [vector, [head_index * head_size], [head_size]])
     end)
   end
 

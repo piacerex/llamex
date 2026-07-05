@@ -20,6 +20,18 @@ defmodule Llamex.Backend.Nx do
   defdelegate matvec_split_triple(rows, left_count, middle_count, right_count, vector),
     to: Llamex.Backend.NxEXLA
 
+  defdelegate qkv_heads(
+                weight,
+                counts,
+                input,
+                head_count,
+                kv_head_count,
+                position,
+                rope_theta,
+                rope_dimension_count
+              ),
+              to: Llamex.Backend.NxEXLA
+
   defdelegate silu_multiply(gate, up), to: Llamex.Backend.NxEXLA
   defdelegate rms_norm(input, weight, epsilon), to: Llamex.Backend.NxEXLA
   defdelegate attend_head(query, keys, values), to: Llamex.Backend.NxEXLA

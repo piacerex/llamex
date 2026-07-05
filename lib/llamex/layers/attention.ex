@@ -20,20 +20,17 @@ defmodule Llamex.Layers.Attention do
     head_count = Map.get(layer, :head_count, 1)
     kv_head_count = Map.get(layer, :kv_head_count, head_count)
 
-    {query, key, value} = qkv_projection(layer, input, backend)
-
-    query_heads =
-      query
-      |> split_heads(head_count)
-      |> apply_rope(position, rope_theta, rope_dimension_count, backend)
-
-    key_heads =
-      key
-      |> split_heads(kv_head_count)
-      |> apply_rope(position, rope_theta, rope_dimension_count, backend)
-
-    value_heads =
-      split_heads(value, kv_head_count)
+    {query_heads, key_heads, value_heads} =
+      qkv_heads(
+        layer,
+        input,
+        head_count,
+        kv_head_count,
+        position,
+        rope_theta,
+        rope_dimension_count,
+        backend
+      )
 
     {cache, entries} = KVCache.append(cache, layer_index, key_heads, value_heads)
 
@@ -60,6 +57,53 @@ defmodule Llamex.Layers.Attention do
       Map.fetch!(layer, :wv),
       input
     )
+  end
+
+  defp qkv_heads(
+         %{w_qkv: weight, w_qkv_row_counts: counts},
+         input,
+         head_count,
+         kv_head_count,
+         position,
+         rope_theta,
+         rope_dimension_count,
+         backend
+       ) do
+    backend.qkv_heads(
+      weight,
+      counts,
+      input,
+      head_count,
+      kv_head_count,
+      position,
+      rope_theta,
+      rope_dimension_count
+    )
+  end
+
+  defp qkv_heads(
+         layer,
+         input,
+         head_count,
+         kv_head_count,
+         position,
+         rope_theta,
+         rope_dimension_count,
+         backend
+       ) do
+    {query, key, value} = qkv_projection(layer, input, backend)
+
+    query_heads =
+      query
+      |> split_heads(head_count)
+      |> apply_rope(position, rope_theta, rope_dimension_count, backend)
+
+    key_heads =
+      key
+      |> split_heads(kv_head_count)
+      |> apply_rope(position, rope_theta, rope_dimension_count, backend)
+
+    {query_heads, key_heads, split_heads(value, kv_head_count)}
   end
 
   defp split_heads(vector, head_count) do

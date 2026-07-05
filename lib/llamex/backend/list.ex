@@ -137,6 +137,34 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def qkv_heads(
+        weight,
+        [q_count, k_count, v_count],
+        input,
+        head_count,
+        kv_head_count,
+        position,
+        rope_theta,
+        rope_dimension_count
+      )
+      when is_list(weight) and is_list(input) and is_integer(head_count) and head_count > 0 and
+             is_integer(kv_head_count) and kv_head_count > 0 do
+    {query, key, value} = matvec_split_triple(weight, q_count, k_count, v_count, input)
+
+    query_heads =
+      query
+      |> split_heads(head_count)
+      |> Enum.map(&rope(&1, position, rope_theta, rope_dimension_count))
+
+    key_heads =
+      key
+      |> split_heads(kv_head_count)
+      |> Enum.map(&rope(&1, position, rope_theta, rope_dimension_count))
+
+    {query_heads, key_heads, split_heads(value, kv_head_count)}
+  end
+
+  @impl true
   def add(left, right) when is_list(left) and is_list(right) and length(left) == length(right) do
     left
     |> Enum.zip(right)
@@ -159,4 +187,8 @@ defmodule Llamex.Backend.List do
 
   @impl true
   def to_list(values) when is_list(values), do: values
+
+  defp split_heads(vector, head_count) do
+    Llamex.Tensor.split_every(vector, div(length(vector), head_count))
+  end
 end

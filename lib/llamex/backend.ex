@@ -23,6 +23,16 @@ defmodule Llamex.Backend do
               {list(number()), list(number()), list(number())}
   @callback matvec_split_triple(tensor(), pos_integer(), pos_integer(), pos_integer(), tensor()) ::
               {list(number()), list(number()), list(number())}
+  @callback qkv_heads(
+              tensor(),
+              [pos_integer()],
+              tensor(),
+              pos_integer(),
+              pos_integer(),
+              non_neg_integer(),
+              number(),
+              pos_integer() | nil
+            ) :: {list(tensor()), list(tensor()), list(tensor())}
   @callback silu_multiply(tensor(), tensor()) :: tensor()
   @callback rms_norm(tensor(), tensor(), number()) :: tensor()
   @callback attend_head(tensor(), tensor(), tensor()) :: list(number())
