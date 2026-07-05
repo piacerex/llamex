@@ -443,6 +443,44 @@ defmodule LlamexTest do
            }) == 1
   end
 
+  test "generation can suppress repeated ngrams" do
+    tokenizer = Llamex.Tokenizer.new(%{"A" => 0, "B" => 1, "C" => 2}, "A")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 3},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0, 0.0, 0.0],
+          1 => [0.0, 1.0, 0.0],
+          2 => [0.0, 0.0, 1.0]
+        },
+        output: %{
+          weight: [
+            [0.0, 3.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0]
+          ]
+        }
+      })
+
+    result =
+      Llamex.generate(model, "A", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 3,
+        sampler: %{
+          temperature: 1.0,
+          top_k: 3,
+          top_p: 1.0,
+          random: 0.0,
+          no_repeat_ngram_size: 2
+        }
+      })
+
+    assert result.generated_tokens == [1, 0, 2]
+    assert result.text == "B A C"
+  end
+
   test "suppresses tokens before sampling" do
     logits = Llamex.Backend.List.from_list([3.0, 2.9, 0.0])
 

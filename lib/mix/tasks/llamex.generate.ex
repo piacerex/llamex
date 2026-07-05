@@ -20,6 +20,7 @@ defmodule Mix.Tasks.Llamex.Generate do
           top_k: :integer,
           top_p: :float,
           repetition_penalty: :float,
+          no_repeat_ngram_size: :integer,
           seed: :integer,
           chat: :boolean,
           natural: :boolean,

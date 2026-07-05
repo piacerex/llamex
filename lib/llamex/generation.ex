@@ -59,6 +59,7 @@ defmodule Llamex.Generation do
       sampler
       |> Map.put(:random, random)
       |> Map.put(:history, history)
+      |> put_no_repeat_ngram_suppressions()
 
     if fast_top_k_sampling?(context) do
       {context, candidates} = Engine.eval_top_k(context, current_token, top_k, opts)
@@ -77,7 +78,10 @@ defmodule Llamex.Generation do
       logits
       |> Sampler.sample(
         context.backend,
-        sampler |> Map.put(:random, random) |> Map.put(:history, history)
+        sampler
+        |> Map.put(:random, random)
+        |> Map.put(:history, history)
+        |> put_no_repeat_ngram_suppressions()
       )
 
     {token, context, sampler_state}
@@ -88,6 +92,36 @@ defmodule Llamex.Generation do
        do: true
 
   defp fast_top_k_sampling?(_context), do: false
+
+  defp put_no_repeat_ngram_suppressions(%{no_repeat_ngram_size: size, history: history} = opts)
+       when is_integer(size) and size > 1 and is_list(history) do
+    suppressed = no_repeat_ngram_tokens(history, size)
+
+    if suppressed == [] do
+      opts
+    else
+      Map.update(opts, :suppress_tokens, suppressed, &Enum.uniq(&1 ++ suppressed))
+    end
+  end
+
+  defp put_no_repeat_ngram_suppressions(opts), do: opts
+
+  defp no_repeat_ngram_tokens(history, size) when length(history) < size - 1, do: []
+
+  defp no_repeat_ngram_tokens(history, size) do
+    prefix = Enum.take(history, -(size - 1))
+
+    history
+    |> Enum.chunk_every(size, 1, :discard)
+    |> Enum.flat_map(fn ngram ->
+      if Enum.take(ngram, size - 1) == prefix do
+        [List.last(ngram)]
+      else
+        []
+      end
+    end)
+    |> Enum.uniq()
+  end
 
   def generate(%Model{} = model, prompt, opts)
       when is_binary(prompt) and is_map(opts) do
