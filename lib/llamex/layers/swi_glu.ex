@@ -14,7 +14,6 @@ defmodule Llamex.Layers.SwiGLU do
     layer
     |> Map.fetch!(:w_down)
     |> backend.matvec_tensor(activated)
-    |> backend.to_list()
   end
 
   defp gate_up_projection(

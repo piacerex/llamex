@@ -555,7 +555,6 @@ defmodule Llamex.Profile do
       timed("w_down", fn ->
         Map.fetch!(layer, :w_down)
         |> backend.matvec_tensor(activated)
-        |> backend.to_list()
       end)
 
     {residual_time, hidden} =

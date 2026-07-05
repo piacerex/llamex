@@ -598,7 +598,11 @@ defmodule LlamexTest do
       prepared = Llamex.Backend.NxEXLA.prepare_model(%{layers: [layer], output: nil})
       [prepared_layer] = prepared.layers
 
-      result = Llamex.Layers.SwiGLU.forward([1.0, 2.0], prepared_layer, Llamex.Backend.NxEXLA)
+      result =
+        [1.0, 2.0]
+        |> Llamex.Layers.SwiGLU.forward(prepared_layer, Llamex.Backend.NxEXLA)
+        |> Llamex.Backend.NxEXLA.to_list()
+
       expected = Llamex.Layers.SwiGLU.forward([1.0, 2.0], layer, Llamex.Backend.List)
 
       assert_in_delta Enum.at(result, 0), Enum.at(expected, 0), 1.0e-6
