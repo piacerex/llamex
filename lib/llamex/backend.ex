@@ -12,6 +12,7 @@ defmodule Llamex.Backend do
   @callback prepare_model(Llamex.Model.t()) :: Llamex.Model.t()
   @callback dot(tensor(), tensor()) :: number()
   @callback matvec(tensor(), list(number())) :: list(number())
+  @callback matvec_tensor(tensor(), list(number())) :: tensor()
   @callback matvec_pair(tensor(), tensor(), list(number())) :: {list(number()), list(number())}
   @callback add(tensor(), tensor()) :: tensor()
   @callback argmax(tensor()) :: non_neg_integer()

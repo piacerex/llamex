@@ -31,6 +31,11 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def matvec_tensor(rows, vector) when is_list(rows) and is_list(vector) do
+    matvec(rows, vector)
+  end
+
+  @impl true
   def matvec_pair(left_rows, right_rows, vector)
       when is_list(left_rows) and is_list(right_rows) and is_list(vector) do
     Llamex.Tensor.matvec_pair(left_rows, right_rows, vector)

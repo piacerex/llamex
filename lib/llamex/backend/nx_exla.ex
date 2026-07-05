@@ -76,12 +76,19 @@ defmodule Llamex.Backend.NxEXLA do
   @impl true
   def matvec(rows, vector) when is_list(vector) do
     nx = nx!()
+
+    rows
+    |> matvec_tensor(vector)
+    |> then(&apply(nx, :to_flat_list, [&1]))
+  end
+
+  @impl true
+  def matvec_tensor(rows, vector) when is_list(vector) do
+    nx = nx!()
     matrix = tensor(rows)
     vector = apply(nx, :tensor, [vector, [type: {:f, 32}]])
 
-    nx
-    |> apply(:dot, [matrix, vector])
-    |> then(&apply(nx, :to_flat_list, [&1]))
+    apply(nx, :dot, [matrix, vector])
   end
 
   @impl true

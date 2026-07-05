@@ -555,9 +555,7 @@ defmodule Llamex.Profile do
   end
 
   defp timed_logits(%{model: %{output: %{weight: weight}}, backend: backend}, hidden) do
-    hidden
-    |> Linear.forward(weight, backend)
-    |> backend.from_list()
+    backend.matvec_tensor(weight, hidden)
   end
 
   defp timed_logits(context, hidden) do

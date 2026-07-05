@@ -301,6 +301,12 @@ defmodule LlamexTest do
              {[1.0, 2.0], [2.0, 6.0]}
   end
 
+  test "runs matvec tensor through list backend" do
+    rows = [[1.0, 0.0], [0.0, 3.0]]
+
+    assert Llamex.Backend.List.matvec_tensor(rows, [1.0, 2.0]) == [1.0, 6.0]
+  end
+
   test "runs paired matvecs through fpga backend fallback" do
     left_rows = [[1.0, 0.0], [0.0, 1.0]]
     right_rows = [[2.0, 0.0], [0.0, 3.0]]
@@ -326,6 +332,19 @@ defmodule LlamexTest do
 
       assert Llamex.Backend.NxEXLA.matvec_pair(left_rows, right_rows, [1.0, 2.0]) ==
                {[1.0, 2.0], [2.0, 6.0]}
+    end
+  end
+
+  test "runs matvec tensor through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      rows = Llamex.Backend.NxEXLA.from_list([[1.0, 0.0], [0.0, 3.0]])
+
+      result =
+        rows
+        |> Llamex.Backend.NxEXLA.matvec_tensor([1.0, 2.0])
+        |> Llamex.Backend.NxEXLA.to_list()
+
+      assert result == [1.0, 6.0]
     end
   end
 

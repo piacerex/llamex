@@ -13,6 +13,7 @@ defmodule Llamex.Backend.FPGA do
   defdelegate prepare_model(model), to: Llamex.Backend.List
   defdelegate dot(left, right), to: Llamex.Backend.List
   defdelegate matvec(rows, vector), to: Llamex.Backend.List
+  defdelegate matvec_tensor(rows, vector), to: Llamex.Backend.List
   defdelegate matvec_pair(left_rows, right_rows, vector), to: Llamex.Backend.List
   defdelegate add(left, right), to: Llamex.Backend.List
   defdelegate argmax(tensor), to: Llamex.Backend.List

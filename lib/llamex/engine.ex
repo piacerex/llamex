@@ -4,7 +4,7 @@ defmodule Llamex.Engine do
   """
 
   alias Llamex.Context
-  alias Llamex.Layers.{Attention, Linear, RMSNorm, SwiGLU}
+  alias Llamex.Layers.{Attention, RMSNorm, SwiGLU}
   alias Llamex.Tensor
 
   def eval(%Context{} = context, token) when is_integer(token) and token >= 0 do
@@ -17,11 +17,11 @@ defmodule Llamex.Engine do
 
     logits =
       if context.model.output do
-        Linear.forward(hidden, Map.fetch!(context.model.output, :weight), context.backend)
+        context.backend.matvec_tensor(Map.fetch!(context.model.output, :weight), hidden)
       else
         embedding_logits(context, hidden)
+        |> context.backend.from_list()
       end
-      |> context.backend.from_list()
 
     {Context.append(context, token), logits}
   end
@@ -128,9 +128,9 @@ defmodule Llamex.Engine do
   end
 
   defp greedy_token(%{backend: backend, model: %{output: %{weight: weight}}}, hidden) do
-    hidden
-    |> Linear.forward(weight, backend)
-    |> Llamex.Backend.List.argmax()
+    weight
+    |> backend.matvec_tensor(hidden)
+    |> backend.argmax()
   end
 
   defp greedy_token(context, hidden) do
