@@ -210,12 +210,12 @@ fragments.
 Add `--reject-open-ending` to report length-limited output that ends on an
 alphanumeric fragment or non-terminal punctuation such as a comma.
 Add `--complete-open-ending N` to let the smoke task generate up to `N` extra
-tokens when that open ending is detected.
+tokens, in small chunks, while that open ending is detected.
 Add `--fail-on-issue` to make the task raise when any prompt reports issues.
 Use `mix llamex.natural.baseline MODEL --json` for the current stricter GGUF
 baseline gate. It defaults to the known-good `The quick brown fox` prompt with
 8 initial tokens, at least 4 generated word fragments, incomplete-ending rejection,
-up to 4 completion tokens, and fail-on-issue enabled.
+up to 8 completion tokens, and fail-on-issue enabled.
 JSON smoke output includes the `settings` used for each prompt so baseline
 results are auditable.
 

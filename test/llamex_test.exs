@@ -1221,6 +1221,59 @@ defmodule LlamexTest do
     end
   end
 
+  test "natural smoke task spaces word completions after commas" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-natural-comma-complete-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 3, "embedding_size" => 2},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "hello",
+        "vocab" => %{"hello" => 0, "," => 1, "world" => 2}
+      },
+      "token_embeddings" => %{
+        "0" => [1.0, 0.0],
+        "1" => [0.0, 1.0],
+        "2" => [0.0, 0.0]
+      },
+      "output" => %{
+        "weight" => [
+          [0.0, 0.0],
+          [3.0, 0.0],
+          [2.0, 3.0]
+        ]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Natural.Smoke.run([
+            path,
+            "1",
+            "--json",
+            "--prompt",
+            "hello",
+            "--complete-open-ending",
+            "1"
+          ])
+        end)
+
+      [result] = JSON.decode!(String.trim(output))
+
+      assert result["text"] == ", world"
+      assert result["completion_tokens"] == [2]
+    after
+      File.rm(path)
+    end
+  end
+
   test "natural baseline task runs the current gate" do
     path =
       Path.join(
@@ -1292,7 +1345,7 @@ defmodule LlamexTest do
       assert result["settings"]["max_new_tokens"] == 8
       assert result["settings"]["min_words"] == 4
       assert result["settings"]["reject_open_ending"] == true
-      assert result["settings"]["complete_open_ending"] == 4
+      assert result["settings"]["complete_open_ending"] == 8
     after
       File.rm(path)
     end

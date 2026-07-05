@@ -153,23 +153,60 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
     if extra_tokens > 0 and result.finish_reason == :length and
          Llamex.Natural.open_ending?(result.text) do
-      completion =
-        Llamex.generate(model, continuation_prompt(prompt, result.text), %{
-          backend: backend(options),
-          max_new_tokens: extra_tokens,
-          stop_tokens: stop_tokens,
-          sampler: sampler
-        })
-
-      %{
-        result
-        | text: append_completion_text(result.text, completion.text),
-          generated_tokens: result.generated_tokens ++ completion.generated_tokens,
-          finish_reason: completion.finish_reason
-      }
-      |> Map.put(:completion_tokens, completion.generated_tokens)
+      complete_open_ending(model, prompt, result, sampler, stop_tokens, options, extra_tokens, [])
     else
       Map.put(result, :completion_tokens, [])
+    end
+  end
+
+  defp complete_open_ending(_model, _prompt, result, _sampler, _stop_tokens, _options, 0, tokens) do
+    Map.put(result, :completion_tokens, Enum.reverse(tokens))
+  end
+
+  defp complete_open_ending(
+         model,
+         prompt,
+         result,
+         sampler,
+         stop_tokens,
+         options,
+         remaining,
+         tokens
+       ) do
+    chunk_tokens = min(4, remaining)
+
+    completion =
+      Llamex.generate(model, continuation_prompt(prompt, result.text), %{
+        backend: backend(options),
+        max_new_tokens: chunk_tokens,
+        stop_tokens: stop_tokens,
+        sampler: sampler
+      })
+
+    result = %{
+      result
+      | text: append_completion_text(result.text, completion.text),
+        generated_tokens: result.generated_tokens ++ completion.generated_tokens,
+        finish_reason: completion.finish_reason
+    }
+
+    tokens = Enum.reverse(completion.generated_tokens) ++ tokens
+    remaining = remaining - length(completion.generated_tokens)
+
+    if remaining > 0 and result.finish_reason == :length and
+         Llamex.Natural.open_ending?(result.text) do
+      complete_open_ending(
+        model,
+        prompt,
+        result,
+        sampler,
+        stop_tokens,
+        options,
+        remaining,
+        tokens
+      )
+    else
+      Map.put(result, :completion_tokens, Enum.reverse(tokens))
     end
   end
 
@@ -183,19 +220,23 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
   defp complete_open_ending(_options), do: 0
 
   defp continuation_prompt(prompt, generated_text) do
-    if Regex.match?(~r/^[[:alnum:]]/u, generated_text) do
-      prompt <> " " <> generated_text
-    else
-      prompt <> generated_text
-    end
+    join_text(prompt, generated_text)
   end
 
   defp append_completion_text(text, completion_text) do
-    if Regex.match?(~r/[[:alnum:]]$/u, text) and
+    if Regex.match?(~r/[[:alnum:],;:]$/u, text) and
          Regex.match?(~r/^[[:alnum:]]/u, completion_text) do
       text <> " " <> completion_text
     else
       text <> completion_text
+    end
+  end
+
+  defp join_text(left, right) do
+    if Regex.match?(~r/\s$/u, left) or Regex.match?(~r/^\s/u, right) do
+      left <> right
+    else
+      left <> " " <> right
     end
   end
 

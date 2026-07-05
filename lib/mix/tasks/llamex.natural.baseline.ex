@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Llamex.Natural.Baseline do
       "4",
       "--reject-open-ending",
       "--complete-open-ending",
-      "4",
+      "8",
       "--fail-on-issue"
     ])
   end
