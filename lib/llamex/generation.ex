@@ -59,7 +59,7 @@ defmodule Llamex.Generation do
       sampler
       |> Map.put(:random, random)
       |> Map.put(:history, history)
-      |> put_no_repeat_ngram_suppressions()
+      |> put_dynamic_suppressions(context)
 
     if fast_top_k_sampling?(context) do
       {context, candidates} = Engine.eval_top_k(context, current_token, top_k, opts)
@@ -81,7 +81,7 @@ defmodule Llamex.Generation do
         sampler
         |> Map.put(:random, random)
         |> Map.put(:history, history)
-        |> put_no_repeat_ngram_suppressions()
+        |> put_dynamic_suppressions(context)
       )
 
     {token, context, sampler_state}
@@ -92,6 +92,12 @@ defmodule Llamex.Generation do
        do: true
 
   defp fast_top_k_sampling?(_context), do: false
+
+  defp put_dynamic_suppressions(opts, context) do
+    opts
+    |> put_no_repeat_ngram_suppressions()
+    |> put_no_repeat_adjacent_word_suppressions(context)
+  end
 
   defp put_no_repeat_ngram_suppressions(%{no_repeat_ngram_size: size, history: history} = opts)
        when is_integer(size) and size > 1 and is_list(history) do
@@ -105,6 +111,22 @@ defmodule Llamex.Generation do
   end
 
   defp put_no_repeat_ngram_suppressions(opts), do: opts
+
+  defp put_no_repeat_adjacent_word_suppressions(
+         %{no_repeat_adjacent_word: true, history: history} = opts,
+         context
+       )
+       when is_list(history) and history != [] do
+    suppressed = repeated_word_tokens(context.model, List.last(history))
+
+    if suppressed == [] do
+      opts
+    else
+      Map.update(opts, :suppress_tokens, suppressed, &Enum.uniq(&1 ++ suppressed))
+    end
+  end
+
+  defp put_no_repeat_adjacent_word_suppressions(opts, _context), do: opts
 
   defp no_repeat_ngram_tokens(history, size) when length(history) < size - 1, do: []
 
@@ -121,6 +143,38 @@ defmodule Llamex.Generation do
       end
     end)
     |> Enum.uniq()
+  end
+
+  defp repeated_word_tokens(%{tokenizer: nil}, _last_token), do: []
+  defp repeated_word_tokens(model, _last_token) when not is_map_key(model, :tokenizer), do: []
+
+  defp repeated_word_tokens(model, last_token) do
+    with word when is_binary(word) <- token_word(model, last_token) do
+      model.tokenizer.id_to_token
+      |> Enum.flat_map(fn {token, piece} ->
+        if piece_word(piece) == word, do: [token], else: []
+      end)
+    else
+      _ -> []
+    end
+  end
+
+  defp token_word(model, token) do
+    model.tokenizer.id_to_token
+    |> Map.get(token)
+    |> piece_word()
+  end
+
+  defp piece_word(nil), do: nil
+
+  defp piece_word(piece) do
+    piece
+    |> String.trim_leading("▁")
+    |> then(&Regex.run(~r/[[:alnum:]]+/u, &1))
+    |> case do
+      [word] -> String.downcase(word)
+      _ -> nil
+    end
   end
 
   def generate(%Model{} = model, prompt, opts)

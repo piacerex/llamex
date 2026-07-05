@@ -10,6 +10,7 @@ defmodule Llamex.Natural do
     |> Map.put_new(:top_p, 0.5)
     |> Map.put_new(:repetition_penalty, 1.1)
     |> Map.put_new(:no_repeat_ngram_size, 2)
+    |> Map.put_new(:no_repeat_adjacent_word, true)
     |> Map.put_new(:seed, 1)
     |> put_suppressed_tokens(model)
   end

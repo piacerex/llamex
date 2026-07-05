@@ -481,6 +481,42 @@ defmodule LlamexTest do
     assert result.text == "B A C"
   end
 
+  test "generation can suppress adjacent repeated words" do
+    tokenizer = Llamex.Tokenizer.new(%{"brown" => 0, "and" => 1}, "brown")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 2, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0, 0.0],
+          1 => [0.0, 1.0]
+        },
+        output: %{
+          weight: [
+            [3.0, 0.0],
+            [2.0, 0.0]
+          ]
+        }
+      })
+
+    result =
+      Llamex.generate(model, "brown", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: %{
+          temperature: 1.0,
+          top_k: 2,
+          top_p: 1.0,
+          random: 0.0,
+          no_repeat_adjacent_word: true
+        }
+      })
+
+    assert result.generated_tokens == [1]
+    assert result.text == "and"
+  end
+
   test "suppresses tokens before sampling" do
     logits = Llamex.Backend.List.from_list([3.0, 2.9, 0.0])
 
