@@ -131,7 +131,7 @@ defmodule Llamex.Profile do
       max_new_tokens: max_new_tokens,
       stop_token: List.first(stop_tokens),
       stop_tokens: stop_tokens,
-      sampler: sampler,
+      sampler: display_sampler(sampler),
       prompt_tokens: length(state.prompt_tokens),
       prompt_token_ids: state.prompt_tokens,
       prompt_pieces: token_pieces(model, state.prompt_tokens),
@@ -151,6 +151,9 @@ defmodule Llamex.Profile do
     |> Enum.reverse()
     |> Enum.map(& &1.token)
   end
+
+  defp display_sampler(sampler) when is_map(sampler), do: Map.delete(sampler, :suppress_tokens)
+  defp display_sampler(sampler), do: sampler
 
   defp timed_prefill(model, prompt, backend) do
     timed("prefill", fn ->
@@ -528,7 +531,8 @@ defmodule Llamex.Profile do
        ) do
     Tensor.top_k_matvec(weight, hidden, top_k,
       history: Map.get(opts, :history, []),
-      repetition_penalty: Map.get(opts, :repetition_penalty)
+      repetition_penalty: Map.get(opts, :repetition_penalty),
+      suppress_tokens: Map.get(opts, :suppress_tokens, [])
     )
   end
 

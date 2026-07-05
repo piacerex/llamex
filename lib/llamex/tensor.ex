@@ -136,6 +136,7 @@ defmodule Llamex.Tensor do
              is_list(opts) do
     history = opts |> Keyword.get(:history, []) |> MapSet.new()
     penalty = Keyword.get(opts, :repetition_penalty)
+    suppressed = opts |> Keyword.get(:suppress_tokens, []) |> MapSet.new()
 
     if parallel_matvec?(rows, vector) do
       chunk_size = top_k_matvec_chunk_size(rows)
@@ -148,8 +149,12 @@ defmodule Llamex.Tensor do
           chunk
           |> Enum.with_index(chunk_index * chunk_size)
           |> Enum.reduce([], fn {row, index}, top ->
-            value = row |> dot(vector) |> maybe_penalize(index, history, penalty)
-            insert_top_k({value, index}, top, top_k)
+            if MapSet.member?(suppressed, index) do
+              top
+            else
+              value = row |> dot(vector) |> maybe_penalize(index, history, penalty)
+              insert_top_k({value, index}, top, top_k)
+            end
           end)
         end,
         ordered: false,
@@ -164,8 +169,12 @@ defmodule Llamex.Tensor do
       rows
       |> Enum.with_index()
       |> Enum.reduce([], fn {row, index}, top ->
-        value = row |> dot(vector) |> maybe_penalize(index, history, penalty)
-        insert_top_k({value, index}, top, top_k)
+        if MapSet.member?(suppressed, index) do
+          top
+        else
+          value = row |> dot(vector) |> maybe_penalize(index, history, penalty)
+          insert_top_k({value, index}, top, top_k)
+        end
       end)
       |> Enum.reverse()
     end

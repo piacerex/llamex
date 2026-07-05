@@ -51,6 +51,7 @@ defmodule Llamex.Sampler do
 
     values
     |> apply_repetition_penalty(Map.get(opts, :history, []), Map.get(opts, :repetition_penalty))
+    |> suppress_tokens(Map.get(opts, :suppress_tokens, []))
     |> apply_temperature(temperature)
     |> top_k_candidates(Map.get(opts, :top_k))
     |> probabilities()
@@ -66,6 +67,7 @@ defmodule Llamex.Sampler do
     end
 
     candidates
+    |> reject_suppressed_candidates(Map.get(opts, :suppress_tokens, []))
     |> Enum.map(fn {value, index} -> {value / temperature, index} end)
     |> probabilities()
     |> apply_top_p(Map.get(opts, :top_p))
@@ -91,6 +93,27 @@ defmodule Llamex.Sampler do
 
   defp penalize(value, penalty) when value >= 0.0, do: value / penalty
   defp penalize(value, penalty), do: value * penalty
+
+  defp suppress_tokens(values, []), do: values
+  defp suppress_tokens(values, nil), do: values
+
+  defp suppress_tokens(values, tokens) when is_list(tokens) do
+    suppressed = MapSet.new(tokens)
+
+    values
+    |> Enum.with_index()
+    |> Enum.map(fn {value, index} ->
+      if MapSet.member?(suppressed, index), do: -1.0e300, else: value
+    end)
+  end
+
+  defp reject_suppressed_candidates(candidates, []), do: candidates
+  defp reject_suppressed_candidates(candidates, nil), do: candidates
+
+  defp reject_suppressed_candidates(candidates, tokens) when is_list(tokens) do
+    suppressed = MapSet.new(tokens)
+    Enum.reject(candidates, fn {_value, index} -> MapSet.member?(suppressed, index) end)
+  end
 
   defp apply_temperature(values, temperature) do
     Enum.map(values, &(&1 / temperature))

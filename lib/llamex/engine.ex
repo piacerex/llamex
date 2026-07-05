@@ -43,7 +43,8 @@ defmodule Llamex.Engine do
     candidates =
       Tensor.top_k_matvec(weight, hidden, top_k,
         history: Map.get(opts, :history, []),
-        repetition_penalty: Map.get(opts, :repetition_penalty)
+        repetition_penalty: Map.get(opts, :repetition_penalty),
+        suppress_tokens: Map.get(opts, :suppress_tokens, [])
       )
 
     {Context.append(context, token), candidates}

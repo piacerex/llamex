@@ -178,7 +178,7 @@ defmodule Mix.Tasks.Llamex.Generate do
         backend: backend(options),
         max_new_tokens: max_new_tokens,
         stop_tokens: stop_tokens(model, options),
-        sampler: sampler(options),
+        sampler: sampler(model, options),
         candidate_count: Map.get(options, :candidates, 0)
       })
       |> Map.put(:model_path, model_path)
@@ -194,11 +194,44 @@ defmodule Mix.Tasks.Llamex.Generate do
         backend: backend(options),
         max_new_tokens: max_new_tokens,
         stop_tokens: stop_tokens(model, options),
-        sampler: sampler(options)
+        sampler: sampler(model, options)
       })
 
     Mix.shell().info(result.text)
   end
+
+  defp sampler(model, options) do
+    sampler = sampler(options)
+
+    if Map.get(options, :natural) == true and is_map(sampler) do
+      suppress_tokens = natural_suppressed_token_ids(model)
+
+      if suppress_tokens == [] do
+        sampler
+      else
+        Map.update(sampler, :suppress_tokens, suppress_tokens, &Enum.uniq(&1 ++ suppress_tokens))
+      end
+    else
+      sampler
+    end
+  end
+
+  defp natural_suppressed_token_ids(%{tokenizer: nil}), do: []
+
+  defp natural_suppressed_token_ids(model) do
+    model.tokenizer.token_types
+    |> Enum.filter(&natural_suppressed_token?/1)
+    |> Enum.map(& &1.id)
+  end
+
+  defp natural_suppressed_token?(%{type: :byte}), do: true
+  defp natural_suppressed_token?(%{token: "▁"}), do: true
+
+  defp natural_suppressed_token?(%{token: token}) when is_binary(token) do
+    String.contains?(token, ["\n", "\r"])
+  end
+
+  defp natural_suppressed_token?(_token), do: false
 
   defp load_model(model_path) do
     if Path.extname(model_path) == ".gguf" do

@@ -443,6 +443,17 @@ defmodule LlamexTest do
            }) == 1
   end
 
+  test "suppresses tokens before sampling" do
+    logits = Llamex.Backend.List.from_list([3.0, 2.9, 0.0])
+
+    assert Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+             temperature: 1.0,
+             top_k: 1,
+             suppress_tokens: [0],
+             random: 0.0
+           }) == 1
+  end
+
   test "samples from prefiltered top-k candidates" do
     candidates = [{2.9, 1}]
 
@@ -461,6 +472,13 @@ defmodule LlamexTest do
              history: [0],
              repetition_penalty: 2.0
            ) == [{2.9, 1}]
+  end
+
+  test "top-k matvec skips suppressed tokens before keeping candidates" do
+    rows = [[3.0], [2.9], [0.0]]
+    vector = [1.0]
+
+    assert Llamex.Tensor.top_k_matvec(rows, vector, 1, suppress_tokens: [0]) == [{2.9, 1}]
   end
 
   test "generates with seed-based sampling" do
@@ -936,6 +954,49 @@ defmodule LlamexTest do
 
     assert [step] = profile["steps"]
     assert Enum.map(step["candidates"], & &1["piece"]) == ["world", "hello"]
+  end
+
+  test "natural generation suppresses byte tokens" do
+    path =
+      Path.join(System.tmp_dir!(), "llamex-natural-#{System.unique_integer([:positive])}.json")
+
+    model = %{
+      "config" => %{"vocab_size" => 4, "embedding_size" => 1},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "vocab" => %{"<unk>" => 0, "hello" => 1, "world" => 2, "<0x0A>" => 3},
+        "token_types" => [
+          %{"id" => 0, "token" => "<unk>", "type" => "unknown", "type_id" => 2},
+          %{"id" => 1, "token" => "hello", "type" => "normal", "type_id" => 1},
+          %{"id" => 2, "token" => "world", "type" => "normal", "type_id" => 1},
+          %{"id" => 3, "token" => "<0x0A>", "type" => "byte", "type_id" => 6}
+        ]
+      },
+      "token_embeddings" => %{
+        "0" => [0.0],
+        "1" => [1.0],
+        "2" => [1.0],
+        "3" => [1.0]
+      },
+      "output" => %{"weight" => [[0.0], [0.0], [2.0], [3.0]]}
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Generate.run([path, "hello", "1", "--natural", "--profile"])
+        end)
+
+      profile = JSON.decode!(String.trim(output))
+
+      assert profile["generated_tokens"] == [2]
+      refute Map.has_key?(profile["sampler"], "suppress_tokens")
+    after
+      File.rm(path)
+    end
   end
 
   test "generate task can disable inferred stop token for profiling" do
