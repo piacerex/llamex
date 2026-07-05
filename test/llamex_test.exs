@@ -49,6 +49,16 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.encode(tokenizer, "Hello world") == [2, 4]
   end
 
+  test "encodes sentencepiece words with longest subword pieces" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "▁bind" => 1, "ing" => 2, "▁pon" => 3},
+        "<unk>"
+      )
+
+    assert Llamex.Tokenizer.encode(tokenizer, "binding pon") == [1, 2, 3]
+  end
+
   test "encodes chat template special tokens before byte fallback" do
     tokenizer =
       Llamex.Tokenizer.whitespace(

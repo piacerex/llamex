@@ -105,8 +105,46 @@ defmodule Llamex.Tokenizer.Whitespace do
       Map.has_key?(tokenizer.token_to_id, sentencepiece_token) ->
         [Map.fetch!(tokenizer.token_to_id, sentencepiece_token)]
 
+      sentencepiece_vocab?(tokenizer) ->
+        encode_sentencepiece_word(tokenizer, sentencepiece_token, word)
+
       true ->
         encode_token(tokenizer, word)
+    end
+  end
+
+  defp sentencepiece_vocab?(tokenizer) do
+    Enum.any?(Map.keys(tokenizer.token_to_id), &String.starts_with?(&1, "▁"))
+  end
+
+  defp encode_sentencepiece_word(tokenizer, sentencepiece_token, fallback_word) do
+    case encode_longest_pieces(tokenizer, sentencepiece_token, []) do
+      {:ok, token_ids} -> token_ids
+      :error -> encode_token(tokenizer, fallback_word)
+    end
+  end
+
+  defp encode_longest_pieces(_tokenizer, "", token_ids), do: {:ok, Enum.reverse(token_ids)}
+
+  defp encode_longest_pieces(tokenizer, text, token_ids) do
+    case longest_piece(tokenizer, text) do
+      nil ->
+        :error
+
+      {piece, token_id} ->
+        rest = binary_part(text, byte_size(piece), byte_size(text) - byte_size(piece))
+        encode_longest_pieces(tokenizer, rest, [token_id | token_ids])
+    end
+  end
+
+  defp longest_piece(tokenizer, text) do
+    tokenizer.token_to_id
+    |> Map.keys()
+    |> Enum.filter(&String.starts_with?(text, &1))
+    |> Enum.max_by(&byte_size/1, fn -> nil end)
+    |> case do
+      nil -> nil
+      piece -> {piece, Map.fetch!(tokenizer.token_to_id, piece)}
     end
   end
 
