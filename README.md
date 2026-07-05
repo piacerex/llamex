@@ -195,6 +195,20 @@ Use `--chat` only after `mix llamex.gguf.inspect` reports that the chat template
 has no missing tokens. The generate task validates `.gguf --chat` from metadata
 before loading tensors, so incompatible chat templates fail quickly.
 
+Current GGUF smoke baseline on
+`zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
+
+```bash
+mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "Elixir is" 1 --natural --stop-control --profile
+```
+
+The verified one-token path generates the normal token piece `loyd` from prompt
+tokens `<s>`, `▁Eli`, `xi`, `r`, `▁is`. On the current development machine this
+is still a smoke test rather than natural multi-token generation: prefill is
+about 34s and the first generated step is about 11s. Profile timings show the
+next speed targets are the feed-forward `w_down` matvecs and the final `logits`
+matvec.
+
 GGUF compatibility can be inspected without loading tensor data:
 
 ```bash
