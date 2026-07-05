@@ -8,6 +8,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       mix llamex.natural.smoke model.gguf 3 --json --min-words 2
       mix llamex.natural.smoke model.gguf 8 --json --reject-open-ending
       mix llamex.natural.smoke model.gguf 8 --json --complete-open-ending 4
+      mix llamex.natural.smoke model.gguf 8 --json --trim-to-sentence
       mix llamex.natural.smoke model.gguf 3 --prompt "Elixir is"
   """
 
@@ -27,6 +28,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           json: :boolean,
           reject_open_ending: :boolean,
           complete_open_ending: :integer,
+          trim_to_sentence: :boolean,
           prompt: :keep,
           min_words: :integer,
           max_new_tokens: :integer,
@@ -80,6 +82,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
             max_new_tokens,
             options
           )
+          |> maybe_trim_to_sentence(options)
 
         check =
           Llamex.Natural.smoke_check(model, result.generated_tokens, result.text, %{
@@ -94,6 +97,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           text: result.text,
           generated_tokens: result.generated_tokens,
           completion_tokens: result.completion_tokens,
+          discarded_text: Map.get(result, :discarded_text, ""),
           finish_reason: result.finish_reason,
           ok: check.ok,
           issues: check.issues
@@ -126,6 +130,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       min_words: min_words(options),
       reject_open_ending: Map.get(options, :reject_open_ending, false),
       complete_open_ending: complete_open_ending(options),
+      trim_to_sentence: Map.get(options, :trim_to_sentence, false),
       stop_tokens: stop_tokens,
       sampler: display_sampler(sampler)
     }
@@ -218,6 +223,26 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     do: Mix.raise("complete_open_ending must be a non-negative integer, got: #{inspect(tokens)}")
 
   defp complete_open_ending(_options), do: 0
+
+  defp maybe_trim_to_sentence(result, %{trim_to_sentence: true}) do
+    case trim_to_sentence(result.text) do
+      {text, discarded_text} when discarded_text != "" ->
+        %{result | text: text, finish_reason: :trimmed}
+        |> Map.put(:discarded_text, discarded_text)
+
+      _ ->
+        Map.put_new(result, :discarded_text, "")
+    end
+  end
+
+  defp maybe_trim_to_sentence(result, _options), do: Map.put_new(result, :discarded_text, "")
+
+  defp trim_to_sentence(text) do
+    case Regex.run(~r/^(.+[.!?])([^.!?]*)$/us, text) do
+      [_match, sentence, discarded] -> {sentence, discarded}
+      _ -> {text, ""}
+    end
+  end
 
   defp continuation_prompt(prompt, generated_text) do
     join_text(prompt, generated_text)

@@ -211,11 +211,13 @@ Add `--reject-open-ending` to report length-limited output that ends on an
 alphanumeric fragment or non-terminal punctuation such as a comma.
 Add `--complete-open-ending N` to let the smoke task generate up to `N` extra
 tokens, in small chunks, while that open ending is detected.
+Add `--trim-to-sentence` to keep the last complete sentence and report any
+discarded trailing text in JSON output.
 Add `--fail-on-issue` to make the task raise when any prompt reports issues.
 Use `mix llamex.natural.baseline MODEL --json` for the current stricter GGUF
 baseline gate. It defaults to the known-good `The quick brown fox` prompt with
 8 initial tokens, at least 4 generated word fragments, incomplete-ending rejection,
-up to 8 completion tokens, and fail-on-issue enabled.
+up to 8 completion tokens, sentence trimming, and fail-on-issue enabled.
 JSON smoke output includes the `settings` used for each prompt so baseline
 results are auditable.
 
@@ -229,13 +231,14 @@ mix llamex.natural.baseline /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q
 The current verified baseline output for the default prompt is:
 
 ```text
-. They were a bit of brown and brown butter,
+. They were a bit of brown and brown.
 ```
 
 This is not high-quality prose yet, but it is ordinary decoded text from an
-existing GGUF path with `ok: true` and no smoke issues. Short prompts can still
-produce weak continuations, but the existing GGUF path can produce natural word
-pieces instead of decode noise. Byte-token output is normalized through the same
+existing GGUF path with `ok: true` and no smoke issues after trimming the
+incomplete trailing fragment. Short prompts can still produce weak
+continuations, but the existing GGUF path can produce natural word pieces
+instead of decode noise. Byte-token output is normalized through the same
 SentencePiece-style decoder, so standalone `▁` markers are not leaked into
 generated text. The `--natural` preset also suppresses byte tokens,
 unknown/unused tokens, non-EOS control tokens, standalone `▁`,

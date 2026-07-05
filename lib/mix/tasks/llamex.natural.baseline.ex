@@ -28,6 +28,7 @@ defmodule Mix.Tasks.Llamex.Natural.Baseline do
       "--reject-open-ending",
       "--complete-open-ending",
       "8",
+      "--trim-to-sentence",
       "--fail-on-issue"
     ])
   end
