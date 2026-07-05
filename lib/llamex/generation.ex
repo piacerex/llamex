@@ -67,8 +67,15 @@ defmodule Llamex.Generation do
       |> put_dynamic_suppressions(context)
 
     if fast_top_k_sampling?(context) do
-      {context, candidates} = Engine.eval_top_k(context, current_token, top_k, opts)
-      {Sampler.sample_candidates(candidates, opts), context, sampler_state}
+      {next_context, candidates} = Engine.eval_top_k(context, current_token, top_k, opts)
+
+      if candidates == [] do
+        {context, logits} = Engine.eval(context, current_token)
+        {Sampler.sample(logits, context.backend, opts), context, sampler_state}
+      else
+        {Sampler.sample_candidates(candidates, Map.delete(opts, :suppress_tokens)), next_context,
+         sampler_state}
+      end
     else
       {context, logits} = Engine.eval(context, current_token)
       {Sampler.sample(logits, context.backend, opts), context, sampler_state}

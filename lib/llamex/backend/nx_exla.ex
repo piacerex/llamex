@@ -87,6 +87,7 @@ defmodule Llamex.Backend.NxEXLA do
     |> Map.update!(:layers, &Enum.map(&1, fn layer -> prepare_layer(layer) end))
     |> Map.update(:output_norm, nil, &prepare_norm/1)
     |> Map.update!(:output, &prepare_output/1)
+    |> maybe_prepare_tied_output()
   end
 
   @impl true
@@ -396,6 +397,28 @@ defmodule Llamex.Backend.NxEXLA do
 
   defp prepare_token_embeddings(token_embeddings) do
     Map.new(token_embeddings, fn {token, embedding} -> {token, tensor(embedding)} end)
+  end
+
+  defp maybe_prepare_tied_output(%{output: nil, token_embeddings: token_embeddings} = model) do
+    weight =
+      model
+      |> token_embedding_order()
+      |> Enum.map(&Map.fetch!(token_embeddings, &1))
+      |> stack_tensors()
+
+    %{model | output: %{weight: weight}}
+  end
+
+  defp maybe_prepare_tied_output(model), do: model
+
+  defp token_embedding_order(%{config: %{vocab_size: vocab_size}}) when is_integer(vocab_size) do
+    0..(vocab_size - 1)
+  end
+
+  defp token_embedding_order(%{token_embeddings: token_embeddings}) do
+    token_embeddings
+    |> Map.keys()
+    |> Enum.sort()
   end
 
   defp prepare_layer(layer) do

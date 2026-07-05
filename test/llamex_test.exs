@@ -371,6 +371,7 @@ defmodule LlamexTest do
       context = Llamex.new_context(model, Llamex.Backend.NxEXLA)
 
       assert match?(%Nx.Tensor{}, Map.fetch!(context.model.token_embeddings, 0))
+      assert match?(%Nx.Tensor{}, Map.fetch!(context.model.output, :weight))
 
       {_context, logits} = Llamex.Engine.eval(context, 0)
 
