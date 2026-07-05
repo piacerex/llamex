@@ -15,7 +15,7 @@ mix llamex.generate priv/models/tiny.json hello 2 --stop-token 2
 mix llamex.generate priv/models/tiny.json hello 2 --stop-piece world
 mix llamex.generate model.gguf "Hello" 8 --stop-special eos
 mix llamex.generate model.gguf "Hello" 8 --natural --stop-control --profile
-mix llamex.generate priv/models/tiny.json hello 2 --backend nx
+mix llamex.generate priv/models/tiny.json hello 2 --backend nx_exla
 mix llamex.generate model.gguf "Hello" 8 --natural
 mix llamex.tokenize model.gguf "Elixir is"
 mix llamex.natural.baseline model.gguf --json
@@ -28,7 +28,7 @@ portable to restricted runtimes such as AtomVM. Nx is available as an optional
 dependency for BEAM experiments:
 
 ```elixir
-state = Llamex.prefill(model, "hello", %{backend: Llamex.Backend.Nx})
+state = Llamex.prefill(model, "hello", %{backend: Llamex.Backend.NxEXLA})
 step = Llamex.step(state.context, state.current_token, %{sampler: :greedy})
 ```
 
@@ -38,7 +38,7 @@ EXLA can be added by BEAM-only consumers that want an XLA compiler for Nx:
 {:exla, "~> 0.12.0"}
 ```
 
-The Nx backend prepares projection matrices as Nx tensors when a context is
+The NxEXLA backend prepares projection matrices as Nx tensors when a context is
 created, but selecting it alone does not yet make existing GGUF generation fast.
 The next speed step is reducing Nx preparation overhead and moving more of the
 matvec-heavy layer execution onto Nx/EXLA while keeping the List backend as the
@@ -252,6 +252,25 @@ For quick manual comparisons, shorter direct generation still works:
 
 ```bash
 mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf "The quick brown fox" 3 --natural --stop-control
+```
+
+```elixir
+model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf")
+
+start_time = DateTime.utc_now()
+
+result =
+  Llamex.generate(model, "The quick brown fox", %{
+    backend: Llamex.Backend.List,
+    max_new_tokens: 8,
+    stop_tokens: Llamex.Natural.control_stop_tokens(model),
+    sampler: Llamex.Natural.sampler(model)
+  })
+
+result.text
+
+end_time = DateTime.utc_now()
+minutes = DateTime.diff(end_time, start_time, :second) / 60
 ```
 
 GGUF compatibility can be inspected without loading tensor data:

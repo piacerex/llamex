@@ -239,6 +239,24 @@ defmodule LlamexTest do
              {Enum.map(1..1001, &(&1 / 1000.0)), Enum.map(1..1001, &(&1 / 500.0))}
   end
 
+  test "runs paired matvecs through list backend" do
+    left_rows = [[1.0, 0.0], [0.0, 1.0]]
+    right_rows = [[2.0, 0.0], [0.0, 3.0]]
+
+    assert Llamex.Backend.List.matvec_pair(left_rows, right_rows, [1.0, 2.0]) ==
+             {[1.0, 2.0], [2.0, 6.0]}
+  end
+
+  test "runs paired matvecs through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      left_rows = [[1.0, 0.0], [0.0, 1.0]]
+      right_rows = [[2.0, 0.0], [0.0, 3.0]]
+
+      assert Llamex.Backend.NxEXLA.matvec_pair(left_rows, right_rows, [1.0, 2.0]) ==
+               {[1.0, 2.0], [2.0, 6.0]}
+    end
+  end
+
   test "finds argmax matvec without materializing logits" do
     vector = [1.0, 2.0, 3.0]
 

@@ -42,6 +42,11 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def matvec_pair(left_rows, right_rows, vector) when is_list(vector) do
+    {matvec(left_rows, vector), matvec(right_rows, vector)}
+  end
+
+  @impl true
   def add(left, right), do: apply(nx!(), :add, [left, right])
 
   @impl true

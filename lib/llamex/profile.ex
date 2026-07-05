@@ -443,7 +443,7 @@ defmodule Llamex.Profile do
 
     {gate_up_time, {gate, up}} =
       timed("w_gate_up", fn ->
-        Tensor.matvec_pair(
+        Llamex.Backend.List.matvec_pair(
           Map.fetch!(layer, :w_gate),
           Map.fetch!(layer, :w_up),
           normalized
