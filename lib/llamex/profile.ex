@@ -115,6 +115,10 @@ defmodule Llamex.Profile do
     generated_tokens = Enum.map(steps, & &1.token)
 
     %{
+      backend: backend,
+      max_new_tokens: max_new_tokens,
+      stop_token: stop_token,
+      sampler: sampler,
       prompt_tokens: length(state.prompt_tokens),
       generated_tokens: generated_tokens,
       finish_reason: finish_reason,

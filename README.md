@@ -175,8 +175,8 @@ Llamex.GGUF.ModelLoader.load("model.gguf")
 The `mix llamex.generate` task accepts `.gguf` paths and uses the GGUF loader
 for them. Use `--natural` to select a conservative text sampling preset
 (`temperature=0.8`, `top-k=40`, `top-p=0.9`, `repetition-penalty=1.1`).
-Use `--profile` to inspect token pieces, timings, and `finish_reason`
-(`stop` or `length`) for generation experiments.
+Use `--profile` to inspect generation settings, token pieces, timings, and
+`finish_reason` (`stop` or `length`) for generation experiments.
 Use `--stop-token ID`, `--stop-piece TOKEN`, or `--stop-special eos` to override
 inferred EOS/stop behavior, or `--no-stop` to force generation to continue until
 `max_new_tokens`.

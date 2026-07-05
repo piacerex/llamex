@@ -470,6 +470,10 @@ defmodule LlamexTest do
       })
 
     assert profile.prompt_tokens == 1
+    assert profile.backend == Llamex.Backend.List
+    assert profile.max_new_tokens == 2
+    assert profile.stop_token == nil
+    assert profile.sampler == :greedy
     assert profile.generated_tokens == [2, 2]
     assert profile.finish_reason == :length
     assert profile.text == "world world"
@@ -527,6 +531,7 @@ defmodule LlamexTest do
       })
 
     assert Enum.map(profile.steps, & &1.token) == [2, 2]
+    assert profile.sampler == %{temperature: 1.0, top_k: 1, seed: 1}
   end
 
   test "generate task rejects chat templates with missing tokenizer tokens" do
@@ -580,6 +585,9 @@ defmodule LlamexTest do
     profile = JSON.decode!(String.trim(output))
 
     assert profile["prompt_tokens"] == 1
+    assert profile["backend"] == "Elixir.Llamex.Backend.List"
+    assert profile["max_new_tokens"] == 2
+    assert profile["sampler"] == "greedy"
     assert profile["generated_tokens"] == [2]
     assert profile["finish_reason"] == "stop"
     assert profile["text"] == "world"
