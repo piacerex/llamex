@@ -96,6 +96,12 @@ defmodule Llamex.Backend.List do
   def prepare_kv_entries(entries) when is_list(entries), do: entries
 
   @impl true
+  def append_kv_entry(entries, key, value)
+      when is_list(entries) and is_list(key) and is_list(value) do
+    entries ++ [{key, value}]
+  end
+
+  @impl true
   def attend_heads(query_heads, entries, head_count, kv_head_count)
       when is_list(query_heads) and is_list(entries) and is_integer(head_count) and
              head_count > 0 and is_integer(kv_head_count) and kv_head_count > 0 do

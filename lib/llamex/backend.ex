@@ -37,6 +37,7 @@ defmodule Llamex.Backend do
   @callback rms_norm(tensor(), tensor(), number()) :: tensor()
   @callback attend_head(tensor(), tensor(), tensor()) :: list(number())
   @callback prepare_kv_entries(list({list(tensor()), list(tensor())})) :: term()
+  @callback append_kv_entry(term(), list(tensor()), list(tensor())) :: term()
   @callback attend_heads(
               list(tensor()),
               term(),

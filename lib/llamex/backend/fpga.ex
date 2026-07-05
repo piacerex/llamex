@@ -40,6 +40,7 @@ defmodule Llamex.Backend.FPGA do
   defdelegate rms_norm(input, weight, epsilon), to: Llamex.Backend.List
   defdelegate attend_head(query, keys, values), to: Llamex.Backend.List
   defdelegate prepare_kv_entries(entries), to: Llamex.Backend.List
+  defdelegate append_kv_entry(entries, key, value), to: Llamex.Backend.List
 
   defdelegate attend_heads(query_heads, entries, head_count, kv_head_count),
     to: Llamex.Backend.List

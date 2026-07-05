@@ -230,6 +230,12 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def append_kv_entry({:nx_exla_kv_entries, keys, values}, key_heads, value_heads)
+      when is_list(key_heads) and is_list(value_heads) do
+    {:nx_exla_kv_entries, append_kv_heads(keys, key_heads), append_kv_heads(values, value_heads)}
+  end
+
+  @impl true
   def attend_heads(query_heads, {:nx_exla_kv_entries, keys, values}, head_count, 1)
       when is_list(query_heads) and is_integer(head_count) and head_count > 0 do
     attend_shared_kv_heads(query_heads, keys, values, head_count)
@@ -672,6 +678,18 @@ defmodule Llamex.Backend.NxEXLA do
     cache
     |> then(&apply(nx, :slice, [&1, [0, kv_head_index, 0], [time_count, 1, head_size]]))
     |> then(&apply(nx, :reshape, [&1, {time_count, head_size}]))
+  end
+
+  defp append_kv_heads(cache, heads) do
+    nx = nx!()
+    {_time_count, kv_head_count, head_size} = shape(cache)
+
+    heads =
+      heads
+      |> stack_tensors()
+      |> then(&apply(nx, :reshape, [&1, {1, kv_head_count, head_size}]))
+
+    apply(nx, :concatenate, [[cache, heads], [axis: 0]])
   end
 
   defp query_group(query_heads, kv_head_index, head_count, kv_head_count) do

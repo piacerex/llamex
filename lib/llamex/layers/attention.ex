@@ -32,7 +32,9 @@ defmodule Llamex.Layers.Attention do
       )
 
     {cache, entries} = KVCache.append(cache, layer_index, key_heads, value_heads)
-    entries = backend.prepare_kv_entries(entries)
+
+    {cache, entries} =
+      KVCache.prepare_entries(cache, layer_index, backend, entries, key_heads, value_heads)
 
     output =
       query_heads

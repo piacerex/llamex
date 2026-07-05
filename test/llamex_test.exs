@@ -709,6 +709,34 @@ defmodule LlamexTest do
       assert match?(%Nx.Tensor{}, nx_key)
       assert match?(%Nx.Tensor{}, nx_value)
 
+      assert match?(
+               {:nx_exla_kv_entries, %Nx.Tensor{}, %Nx.Tensor{}},
+               nx_cache.prepared_layers[{0, Llamex.Backend.NxEXLA}]
+             )
+
+      {nx_cache, _next_output} =
+        Llamex.Layers.Attention.forward(
+          [2.0, 1.0],
+          prepared_layer,
+          nx_cache,
+          0,
+          1,
+          10_000.0,
+          nil,
+          Llamex.Backend.NxEXLA
+        )
+
+      assert [
+               {_first_keys, _first_values},
+               {_second_keys, _second_values}
+             ] = Llamex.KVCache.entries(nx_cache, 0)
+
+      assert {:nx_exla_kv_entries, prepared_keys, prepared_values} =
+               nx_cache.prepared_layers[{0, Llamex.Backend.NxEXLA}]
+
+      assert Nx.shape(prepared_keys) == {2, 1, 2}
+      assert Nx.shape(prepared_values) == {2, 1, 2}
+
       nx_output = Llamex.Backend.NxEXLA.to_list(nx_output)
 
       assert_in_delta Enum.at(nx_output, 0), Enum.at(list_output, 0), 1.0e-6
