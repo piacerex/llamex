@@ -961,25 +961,27 @@ defmodule LlamexTest do
       Path.join(System.tmp_dir!(), "llamex-natural-#{System.unique_integer([:positive])}.json")
 
     model = %{
-      "config" => %{"vocab_size" => 4, "embedding_size" => 1},
+      "config" => %{"vocab_size" => 5, "embedding_size" => 1},
       "tokenizer" => %{
         "type" => "whitespace",
         "unknown_token" => "<unk>",
-        "vocab" => %{"<unk>" => 0, "hello" => 1, "world" => 2, "<0x0A>" => 3},
+        "vocab" => %{"<unk>" => 0, "hello" => 1, "world" => 2, "<0x0A>" => 3, "<unused0>" => 4},
         "token_types" => [
           %{"id" => 0, "token" => "<unk>", "type" => "unknown", "type_id" => 2},
           %{"id" => 1, "token" => "hello", "type" => "normal", "type_id" => 1},
           %{"id" => 2, "token" => "world", "type" => "normal", "type_id" => 1},
-          %{"id" => 3, "token" => "<0x0A>", "type" => "byte", "type_id" => 6}
+          %{"id" => 3, "token" => "<0x0A>", "type" => "byte", "type_id" => 6},
+          %{"id" => 4, "token" => "<unused0>", "type" => "unused", "type_id" => 5}
         ]
       },
       "token_embeddings" => %{
         "0" => [0.0],
         "1" => [1.0],
         "2" => [1.0],
-        "3" => [1.0]
+        "3" => [1.0],
+        "4" => [1.0]
       },
-      "output" => %{"weight" => [[0.0], [0.0], [2.0], [3.0]]}
+      "output" => %{"weight" => [[4.0], [0.0], [2.0], [3.0], [5.0]]}
     }
 
     try do

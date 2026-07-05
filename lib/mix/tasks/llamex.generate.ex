@@ -219,10 +219,22 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp natural_suppressed_token_ids(%{tokenizer: nil}), do: []
 
   defp natural_suppressed_token_ids(model) do
-    model.tokenizer.token_types
-    |> Enum.filter(&natural_suppressed_token?/1)
-    |> Enum.map(& &1.id)
+    type_ids =
+      model.tokenizer.token_types
+      |> Enum.filter(&natural_suppressed_token?/1)
+      |> Enum.map(& &1.id)
+
+    special_ids =
+      [:unknown]
+      |> Enum.map(&get_in(model.tokenizer.special_tokens, [&1, :id]))
+      |> Enum.reject(&is_nil/1)
+
+    Enum.uniq(type_ids ++ special_ids)
   end
+
+  defp natural_suppressed_token?(%{type: type})
+       when type in [:unknown, :unused, :user_defined, :undefined],
+       do: true
 
   defp natural_suppressed_token?(%{type: :byte}), do: true
   defp natural_suppressed_token?(%{token: "▁"}), do: true
