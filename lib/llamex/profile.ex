@@ -69,6 +69,7 @@ defmodule Llamex.Profile do
     backend = Map.get(opts, :backend, Llamex.Backend.List)
     sampler = Map.get(opts, :sampler, :greedy)
     max_new_tokens = Map.get(opts, :max_new_tokens, 1)
+    stop_token = Map.get(opts, :stop_token)
 
     {prefill_time, state} =
       timed("prefill", fn ->
@@ -76,30 +77,36 @@ defmodule Llamex.Profile do
       end)
 
     {steps, _context, _current_token, _sampler_state} =
-      Enum.reduce(1..max_new_tokens, {[], state.context, state.current_token, nil}, fn index,
-                                                                                       {steps,
-                                                                                        context,
-                                                                                        current_token,
-                                                                                        sampler_state} ->
-        {step_time, step} =
-          timed("step_#{index}", fn ->
-            Llamex.step(context, current_token, %{
-              sampler: sampler,
-              sampler_state: sampler_state,
-              history: context.tokens
-            })
-          end)
+      Enum.reduce_while(
+        1..max_new_tokens,
+        {[], state.context, state.current_token, nil},
+        fn index, {steps, context, current_token, sampler_state} ->
+          {step_time, step} =
+            timed("step_#{index}", fn ->
+              Llamex.step(context, current_token, %{
+                sampler: sampler,
+                sampler_state: sampler_state,
+                history: context.tokens
+              })
+            end)
 
-        step_info = %{
-          index: index,
-          token: step.token,
-          piece: Map.fetch!(model.tokenizer.id_to_token, step.token),
-          text: step.text,
-          timing: step_time
-        }
+          step_info = %{
+            index: index,
+            token: step.token,
+            piece: Map.fetch!(model.tokenizer.id_to_token, step.token),
+            text: step.text,
+            timing: step_time
+          }
 
-        {[step_info | steps], step.context, step.token, step.sampler_state}
-      end)
+          next_state = {[step_info | steps], step.context, step.token, step.sampler_state}
+
+          if step.token == stop_token do
+            {:halt, next_state}
+          else
+            {:cont, next_state}
+          end
+        end
+      )
 
     steps = Enum.reverse(steps)
     generated_tokens = Enum.map(steps, & &1.token)

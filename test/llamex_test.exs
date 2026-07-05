@@ -461,6 +461,32 @@ defmodule LlamexTest do
     assert Enum.map(profile.timings, & &1.label) == ["prefill", "step_1", "step_2"]
   end
 
+  test "profiles generation steps until stop token" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    profile =
+      Llamex.Profile.generation_steps(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 4,
+        stop_token: 2
+      })
+
+    assert profile.generated_tokens == [2]
+    assert profile.text == "world"
+    assert Enum.map(profile.timings, & &1.label) == ["prefill", "step_1"]
+  end
+
   test "profiles multiple sampled generation steps" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -536,10 +562,10 @@ defmodule LlamexTest do
     profile = JSON.decode!(String.trim(output))
 
     assert profile["prompt_tokens"] == 1
-    assert profile["generated_tokens"] == [2, 2]
-    assert profile["text"] == "world world"
-    assert Enum.map(profile["steps"], & &1["piece"]) == ["world", "world"]
-    assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1", "step_2"]
+    assert profile["generated_tokens"] == [2]
+    assert profile["text"] == "world"
+    assert Enum.map(profile["steps"], & &1["piece"]) == ["world"]
+    assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
   end
 
   test "tokenize task prints token ids and pieces" do

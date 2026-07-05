@@ -106,6 +106,7 @@ defmodule Mix.Tasks.Llamex.Generate do
       Llamex.Profile.generation_steps(model, prompt, %{
         backend: backend(options),
         max_new_tokens: max_new_tokens,
+        stop_token: stop_token(model),
         sampler: sampler(options)
       })
 
