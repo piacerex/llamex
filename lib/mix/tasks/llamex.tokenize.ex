@@ -84,9 +84,18 @@ defmodule Mix.Tasks.Llamex.Tokenize do
   end
 
   defp token_info(tokenizer, id) do
-    %{
+    tokenizer
+    |> token_type(id)
+    |> Map.merge(%{
       id: id,
       piece: Map.fetch!(tokenizer.id_to_token, id)
-    }
+    })
+  end
+
+  defp token_type(tokenizer, id) do
+    case Enum.find(tokenizer.token_types, &(&1.id == id)) do
+      nil -> %{}
+      %{type: type, type_id: type_id} -> %{type: type, type_id: type_id}
+    end
   end
 end

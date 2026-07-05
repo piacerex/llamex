@@ -178,6 +178,8 @@ Use `--profile` to inspect token pieces, timings, and `finish_reason`
 (`stop` or `length`) for generation experiments.
 Use `--stop-token ID` or `--stop-piece TOKEN` to override inferred EOS/stop
 behavior, or `--no-stop` to force generation to continue until `max_new_tokens`.
+Use `mix llamex.tokenize` to inspect prompt token IDs, pieces, and GGUF token
+types before choosing stop pieces or chat prompts.
 Use `--chat` only after `mix llamex.gguf.inspect` reports that the chat template
 has no missing tokens. The generate task validates `.gguf --chat` from metadata
 before loading tensors, so incompatible chat templates fail quickly.

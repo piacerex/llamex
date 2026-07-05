@@ -673,6 +673,29 @@ defmodule LlamexTest do
            ]
   end
 
+  test "tokenize task prints gguf token type metadata" do
+    path =
+      Path.join(System.tmp_dir!(), "llamex-tokenize-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_byte_token_gguf())
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Tokenize.run([path, "hi"])
+        end)
+
+      result = JSON.decode!(String.trim(output))
+
+      assert result["tokens"] == [
+               %{"id" => 1, "piece" => "<0x68>", "type" => "byte", "type_id" => 6},
+               %{"id" => 2, "piece" => "<0x69>", "type" => "byte", "type_id" => 6}
+             ]
+    after
+      File.rm(path)
+    end
+  end
+
   test "tokenize task validates gguf chat templates before tensor loading" do
     path =
       Path.join(System.tmp_dir!(), "llamex-tokenize-#{System.unique_integer([:positive])}.gguf")
