@@ -516,11 +516,16 @@ defmodule LlamexTest do
       {result_query, result_key, result_value} = result
       {expected_query, expected_key, expected_value} = expected
 
+      assert Enum.all?(result_query ++ result_key ++ result_value, &match?(%Nx.Tensor{}, &1))
+
+      actual_values =
+        (result_query ++ result_key ++ result_value)
+        |> Enum.flat_map(&Llamex.Backend.NxEXLA.to_list/1)
+
+      expected_values = List.flatten(expected_query ++ expected_key ++ expected_value)
+
       for {actual, expected} <-
-            Enum.zip(
-              List.flatten(result_query ++ result_key ++ result_value),
-              List.flatten(expected_query ++ expected_key ++ expected_value)
-            ) do
+            Enum.zip(actual_values, expected_values) do
         assert_in_delta actual, expected, 1.0e-6
       end
     end

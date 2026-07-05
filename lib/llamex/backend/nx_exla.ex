@@ -152,7 +152,9 @@ defmodule Llamex.Backend.NxEXLA do
         raise ArgumentError, "RoPE vector length must be even"
 
       true ->
-        apply_rope_tensor(vector, position, theta, dimension_count, nx)
+        vector
+        |> apply_rope_tensor(position, theta, dimension_count, nx)
+        |> to_list()
     end
   end
 
@@ -283,17 +285,14 @@ defmodule Llamex.Backend.NxEXLA do
     query_heads =
       query
       |> split_tensor_heads(head_count, nx)
-      |> Enum.map(&rope(&1, position, rope_theta, rope_dimension_count))
+      |> Enum.map(&rope_tensor(&1, position, rope_theta, rope_dimension_count, nx))
 
     key_heads =
       key
       |> split_tensor_heads(kv_head_count, nx)
-      |> Enum.map(&rope(&1, position, rope_theta, rope_dimension_count))
+      |> Enum.map(&rope_tensor(&1, position, rope_theta, rope_dimension_count, nx))
 
-    value_heads =
-      value
-      |> split_tensor_heads(kv_head_count, nx)
-      |> Enum.map(&to_list/1)
+    value_heads = split_tensor_heads(value, kv_head_count, nx)
 
     {query_heads, key_heads, value_heads}
   end
@@ -448,9 +447,7 @@ defmodule Llamex.Backend.NxEXLA do
         [rotated_left, rotated_right]
       end
 
-    nx
-    |> apply(:concatenate, [parts, [axis: 0]])
-    |> to_list()
+    apply(nx, :concatenate, [parts, [axis: 0]])
   end
 
   defp grouped_kv_tensors(entries, kv_head_count) do
@@ -466,8 +463,32 @@ defmodule Llamex.Backend.NxEXLA do
           Enum.at(cached_values, head_index)
         end)
 
-      {head_index, {tensor(keys), tensor(values)}}
+      {head_index, {stack_tensors(keys), stack_tensors(values)}}
     end)
+  end
+
+  defp rope_tensor(vector, position, theta, dimension_count, nx) do
+    vector = tensor(vector)
+    vector_size = vector |> shape() |> elem(0)
+    dimension_count = dimension_count || vector_size - rem(vector_size, 2)
+
+    cond do
+      dimension_count == 0 ->
+        vector
+
+      dimension_count > vector_size ->
+        raise ArgumentError, "RoPE dimension count cannot exceed vector length"
+
+      rem(dimension_count, 2) != 0 ->
+        raise ArgumentError, "RoPE vector length must be even"
+
+      true ->
+        apply_rope_tensor(vector, position, theta, dimension_count, nx)
+    end
+  end
+
+  defp stack_tensors(tensors) do
+    apply(nx!(), :stack, [Enum.map(tensors, &tensor/1), [axis: 0]])
   end
 
   defp split_tensor_heads(vector, head_count, nx) do
