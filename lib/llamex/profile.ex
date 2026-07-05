@@ -277,7 +277,8 @@ defmodule Llamex.Profile do
       output_norm_tensor?: tensor?(model.output_norm),
       output_weight_tensor?: tensor?(get_in(model.output, [:weight])),
       prepared_kv_cache_entries: map_size(context.kv_cache.prepared_layers),
-      nx_exla_cache: Llamex.Backend.NxEXLA.cache_stats()
+      nx_exla_cache: Llamex.Backend.NxEXLA.cache_stats(),
+      nx_exla_prepare: Llamex.Backend.NxEXLA.prepare_stats()
     }
   end
 

@@ -18,6 +18,7 @@ defmodule Llamex.Backend.NxEXLA do
   }
   @config_key {__MODULE__, :configured}
   @rope_trig_cache_key {__MODULE__, :rope_trig_cache}
+  @prepare_stats_key {__MODULE__, :prepare_stats}
 
   @doc """
   Configures Nx to allocate tensors on EXLA for the selected target.
@@ -83,8 +84,13 @@ defmodule Llamex.Backend.NxEXLA do
     }
   end
 
+  def prepare_stats do
+    Process.get(@prepare_stats_key, %{})
+  end
+
   def clear_process_caches do
     Process.delete(@rope_trig_cache_key)
+    Process.delete(@prepare_stats_key)
     :ok
   end
 
@@ -95,12 +101,39 @@ defmodule Llamex.Backend.NxEXLA do
 
   @impl true
   def prepare_model(model) do
+    {total_microseconds, {model, stats}} =
+      :timer.tc(fn ->
+        {token_embeddings_time, model} =
+          timed_prepare_step(fn -> maybe_prepare_token_embeddings(model) end)
+
+        {layers_time, model} =
+          timed_prepare_step(fn ->
+            Map.update!(model, :layers, &Enum.map(&1, fn layer -> prepare_layer(layer) end))
+          end)
+
+        {output_norm_time, model} =
+          timed_prepare_step(fn -> Map.update(model, :output_norm, nil, &prepare_norm/1) end)
+
+        {output_time, model} =
+          timed_prepare_step(fn -> Map.update!(model, :output, &prepare_output/1) end)
+
+        {tied_output_time, model} =
+          timed_prepare_step(fn -> maybe_prepare_tied_output(model) end)
+
+        stats = %{
+          token_embeddings_milliseconds: token_embeddings_time,
+          layers_milliseconds: layers_time,
+          output_norm_milliseconds: output_norm_time,
+          output_milliseconds: output_time,
+          tied_output_milliseconds: tied_output_time
+        }
+
+        {model, stats}
+      end)
+
+    stats = Map.put(stats, :total_milliseconds, div(total_microseconds, 1000))
+    Process.put(@prepare_stats_key, stats)
     model
-    |> maybe_prepare_token_embeddings()
-    |> Map.update!(:layers, &Enum.map(&1, fn layer -> prepare_layer(layer) end))
-    |> Map.update(:output_norm, nil, &prepare_norm/1)
-    |> Map.update!(:output, &prepare_output/1)
-    |> maybe_prepare_tied_output()
   end
 
   @impl true
@@ -430,6 +463,12 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   defp normalize_target(target) when is_atom(target), do: target
+
+  defp timed_prepare_step(fun) when is_function(fun, 0) do
+    {microseconds, result} = :timer.tc(fun)
+
+    {div(microseconds, 1000), result}
+  end
 
   defp maybe_prepare_token_embeddings(%{output: nil, token_embeddings: token_embeddings} = model) do
     %{model | token_embeddings: prepare_token_embeddings(token_embeddings)}
