@@ -179,6 +179,9 @@ GGUF compatibility can be inspected without loading tensor data:
 mix llamex.gguf.inspect model.gguf
 ```
 
+The inspection output includes chat template support and missing marker tokens,
+which is the fastest way to decide whether `--chat` is safe for a checkpoint.
+
 An existing tiny GGUF model can be smoke-tested without checking the model file
 into the repository:
 

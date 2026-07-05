@@ -35,6 +35,7 @@ defmodule Llamex.GGUF.Diagnostic do
       metadata_count: gguf.metadata_count,
       architecture: metadata_value(gguf.metadata, "general.architecture"),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
+      chat_template: chat_template_status(gguf.metadata),
       missing_chat_template_tokens: missing_chat_template_tokens(gguf.metadata),
       tensor_element_count: tensor_element_count(gguf.tensors),
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
@@ -51,6 +52,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
+      "chat template: #{diagnostic.chat_template}",
       format_missing_chat_template_tokens(diagnostic.missing_chat_template_tokens),
       "tensor elements: #{diagnostic.tensor_element_count}",
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
@@ -103,6 +105,16 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp tensor_type_name(type), do: Map.get(@supported_tensor_types, type, "type_#{type}")
+
+  defp chat_template_status(metadata) do
+    case metadata_value(metadata, "tokenizer.chat_template") do
+      nil ->
+        "none"
+
+      template ->
+        if Llamex.ChatTemplate.supported?(template), do: "supported", else: "unsupported"
+    end
+  end
 
   defp missing_chat_template_tokens(metadata) do
     template = metadata_value(metadata, "tokenizer.chat_template")

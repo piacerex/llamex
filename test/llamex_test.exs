@@ -625,6 +625,7 @@ defmodule LlamexTest do
     assert diagnostic.eager_f32_bytes == 16
     assert diagnostic.supported_tensor_types == %{}
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
+    assert diagnostic.chat_template == "none"
     assert diagnostic.missing_chat_template_tokens == []
 
     assert diagnostic.unsupported_tensors == [
@@ -670,7 +671,10 @@ defmodule LlamexTest do
   test "diagnoses chat templates with missing marker tokens" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_chat_template_gguf())
 
+    assert diagnostic.chat_template == "supported"
     assert diagnostic.missing_chat_template_tokens == ["<|im_start|>", "<|im_end|>"]
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template: supported"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "chat template missing tokens: <|im_start|>, <|im_end|>"
