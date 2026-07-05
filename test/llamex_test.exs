@@ -1221,6 +1221,79 @@ defmodule LlamexTest do
     end
   end
 
+  test "natural baseline task runs the current gate" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-natural-baseline-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 9, "embedding_size" => 9},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "hello",
+        "vocab" => %{
+          "hello" => 0,
+          "a" => 1,
+          "b" => 2,
+          "c" => 3,
+          "d" => 4,
+          "e" => 5,
+          "f" => 6,
+          "g" => 7,
+          "." => 8
+        }
+      },
+      "token_embeddings" => %{
+        "0" => [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "1" => [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "2" => [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "3" => [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "4" => [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+        "5" => [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+        "6" => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+        "7" => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+        "8" => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+      },
+      "output" => %{
+        "weight" => [
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 3.0]
+        ]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Natural.Baseline.run([
+            path,
+            "--json",
+            "--prompt",
+            "hello"
+          ])
+        end)
+
+      [result] = JSON.decode!(String.trim(output))
+
+      assert result["ok"] == true
+      assert result["issues"] == []
+      assert result["text"] == "a b c d e f g ."
+    after
+      File.rm(path)
+    end
+  end
+
   test "natural smoke check reports raw sentencepiece markers" do
     assert Llamex.Natural.smoke_check(%{}, [], "hello▁world") == %{
              ok: false,

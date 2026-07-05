@@ -18,7 +18,7 @@ mix llamex.generate model.gguf "Hello" 8 --natural --stop-control --profile
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx
 mix llamex.generate model.gguf "Hello" 8 --natural
 mix llamex.tokenize model.gguf "Elixir is"
-mix llamex.natural.smoke model.gguf 3 --json --min-words 2 --fail-on-issue
+mix llamex.natural.baseline model.gguf --json
 ```
 
 ## Backends
@@ -212,6 +212,9 @@ alphanumeric fragment.
 Add `--complete-open-ending N` to let the smoke task generate up to `N` extra
 tokens when that open ending is detected.
 Add `--fail-on-issue` to make the task raise when any prompt reports issues.
+Use `mix llamex.natural.baseline MODEL --json` for the current stricter GGUF
+baseline gate: 8 initial tokens, at least 4 generated word fragments,
+open-ending rejection, up to 4 completion tokens, and fail-on-issue enabled.
 
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
