@@ -106,10 +106,10 @@ defmodule Llamex.Backend.NxEXLA do
         {token_embeddings_time, model} =
           timed_prepare_step(fn -> maybe_prepare_token_embeddings(model) end)
 
-        {layers_time, model} =
-          timed_prepare_step(fn ->
-            Map.update!(model, :layers, &Enum.map(&1, fn layer -> prepare_layer(layer) end))
-          end)
+        {layers_time, {layers, layer_stats}} =
+          timed_prepare_step(fn -> prepare_layers(model.layers) end)
+
+        model = %{model | layers: layers}
 
         {output_norm_time, model} =
           timed_prepare_step(fn -> Map.update(model, :output_norm, nil, &prepare_norm/1) end)
@@ -123,6 +123,8 @@ defmodule Llamex.Backend.NxEXLA do
         stats = %{
           token_embeddings_milliseconds: token_embeddings_time,
           layers_milliseconds: layers_time,
+          layer_combine_milliseconds: layer_stats.combine_milliseconds,
+          layer_tensor_milliseconds: layer_stats.tensor_milliseconds,
           output_norm_milliseconds: output_norm_time,
           output_milliseconds: output_time,
           tied_output_milliseconds: tied_output_time
@@ -519,20 +521,44 @@ defmodule Llamex.Backend.NxEXLA do
     end)
   end
 
-  defp prepare_layer(layer) do
-    layer =
-      layer
-      |> maybe_prepare_combined(:w_qkv, [:wq, :wk, :wv])
-      |> maybe_prepare_combined(:w_gate_up, [:w_gate, :w_up])
+  defp prepare_layers(layers) do
+    {layers, stats} =
+      Enum.map_reduce(layers, %{combine_milliseconds: 0, tensor_milliseconds: 0}, fn layer,
+                                                                                     stats ->
+        {layer, layer_stats} = prepare_layer_with_stats(layer)
 
-    layer
-    |> prepared_layer_tensor_keys()
-    |> Enum.reduce(layer, fn key, layer ->
-      case Map.fetch(layer, key) do
-        {:ok, weights} -> Map.put(layer, key, tensor(weights))
-        :error -> layer
-      end
-    end)
+        stats = %{
+          combine_milliseconds: stats.combine_milliseconds + layer_stats.combine_milliseconds,
+          tensor_milliseconds: stats.tensor_milliseconds + layer_stats.tensor_milliseconds
+        }
+
+        {layer, stats}
+      end)
+
+    {layers, stats}
+  end
+
+  defp prepare_layer_with_stats(layer) do
+    {combine_time, layer} =
+      timed_prepare_step(fn ->
+        layer
+        |> maybe_prepare_combined(:w_qkv, [:wq, :wk, :wv])
+        |> maybe_prepare_combined(:w_gate_up, [:w_gate, :w_up])
+      end)
+
+    {tensor_time, layer} =
+      timed_prepare_step(fn ->
+        layer
+        |> prepared_layer_tensor_keys()
+        |> Enum.reduce(layer, fn key, layer ->
+          case Map.fetch(layer, key) do
+            {:ok, weights} -> Map.put(layer, key, tensor(weights))
+            :error -> layer
+          end
+        end)
+      end)
+
+    {layer, %{combine_milliseconds: combine_time, tensor_milliseconds: tensor_time}}
   end
 
   defp prepared_layer_tensor_keys(layer) do
