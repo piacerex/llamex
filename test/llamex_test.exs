@@ -1037,6 +1037,15 @@ defmodule LlamexTest do
     assert result["prompt"] == "hello"
     assert result["text"] == "world"
     assert result["generated_tokens"] == [2]
+    assert result["ok"] == true
+    assert result["issues"] == []
+  end
+
+  test "natural smoke check reports raw sentencepiece markers" do
+    assert Llamex.Natural.smoke_check(%{}, [], "hello▁world") == %{
+             ok: false,
+             issues: ["raw sentencepiece marker in text"]
+           }
   end
 
   test "generate task can disable inferred stop token for profiling" do

@@ -22,6 +22,16 @@ defmodule Llamex.Natural do
     |> Enum.map(& &1.id)
   end
 
+  def smoke_check(model, generated_tokens, text)
+      when is_list(generated_tokens) and is_binary(text) do
+    issues =
+      []
+      |> add_issue(String.contains?(text, "▁"), "raw sentencepiece marker in text")
+      |> Kernel.++(token_issues(model, generated_tokens))
+
+    %{ok: issues == [], issues: issues}
+  end
+
   defp put_suppressed_tokens(sampler, model) do
     suppress_tokens = natural_suppressed_token_ids(model)
 
@@ -67,4 +77,36 @@ defmodule Llamex.Natural do
   end
 
   defp natural_suppressed_token?(_token), do: false
+
+  defp add_issue(issues, true, issue), do: [issue | issues]
+  defp add_issue(issues, false, _issue), do: issues
+
+  defp token_issues(%{tokenizer: nil}, _generated_tokens), do: []
+  defp token_issues(model, _generated_tokens) when not is_map_key(model, :tokenizer), do: []
+
+  defp token_issues(model, generated_tokens) do
+    suppressed = MapSet.new(natural_suppressed_token_ids(model))
+    token_types = Map.new(model.tokenizer.token_types, &{&1.id, &1})
+
+    generated_tokens
+    |> Enum.flat_map(fn token ->
+      cond do
+        MapSet.member?(suppressed, token) ->
+          [suppressed_token_issue(token, token_types)]
+
+        true ->
+          []
+      end
+    end)
+  end
+
+  defp suppressed_token_issue(token, token_types) do
+    case Map.fetch(token_types, token) do
+      {:ok, %{type: type, token: piece}} ->
+        "suppressed token generated: #{token}:#{piece}:#{type}"
+
+      :error ->
+        "suppressed token generated: #{token}"
+    end
+  end
 end

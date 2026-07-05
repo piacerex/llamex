@@ -59,11 +59,15 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
             sampler: sampler
           })
 
+        check = Llamex.Natural.smoke_check(model, result.generated_tokens, result.text)
+
         %{
           prompt: prompt,
           text: result.text,
           generated_tokens: result.generated_tokens,
-          finish_reason: result.finish_reason
+          finish_reason: result.finish_reason,
+          ok: check.ok,
+          issues: check.issues
         }
       end)
 
@@ -104,7 +108,8 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
   defp print_results(results, _options) do
     Enum.each(results, fn result ->
-      Mix.shell().info("#{result.prompt} => #{result.text}")
+      status = if result.ok, do: "ok", else: "issue"
+      Mix.shell().info("[#{status}] #{result.prompt} => #{result.text}")
     end)
   end
 end

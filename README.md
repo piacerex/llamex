@@ -201,7 +201,8 @@ Use `--chat` only after `mix llamex.gguf.inspect` reports that the chat template
 has no missing tokens. The generate task validates `.gguf --chat` from metadata
 before loading tensors, so incompatible chat templates fail quickly.
 Use `mix llamex.natural.smoke MODEL [max_new_tokens] --json` to run the current
-natural-generation baseline prompts after loading the model once.
+natural-generation baseline prompts after loading the model once. Smoke results
+include `ok` and `issues` fields for raw `▁` markers or suppressed token types.
 
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
