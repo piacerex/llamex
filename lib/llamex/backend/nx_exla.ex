@@ -224,6 +224,13 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
+  def attend_heads(query_heads, entries, head_count, 1)
+      when is_list(query_heads) and is_list(entries) and is_integer(head_count) and
+             head_count > 0 do
+    attend_shared_kv_heads(query_heads, entries, head_count)
+  end
+
+  @impl true
   def attend_heads(query_heads, entries, head_count, kv_head_count)
       when is_list(query_heads) and is_list(entries) and is_integer(head_count) and
              head_count > 0 and is_integer(kv_head_count) and kv_head_count > 0 do
@@ -622,6 +629,25 @@ defmodule Llamex.Backend.NxEXLA do
     |> then(&apply(nx, :dot, [&1, values]))
   end
 
+  defp attend_shared_kv_heads(query_heads, entries, head_count) do
+    nx = nx!()
+    queries = stack_tensors(query_heads)
+    {_head_count, head_size} = shape(queries)
+    keys = entries |> Enum.map(fn {[key], _values} -> key end) |> stack_tensors()
+    values = entries |> Enum.map(fn {_keys, [value]} -> value end) |> stack_tensors()
+    scale = 1.0 / :math.sqrt(head_size)
+
+    weights =
+      queries
+      |> then(&apply(nx, :dot, [&1, apply(nx, :transpose, [keys])]))
+      |> then(&apply(nx, :multiply, [&1, scale]))
+      |> softmax_rows(nx)
+
+    weights
+    |> then(&apply(nx, :dot, [&1, values]))
+    |> then(&apply(nx, :reshape, [&1, {head_count * head_size}]))
+  end
+
   defp rope_angles(position, theta, dimension_count, half) do
     Enum.map(0..(half - 1), fn pair_index ->
       position / :math.pow(theta, 2 * pair_index / dimension_count)
@@ -635,6 +661,19 @@ defmodule Llamex.Backend.NxEXLA do
       |> then(&apply(nx, :exp, [&1]))
 
     apply(nx, :divide, [exps, apply(nx, :sum, [exps])])
+  end
+
+  defp softmax_rows(values, nx) do
+    max = apply(nx, :reduce_max, [values, [axes: [1], keep_axes: true]])
+
+    exps =
+      values
+      |> then(&apply(nx, :subtract, [&1, max]))
+      |> then(&apply(nx, :exp, [&1]))
+
+    total = apply(nx, :sum, [exps, [axes: [1], keep_axes: true]])
+
+    apply(nx, :divide, [exps, total])
   end
 
   defp apply_repetition_penalty_tensor(logits, opts, vocab_size, nx) do
