@@ -623,6 +623,8 @@ defmodule LlamexTest do
           Llamex.Backend.NxEXLA
         )
 
+      nx_output = Llamex.Backend.NxEXLA.to_list(nx_output)
+
       assert_in_delta Enum.at(nx_output, 0), Enum.at(list_output, 0), 1.0e-6
       assert_in_delta Enum.at(nx_output, 1), Enum.at(list_output, 1), 1.0e-6
     end

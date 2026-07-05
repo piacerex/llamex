@@ -4,7 +4,6 @@ defmodule Llamex.Layers.Attention do
   """
 
   alias Llamex.{KVCache, Tensor}
-  alias Llamex.Layers.Linear
 
   def forward(
         input,
@@ -37,7 +36,7 @@ defmodule Llamex.Layers.Attention do
     output =
       query_heads
       |> backend.attend_heads(entries, head_count, kv_head_count)
-      |> Linear.forward(Map.fetch!(layer, :wo), backend)
+      |> then(&backend.matvec_tensor(Map.fetch!(layer, :wo), &1))
 
     {cache, output}
   end
