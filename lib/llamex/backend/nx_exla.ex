@@ -216,7 +216,9 @@ defmodule Llamex.Backend.NxEXLA do
 
   @impl true
   def attend_head(query, keys, values) do
-    attend_head_tensors(query, tensor(keys), tensor(values))
+    query
+    |> attend_head_tensors(tensor(keys), tensor(values))
+    |> to_list()
   end
 
   @impl true
@@ -225,12 +227,15 @@ defmodule Llamex.Backend.NxEXLA do
              head_count > 0 and is_integer(kv_head_count) and kv_head_count > 0 do
     cache = grouped_kv_tensors(entries, kv_head_count)
 
-    query_heads
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {query, head_index} ->
-      {keys, values} = Map.fetch!(cache, div(head_index * kv_head_count, head_count))
-      attend_head_tensors(query, keys, values)
-    end)
+    heads =
+      query_heads
+      |> Enum.with_index()
+      |> Enum.map(fn {query, head_index} ->
+        {keys, values} = Map.fetch!(cache, div(head_index * kv_head_count, head_count))
+        attend_head_tensors(query, keys, values)
+      end)
+
+    apply(nx!(), :concatenate, [heads, [axis: 0]])
   end
 
   @impl true
@@ -518,7 +523,6 @@ defmodule Llamex.Backend.NxEXLA do
 
     weights
     |> then(&apply(nx, :dot, [&1, values]))
-    |> then(&apply(nx, :to_flat_list, [&1]))
   end
 
   defp rope_angles(position, theta, dimension_count, half) do

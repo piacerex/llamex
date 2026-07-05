@@ -432,7 +432,11 @@ defmodule LlamexTest do
       result = Llamex.Backend.NxEXLA.attend_heads(query_heads, entries, 2, 1)
       expected = Llamex.Backend.List.attend_heads(query_heads, entries, 2, 1)
 
-      Enum.zip(result, expected)
+      assert match?(%Nx.Tensor{}, result)
+
+      result
+      |> Llamex.Backend.NxEXLA.to_list()
+      |> Enum.zip(expected)
       |> Enum.each(fn {actual, expected} ->
         assert_in_delta actual, expected, 1.0e-6
       end)

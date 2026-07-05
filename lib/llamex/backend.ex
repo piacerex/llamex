@@ -42,7 +42,7 @@ defmodule Llamex.Backend do
               pos_integer(),
               pos_integer()
             ) ::
-              list(number())
+              tensor()
   @callback add(tensor(), tensor()) :: tensor()
   @callback argmax(tensor()) :: non_neg_integer()
   @callback to_list(tensor()) :: list(number())
