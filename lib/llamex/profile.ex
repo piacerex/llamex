@@ -69,7 +69,7 @@ defmodule Llamex.Profile do
     backend = Map.get(opts, :backend, Llamex.Backend.List)
     sampler = Map.get(opts, :sampler, :greedy)
     max_new_tokens = Map.get(opts, :max_new_tokens, 1)
-    stop_token = Map.get(opts, :stop_token)
+    stop_tokens = stop_tokens(opts)
 
     {prefill_time, state} =
       timed("prefill", fn ->
@@ -99,12 +99,12 @@ defmodule Llamex.Profile do
               timing: step_time
             })
 
-          finish_reason = if step.token == stop_token, do: :stop, else: :length
+          finish_reason = if stop_token?(step.token, stop_tokens), do: :stop, else: :length
 
           next_state =
             {[step_info | steps], step.context, step.token, step.sampler_state, finish_reason}
 
-          if step.token == stop_token do
+          if stop_token?(step.token, stop_tokens) do
             {:halt, next_state}
           else
             {:cont, next_state}
@@ -118,7 +118,8 @@ defmodule Llamex.Profile do
     %{
       backend: backend,
       max_new_tokens: max_new_tokens,
-      stop_token: stop_token,
+      stop_token: List.first(stop_tokens),
+      stop_tokens: stop_tokens,
       sampler: sampler,
       prompt_tokens: length(state.prompt_tokens),
       prompt_token_ids: state.prompt_tokens,
@@ -136,6 +137,13 @@ defmodule Llamex.Profile do
   defp token_pieces(model, token_ids) do
     Enum.map(token_ids, &Map.fetch!(model.tokenizer.id_to_token, &1))
   end
+
+  defp stop_tokens(%{stop_tokens: stop_tokens}) when is_list(stop_tokens), do: stop_tokens
+  defp stop_tokens(%{stop_token: nil}), do: []
+  defp stop_tokens(%{stop_token: stop_token}) when is_integer(stop_token), do: [stop_token]
+  defp stop_tokens(_opts), do: []
+
+  defp stop_token?(token, stop_tokens), do: token in stop_tokens
 
   defp token_info(model, token_id) do
     model.tokenizer

@@ -52,7 +52,7 @@ defmodule Llamex.ModelLoader do
           Map.fetch!(tokenizer, "vocab"),
           Map.fetch!(tokenizer, "unknown_token"),
           special_tokens: atomize_special_tokens(Map.get(tokenizer, "special_tokens", %{})),
-          token_types: atomize_value(Map.get(tokenizer, "token_types", [])),
+          token_types: atomize_token_types(Map.get(tokenizer, "token_types", [])),
           chat_template: Map.get(tokenizer, "chat_template")
         )
 
@@ -62,7 +62,7 @@ defmodule Llamex.ModelLoader do
           Map.fetch!(tokenizer, "merges"),
           Map.fetch!(tokenizer, "unknown_token"),
           special_tokens: atomize_special_tokens(Map.get(tokenizer, "special_tokens", %{})),
-          token_types: atomize_value(Map.get(tokenizer, "token_types", [])),
+          token_types: atomize_token_types(Map.get(tokenizer, "token_types", [])),
           chat_template: Map.get(tokenizer, "chat_template")
         )
 
@@ -203,6 +203,20 @@ defmodule Llamex.ModelLoader do
       {atomize_key(key), atomize_value(value)}
     end)
   end
+
+  defp atomize_token_types(token_types) when is_list(token_types) do
+    Enum.map(token_types, fn token_type ->
+      token_type
+      |> atomize_value()
+      |> normalize_token_type()
+    end)
+  end
+
+  defp normalize_token_type(%{type: type} = token_type) when is_binary(type) do
+    %{token_type | type: atomize_key(type)}
+  end
+
+  defp normalize_token_type(token_type), do: token_type
 
   defp atomize_key(key) when is_atom(key), do: key
   defp atomize_key(key) when is_binary(key), do: String.to_atom(key)

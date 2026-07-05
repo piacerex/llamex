@@ -378,6 +378,31 @@ defmodule LlamexTest do
     assert result.context.tokens == [1]
   end
 
+  test "generates until any configured stop token" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 2,
+        stop_tokens: [0, 2]
+      })
+
+    assert result.generated_tokens == [2]
+    assert result.finish_reason == :stop
+  end
+
   test "prefills and steps generation with a loaded model" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -484,6 +509,7 @@ defmodule LlamexTest do
     assert profile.backend == Llamex.Backend.List
     assert profile.max_new_tokens == 2
     assert profile.stop_token == nil
+    assert profile.stop_tokens == []
     assert profile.sampler == :greedy
     assert profile.generated_tokens == [2, 2]
     assert profile.generated_pieces == ["world", "world"]
@@ -735,6 +761,62 @@ defmodule LlamexTest do
       profile = JSON.decode!(String.trim(output))
 
       assert profile["generated_tokens"] == [2]
+      assert profile["stop_tokens"] == [2]
+      assert profile["finish_reason"] == "stop"
+    after
+      File.rm(path)
+    end
+  end
+
+  test "generate task can stop on generated control tokens" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-stop-control-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 3, "embedding_size" => 2},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "vocab" => %{"<unk>" => 0, "hello" => 1, "<ctrl>" => 2},
+        "token_types" => [
+          %{"id" => 0, "token" => "<unk>", "type" => "unknown", "type_id" => 2},
+          %{"id" => 1, "token" => "hello", "type" => "normal", "type_id" => 1},
+          %{"id" => 2, "token" => "<ctrl>", "type" => "control", "type_id" => 3}
+        ]
+      },
+      "token_embeddings" => %{
+        "0" => [0.0, 0.0],
+        "1" => [1.0, 0.0],
+        "2" => [2.0, 0.0]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Generate.run([
+            path,
+            "hello",
+            "3",
+            "--profile",
+            "--stop-control"
+          ])
+        end)
+
+      profile = JSON.decode!(String.trim(output))
+
+      assert profile["generated_tokens"] == [2]
+
+      assert profile["generated_token_info"] == [
+               %{"token" => 2, "piece" => "<ctrl>", "type" => "control", "type_id" => 3}
+             ]
+
+      assert profile["stop_tokens"] == [2]
       assert profile["finish_reason"] == "stop"
     after
       File.rm(path)

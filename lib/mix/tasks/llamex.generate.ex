@@ -27,6 +27,7 @@ defmodule Mix.Tasks.Llamex.Generate do
           stop_token: :integer,
           stop_piece: :string,
           stop_special: :string,
+          stop_control: :boolean,
           no_stop: :boolean
         ],
         aliases: [t: :temperature, k: :top_k, p: :top_p, s: :seed]
@@ -92,6 +93,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> Map.delete(:stop_token)
     |> Map.delete(:stop_piece)
     |> Map.delete(:stop_special)
+    |> Map.delete(:stop_control)
     |> Map.delete(:no_stop)
   end
 
@@ -129,6 +131,32 @@ defmodule Mix.Tasks.Llamex.Generate do
       model.tokenizer.token_to_id["world"]
   end
 
+  defp stop_tokens(_model, %{no_stop: true}), do: []
+
+  defp stop_tokens(model, options) do
+    model
+    |> explicit_stop_tokens(options)
+    |> Kernel.++(control_stop_tokens(model, options))
+    |> Enum.uniq()
+  end
+
+  defp explicit_stop_tokens(model, options) do
+    case stop_token(model, options) do
+      nil -> []
+      stop_token -> [stop_token]
+    end
+  end
+
+  defp control_stop_tokens(%{tokenizer: nil}, _options), do: []
+
+  defp control_stop_tokens(model, %{stop_control: true}) do
+    model.tokenizer.token_types
+    |> Enum.filter(&(&1.type == :control))
+    |> Enum.map(& &1.id)
+  end
+
+  defp control_stop_tokens(_model, _options), do: []
+
   defp special_token_key("unknown"), do: :unknown
   defp special_token_key("bos"), do: :bos
   defp special_token_key("eos"), do: :eos
@@ -147,7 +175,7 @@ defmodule Mix.Tasks.Llamex.Generate do
       Llamex.Profile.generation_steps(model, prompt, %{
         backend: backend(options),
         max_new_tokens: max_new_tokens,
-        stop_token: stop_token(model, options),
+        stop_tokens: stop_tokens(model, options),
         sampler: sampler(options)
       })
       |> Map.put(:model_path, model_path)
@@ -162,7 +190,7 @@ defmodule Mix.Tasks.Llamex.Generate do
       Llamex.generate(model, prompt, %{
         backend: backend(options),
         max_new_tokens: max_new_tokens,
-        stop_token: stop_token(model, options),
+        stop_tokens: stop_tokens(model, options),
         sampler: sampler(options)
       })
 

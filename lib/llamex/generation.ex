@@ -49,7 +49,7 @@ defmodule Llamex.Generation do
       when is_binary(prompt) and is_map(opts) do
     backend = Map.fetch!(opts, :backend)
     max_new_tokens = Map.fetch!(opts, :max_new_tokens)
-    stop_token = Map.get(opts, :stop_token)
+    stop_tokens = stop_tokens(opts)
     sampler = Map.get(opts, :sampler, :greedy)
 
     if max_new_tokens < 0 do
@@ -66,7 +66,7 @@ defmodule Llamex.Generation do
         context,
         current_token,
         max_new_tokens,
-        stop_token,
+        stop_tokens,
         sampler,
         sampler_state,
         prompt_tokens,
@@ -101,7 +101,7 @@ defmodule Llamex.Generation do
          context,
          _current_token,
          0,
-         _stop_token,
+         _stop_tokens,
          _sampler,
          _sampler_state,
          _prompt_tokens,
@@ -114,7 +114,7 @@ defmodule Llamex.Generation do
          context,
          current_token,
          remaining,
-         stop_token,
+         stop_tokens,
          sampler,
          sampler_state,
          prompt_tokens,
@@ -131,14 +131,14 @@ defmodule Llamex.Generation do
         prompt_tokens ++ Enum.reverse(generated_tokens)
       )
 
-    if next_token == stop_token do
+    if stop_token?(next_token, stop_tokens) do
       {context, Enum.reverse([next_token | generated_tokens]), :stop}
     else
       generate_tokens(
         context,
         next_token,
         remaining - 1,
-        stop_token,
+        stop_tokens,
         sampler,
         sampler_state,
         prompt_tokens,
@@ -146,6 +146,13 @@ defmodule Llamex.Generation do
       )
     end
   end
+
+  defp stop_tokens(%{stop_tokens: stop_tokens}) when is_list(stop_tokens), do: stop_tokens
+  defp stop_tokens(%{stop_token: nil}), do: []
+  defp stop_tokens(%{stop_token: stop_token}) when is_integer(stop_token), do: [stop_token]
+  defp stop_tokens(_opts), do: []
+
+  defp stop_token?(token, stop_tokens), do: token in stop_tokens
 
   defp new_sampler_state(:greedy), do: nil
 
