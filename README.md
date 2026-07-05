@@ -8,6 +8,7 @@ Minimal Elixir LLM engine experiment.
 mix test
 mix llamex.generate priv/models/tiny.json hello 2
 mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --top-p 0.9 --seed 42
+mix llamex.generate priv/models/tiny.json hello 2 --profile
 mix llamex.generate priv/models/tiny.json hello 2 --backend nx
 mix llamex.generate model.gguf "Hello" 8 --natural
 ```

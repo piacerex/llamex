@@ -1,5 +1,6 @@
 defmodule LlamexTest do
   use ExUnit.Case
+  import ExUnit.CaptureIO
 
   test "runs one minimal greedy inference step" do
     model =
@@ -522,6 +523,21 @@ defmodule LlamexTest do
     after
       File.rm(path)
     end
+  end
+
+  test "generate task can print a generation profile" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run(["priv/models/tiny.json", "hello", "2", "--profile"])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert profile["prompt_tokens"] == 1
+    assert profile["generated_tokens"] == [2, 2]
+    assert profile["text"] == "world world"
+    assert Enum.map(profile["steps"], & &1["piece"]) == ["world", "world"]
+    assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1", "step_2"]
   end
 
   test "loads a tiny model from json" do

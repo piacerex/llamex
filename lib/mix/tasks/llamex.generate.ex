@@ -22,7 +22,8 @@ defmodule Mix.Tasks.Llamex.Generate do
           repetition_penalty: :float,
           seed: :integer,
           chat: :boolean,
-          natural: :boolean
+          natural: :boolean,
+          profile: :boolean
         ],
         aliases: [t: :temperature, k: :top_k, p: :top_p, s: :seed]
       )
@@ -48,15 +49,7 @@ defmodule Mix.Tasks.Llamex.Generate do
 
     prompt = maybe_apply_chat_template(model, prompt, options)
 
-    result =
-      Llamex.generate(model, prompt, %{
-        backend: backend(options),
-        max_new_tokens: max_new_tokens,
-        stop_token: stop_token(model),
-        sampler: sampler(options)
-      })
-
-    Mix.shell().info(result.text)
+    run_model(model, prompt, max_new_tokens, options)
   end
 
   defp run_generation(_args, _options) do
@@ -90,6 +83,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> Map.delete(:backend)
     |> Map.delete(:natural)
     |> Map.delete(:chat)
+    |> Map.delete(:profile)
   end
 
   defp backend(%{backend: "list"}), do: Llamex.Backend.List
@@ -105,6 +99,29 @@ defmodule Mix.Tasks.Llamex.Generate do
       model.tokenizer.token_to_id["<eos>"] ||
       model.tokenizer.token_to_id["</s>"] ||
       model.tokenizer.token_to_id["world"]
+  end
+
+  defp run_model(model, prompt, max_new_tokens, %{profile: true} = options) do
+    profile =
+      Llamex.Profile.generation_steps(model, prompt, %{
+        backend: backend(options),
+        max_new_tokens: max_new_tokens,
+        sampler: sampler(options)
+      })
+
+    Mix.shell().info(JSON.encode!(profile))
+  end
+
+  defp run_model(model, prompt, max_new_tokens, options) do
+    result =
+      Llamex.generate(model, prompt, %{
+        backend: backend(options),
+        max_new_tokens: max_new_tokens,
+        stop_token: stop_token(model),
+        sampler: sampler(options)
+      })
+
+    Mix.shell().info(result.text)
   end
 
   defp load_model(model_path) do
