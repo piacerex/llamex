@@ -86,9 +86,10 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
   defp prompts(_options), do: @default_prompts
 
   defp natural_sampler(model, options) do
-    options
-    |> Map.take([:temperature, :top_k, :top_p, :repetition_penalty, :seed])
-    |> Llamex.Natural.sampler(model)
+    sampler_options =
+      Map.take(options, [:temperature, :top_k, :top_p, :repetition_penalty, :seed])
+
+    Llamex.Natural.sampler(model, sampler_options)
   end
 
   defp backend(%{backend: "list"}), do: Llamex.Backend.List

@@ -202,7 +202,8 @@ has no missing tokens. The generate task validates `.gguf --chat` from metadata
 before loading tensors, so incompatible chat templates fail quickly.
 Use `mix llamex.natural.smoke MODEL [max_new_tokens] --json` to run the current
 natural-generation baseline prompts after loading the model once. Smoke results
-include `ok` and `issues` fields for raw `▁` markers or suppressed token types.
+include `ok` and `issues` fields for raw `▁` markers, suppressed token types, or
+punctuation-only output.
 Add `--fail-on-issue` to make the task raise when any prompt reports issues.
 
 Current GGUF generation baseline on

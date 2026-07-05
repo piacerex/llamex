@@ -27,6 +27,7 @@ defmodule Llamex.Natural do
     issues =
       []
       |> add_issue(String.contains?(text, "▁"), "raw sentencepiece marker in text")
+      |> add_issue(not text_content?(text), "no alphanumeric text generated")
       |> Kernel.++(token_issues(model, generated_tokens))
 
     %{ok: issues == [], issues: issues}
@@ -80,6 +81,8 @@ defmodule Llamex.Natural do
 
   defp add_issue(issues, true, issue), do: [issue | issues]
   defp add_issue(issues, false, _issue), do: issues
+
+  defp text_content?(text), do: Regex.match?(~r/[[:alnum:]]/u, text)
 
   defp token_issues(%{tokenizer: nil}, _generated_tokens), do: []
   defp token_issues(model, _generated_tokens) when not is_map_key(model, :tokenizer), do: []

@@ -1041,10 +1041,67 @@ defmodule LlamexTest do
     assert result["issues"] == []
   end
 
+  test "natural smoke task applies natural token suppression" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-natural-suppress-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 3, "embedding_size" => 2},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "vocab" => %{"<unk>" => 0, "hello" => 1, "world" => 2},
+        "token_types" => [
+          %{"id" => 0, "token" => "<unk>", "type" => "unknown", "type_id" => 2},
+          %{"id" => 1, "token" => "hello", "type" => "normal", "type_id" => 1},
+          %{"id" => 2, "token" => "world", "type" => "normal", "type_id" => 1}
+        ]
+      },
+      "token_embeddings" => %{
+        "0" => [3.0, 0.0],
+        "1" => [1.0, 0.0],
+        "2" => [2.0, 0.0]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Natural.Smoke.run([
+            path,
+            "1",
+            "--json",
+            "--prompt",
+            "hello"
+          ])
+        end)
+
+      [result] = JSON.decode!(String.trim(output))
+
+      assert result["text"] == "world"
+      assert result["generated_tokens"] == [2]
+      assert result["ok"] == true
+    after
+      File.rm(path)
+    end
+  end
+
   test "natural smoke check reports raw sentencepiece markers" do
     assert Llamex.Natural.smoke_check(%{}, [], "hello▁world") == %{
              ok: false,
              issues: ["raw sentencepiece marker in text"]
+           }
+  end
+
+  test "natural smoke check reports punctuation-only output" do
+    assert Llamex.Natural.smoke_check(%{}, [], ".") == %{
+             ok: false,
+             issues: ["no alphanumeric text generated"]
            }
   end
 
