@@ -466,6 +466,35 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs multi-kv grouped attention heads through nx_exla backend when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      query_heads = [[1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.5, 1.0]]
+
+      entries = [
+        {
+          [[1.0, 0.0], [0.0, 1.0]],
+          [[2.0, 0.0], [0.0, 4.0]]
+        },
+        {
+          [[0.5, 0.5], [1.0, 1.0]],
+          [[1.0, 3.0], [3.0, 1.0]]
+        }
+      ]
+
+      result = Llamex.Backend.NxEXLA.attend_heads(query_heads, entries, 4, 2)
+      expected = Llamex.Backend.List.attend_heads(query_heads, entries, 4, 2)
+
+      assert match?(%Nx.Tensor{}, result)
+
+      result
+      |> Llamex.Backend.NxEXLA.to_list()
+      |> Enum.zip(expected)
+      |> Enum.each(fn {actual, expected} ->
+        assert_in_delta actual, expected, 1.0e-6
+      end)
+    end
+  end
+
   test "runs top k matvec through nx_exla backend when Nx is available" do
     if Code.ensure_loaded?(Nx) do
       rows = Llamex.Backend.NxEXLA.from_list([[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]])
