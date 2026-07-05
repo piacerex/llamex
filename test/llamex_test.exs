@@ -624,6 +624,38 @@ defmodule LlamexTest do
     assert profile["finish_reason"] == "stop"
   end
 
+  test "generate task can use an explicit stop piece" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello",
+          "2",
+          "--profile",
+          "--stop-piece",
+          "world"
+        ])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert profile["generated_tokens"] == [2]
+    assert profile["finish_reason"] == "stop"
+  end
+
+  test "generate task rejects unknown stop pieces" do
+    assert_raise Mix.Error, ~r/stop piece not found in tokenizer vocab: missing/, fn ->
+      Mix.Tasks.Llamex.Generate.run([
+        "priv/models/tiny.json",
+        "hello",
+        "2",
+        "--profile",
+        "--stop-piece",
+        "missing"
+      ])
+    end
+  end
+
   test "tokenize task prints token ids and pieces" do
     output =
       capture_io(fn ->

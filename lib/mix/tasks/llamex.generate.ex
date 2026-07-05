@@ -25,6 +25,7 @@ defmodule Mix.Tasks.Llamex.Generate do
           natural: :boolean,
           profile: :boolean,
           stop_token: :integer,
+          stop_piece: :string,
           no_stop: :boolean
         ],
         aliases: [t: :temperature, k: :top_k, p: :top_p, s: :seed]
@@ -87,6 +88,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> Map.delete(:chat)
     |> Map.delete(:profile)
     |> Map.delete(:stop_token)
+    |> Map.delete(:stop_piece)
     |> Map.delete(:no_stop)
   end
 
@@ -99,6 +101,13 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp stop_token(_model, %{no_stop: true}), do: nil
 
   defp stop_token(_model, %{stop_token: stop_token}), do: stop_token
+
+  defp stop_token(model, %{stop_piece: piece}) do
+    tokenizer = model.tokenizer || Mix.raise("--stop-piece requires a model tokenizer")
+
+    Map.get(tokenizer.token_to_id, piece) ||
+      Mix.raise("stop piece not found in tokenizer vocab: #{piece}")
+  end
 
   defp stop_token(%{tokenizer: nil}, _options), do: nil
 
