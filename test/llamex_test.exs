@@ -584,6 +584,9 @@ defmodule LlamexTest do
 
     profile = JSON.decode!(String.trim(output))
 
+    assert profile["model_path"] == "priv/models/tiny.json"
+    assert profile["original_prompt"] == "hello"
+    assert profile["prompt"] == "hello"
     assert profile["prompt_tokens"] == 1
     assert profile["backend"] == "Elixir.Llamex.Backend.List"
     assert profile["max_new_tokens"] == 2
