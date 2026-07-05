@@ -13,6 +13,7 @@ defmodule Llamex.Layers.Attention do
         layer_index,
         position,
         rope_theta,
+        rope_dimension_count \\ nil,
         backend \\ Llamex.Backend.List
       )
       when is_list(input) and is_map(layer) and is_integer(layer_index) do
@@ -22,14 +23,14 @@ defmodule Llamex.Layers.Attention do
     query_heads =
       input
       |> Linear.forward(Map.fetch!(layer, :wq), backend)
-      |> RoPE.apply(position, rope_theta)
       |> split_heads(head_count)
+      |> apply_rope(position, rope_theta, rope_dimension_count)
 
     key_heads =
       input
       |> Linear.forward(Map.fetch!(layer, :wk), backend)
-      |> RoPE.apply(position, rope_theta)
       |> split_heads(kv_head_count)
+      |> apply_rope(position, rope_theta, rope_dimension_count)
 
     value_heads =
       input
@@ -55,6 +56,10 @@ defmodule Llamex.Layers.Attention do
 
   defp split_heads(vector, head_count) do
     Tensor.split_every(vector, div(length(vector), head_count))
+  end
+
+  defp apply_rope(heads, position, rope_theta, rope_dimension_count) do
+    Enum.map(heads, &RoPE.apply(&1, position, rope_theta, rope_dimension_count))
   end
 
   defp attend_head(query, entries, head_index) do

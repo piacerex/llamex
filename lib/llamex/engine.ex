@@ -62,6 +62,7 @@ defmodule Llamex.Engine do
           layer_index,
           position,
           context.model.config.rope_theta,
+          context.model.config.rope_dimension_count,
           context.backend
         )
 

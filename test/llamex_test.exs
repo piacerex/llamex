@@ -168,6 +168,14 @@ defmodule LlamexTest do
     assert Llamex.Layers.RoPE.apply([1.0, 2.0], 0, 10_000.0) == [1.0, 2.0]
   end
 
+  test "applies RoPE to split rotary dimensions and preserves the tail" do
+    [x0, x1, tail] = Llamex.Layers.RoPE.apply([1.0, 0.0, 3.0], 1, 10_000.0, 2)
+
+    assert_in_delta x0, :math.cos(1.0), 1.0e-12
+    assert_in_delta x1, :math.sin(1.0), 1.0e-12
+    assert tail == 3.0
+  end
+
   test "backend list dot checks vector lengths in one pass" do
     assert Llamex.Backend.List.dot([1.0, 2.0], [3.0, 4.0]) == 11.0
 

@@ -3,21 +3,38 @@ defmodule Llamex.Layers.RoPE do
   Rotary positional embedding for query and key vectors.
   """
 
-  def apply(vector, position, theta)
+  def apply(vector, position, theta, dimension_count \\ nil)
       when is_list(vector) and is_integer(position) and position >= 0 and is_number(theta) do
-    if rem(length(vector), 2) != 0 do
-      raise ArgumentError, "RoPE vector length must be even"
+    dimension_count = dimension_count || length(vector) - rem(length(vector), 2)
+
+    if dimension_count == 0 do
+      vector
+    else
+      if dimension_count > length(vector) do
+        raise ArgumentError, "RoPE dimension count cannot exceed vector length"
+      end
+
+      if rem(dimension_count, 2) != 0 do
+        raise ArgumentError, "RoPE vector length must be even"
+      end
+
+      {rotary, pass_through} = Enum.split(vector, dimension_count)
+      half = div(dimension_count, 2)
+      {left, right} = Enum.split(rotary, half)
+
+      rotated =
+        left
+        |> Enum.zip(right)
+        |> Enum.with_index()
+        |> Enum.flat_map(fn {{x0, x1}, pair_index} ->
+          angle = position / :math.pow(theta, 2 * pair_index / dimension_count)
+          cos = :math.cos(angle)
+          sin = :math.sin(angle)
+
+          [x0 * cos - x1 * sin, x0 * sin + x1 * cos]
+        end)
+
+      rotated ++ pass_through
     end
-
-    vector
-    |> Enum.chunk_every(2)
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {[x0, x1], pair_index} ->
-      angle = position / :math.pow(theta, 2 * pair_index / length(vector))
-      cos = :math.cos(angle)
-      sin = :math.sin(angle)
-
-      [x0 * cos - x1 * sin, x0 * sin + x1 * cos]
-    end)
   end
 end

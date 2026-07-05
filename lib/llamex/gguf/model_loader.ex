@@ -29,6 +29,7 @@ defmodule Llamex.GGUF.ModelLoader do
       "context_size" => metadata_value(metadata, "llama.context_length", nil),
       "epsilon" => metadata_value(metadata, "llama.attention.layer_norm_rms_epsilon", 1.0e-6),
       "rope_theta" => metadata_value(metadata, "llama.rope.freq_base", 10_000.0),
+      "rope_dimension_count" => metadata_value(metadata, "llama.rope.dimension_count", nil),
       "block_count" => metadata_value(metadata, "llama.block_count", nil),
       "attention_head_count" => metadata_value(metadata, "llama.attention.head_count", nil),
       "attention_head_count_kv" => metadata_value(metadata, "llama.attention.head_count_kv", nil),
