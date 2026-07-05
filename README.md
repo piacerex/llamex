@@ -166,6 +166,39 @@ mix llamex.gguf.inspect /tmp/llamex-models/test-gguf-trainer.Q8_0.gguf
 mix run -e 'model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/test-gguf-trainer.Q8_0.gguf"); IO.inspect(%{vocab_size: model.config.vocab_size, embedding_size: model.config.embedding_size, layers: length(model.layers), token_embeddings: map_size(model.token_embeddings)})'
 ```
 
+For a small existing GGUF that reaches the generation path, use the
+`tensorblock/zephyr-smol_llama-100m-sft-full-GGUF` Q2_K file:
+
+```bash
+mkdir -p /tmp/llamex-models
+curl -L --fail \
+  -o /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf \
+  https://huggingface.co/tensorblock/zephyr-smol_llama-100m-sft-full-GGUF/resolve/main/zephyr-smol_llama-100m-sft-full-Q2_K.gguf
+
+mix llamex.gguf.inspect /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf
+```
+
+This checkpoint is compatible with the current tensor loader:
+
+```text
+architecture: llama
+tokenizer tokens: 32128
+supported tensor types: F32=13, Q2_K=25, Q3_K=18, Q6_K=1
+unsupported tensor types: none
+```
+
+It can also run a sampled generation step:
+
+```bash
+mix run -e 'model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf"); profile = Llamex.Profile.generation_steps(model, "Elixir is", %{backend: Llamex.Backend.List, max_new_tokens: 1, sampler: %{temperature: 0.8, top_k: 40, top_p: 0.9, repetition_penalty: 1.1, seed: 1}}); IO.inspect(profile, limit: :infinity)'
+```
+
+On the current List backend this is still slow for natural prose. A verified
+single-token run took about 48 seconds for prefill plus 12 seconds for one
+sampled step and produced token `7896` (`"asket"`). Treat this as the current
+known-good existing GGUF path; the remaining work for natural multi-sentence
+text is backend speed and tokenizer/template quality.
+
 For iterative GGUF testing in IEx, load the model once and step tokens without
 reloading the file:
 
