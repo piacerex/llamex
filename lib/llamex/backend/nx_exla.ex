@@ -520,15 +520,29 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   defp prepare_layer(layer) do
-    [:attention_norm, :feed_forward_norm, :wq, :wk, :wv, :wo, :w_gate, :w_up, :w_down]
+    layer =
+      layer
+      |> maybe_prepare_combined(:w_qkv, [:wq, :wk, :wv])
+      |> maybe_prepare_combined(:w_gate_up, [:w_gate, :w_up])
+
+    layer
+    |> prepared_layer_tensor_keys()
     |> Enum.reduce(layer, fn key, layer ->
       case Map.fetch(layer, key) do
         {:ok, weights} -> Map.put(layer, key, tensor(weights))
         :error -> layer
       end
     end)
-    |> maybe_prepare_combined(:w_qkv, [:wq, :wk, :wv])
-    |> maybe_prepare_combined(:w_gate_up, [:w_gate, :w_up])
+  end
+
+  defp prepared_layer_tensor_keys(layer) do
+    [:attention_norm, :feed_forward_norm, :wo, :w_down, :w_qkv, :w_gate_up]
+    |> maybe_add_fallback_keys(layer, :w_qkv, [:wq, :wk, :wv])
+    |> maybe_add_fallback_keys(layer, :w_gate_up, [:w_gate, :w_up])
+  end
+
+  defp maybe_add_fallback_keys(keys, layer, combined_key, fallback_keys) do
+    if Map.has_key?(layer, combined_key), do: keys, else: keys ++ fallback_keys
   end
 
   defp prepare_output(nil), do: nil

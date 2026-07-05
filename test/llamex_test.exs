@@ -710,6 +710,9 @@ defmodule LlamexTest do
       prepared = Llamex.Backend.NxEXLA.prepare_model(%{layers: [layer], output: nil})
       [prepared_layer] = prepared.layers
 
+      assert is_list(prepared_layer.wq)
+      assert match?(%Nx.Tensor{}, prepared_layer.w_qkv)
+
       {_list_cache, list_output} =
         Llamex.Layers.Attention.forward(
           [1.0, 2.0],
@@ -795,6 +798,9 @@ defmodule LlamexTest do
 
       prepared = Llamex.Backend.NxEXLA.prepare_model(%{layers: [layer], output: nil})
       [prepared_layer] = prepared.layers
+
+      assert is_list(prepared_layer.w_gate)
+      assert match?(%Nx.Tensor{}, prepared_layer.w_gate_up)
 
       result = Llamex.Layers.SwiGLU.forward([1.0, 2.0], prepared_layer, Llamex.Backend.NxEXLA)
 
