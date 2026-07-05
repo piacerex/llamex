@@ -18,7 +18,7 @@ defmodule Llamex.KVCache do
       when is_integer(layer_index) and layer_index >= 0 and is_list(key) and is_list(value) do
     layers =
       Map.update(cache.layers, layer_index, [{key, value}], fn entries ->
-        entries ++ [{key, value}]
+        [{key, value} | entries]
       end)
 
     {%{cache | layers: layers}, Map.fetch!(layers, layer_index)}
@@ -27,5 +27,6 @@ defmodule Llamex.KVCache do
   def entries(%__MODULE__{} = cache, layer_index)
       when is_integer(layer_index) and layer_index >= 0 do
     Map.get(cache.layers, layer_index, [])
+    |> Enum.reverse()
   end
 end

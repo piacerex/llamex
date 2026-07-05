@@ -21,6 +21,18 @@ defmodule LlamexTest do
     assert next_token == 0
   end
 
+  test "kv cache exposes entries in append order" do
+    cache = Llamex.KVCache.new()
+
+    {cache, _entries} = Llamex.KVCache.append(cache, 0, [:first_key], [:first_value])
+    {cache, _entries} = Llamex.KVCache.append(cache, 0, [:second_key], [:second_value])
+
+    assert Llamex.KVCache.entries(cache, 0) == [
+             {[:first_key], [:first_value]},
+             {[:second_key], [:second_value]}
+           ]
+  end
+
   test "encodes text with the minimal tokenizer" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
