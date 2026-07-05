@@ -11,6 +11,28 @@ mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --
 mix llamex.generate model.gguf "Hello" 8 --natural
 ```
 
+## Backends
+
+Llamex keeps the core path on `Llamex.Backend.List` so the engine remains
+portable to restricted runtimes such as AtomVM. Nx is available as an optional
+dependency for BEAM experiments:
+
+```elixir
+state = Llamex.prefill(model, "hello", %{backend: Llamex.Backend.Nx})
+step = Llamex.step(state.context, state.current_token, %{sampler: :greedy})
+```
+
+EXLA can be added by BEAM-only consumers that want an XLA compiler for Nx:
+
+```elixir
+{:exla, "~> 0.12.0"}
+```
+
+The GGUF path still stores loaded weights as lists today, so selecting the Nx
+backend alone does not yet make existing GGUF generation fast. The next speed
+step is moving matvec-heavy layer execution or loaded tensors onto Nx/EXLA while
+keeping the List backend as the AtomVM reference path.
+
 ## Model JSON
 
 Llamex can load a small JSON model with:
