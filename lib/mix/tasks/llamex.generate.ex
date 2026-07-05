@@ -68,7 +68,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> sampling_options()
     |> Map.put_new(:temperature, 0.8)
     |> Map.put_new(:top_k, 40)
-    |> Map.put_new(:top_p, 0.9)
+    |> Map.put_new(:top_p, 0.5)
     |> Map.put_new(:repetition_penalty, 1.1)
     |> Map.put_new(:seed, 1)
   end

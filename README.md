@@ -177,7 +177,7 @@ Llamex.GGUF.ModelLoader.load("model.gguf")
 
 The `mix llamex.generate` task accepts `.gguf` paths and uses the GGUF loader
 for them. Use `--natural` to select a conservative text sampling preset
-(`temperature=0.8`, `top-k=40`, `top-p=0.9`, `repetition-penalty=1.1`).
+(`temperature=0.8`, `top-k=40`, `top-p=0.5`, `repetition-penalty=1.1`).
 Use `--profile` to inspect the model path, prompt, prompt token IDs/pieces,
 generation settings, generated token IDs/pieces/types, timings, and
 `finish_reason` (`stop` or `length`) for generation experiments. Profile output
@@ -209,8 +209,8 @@ mix llamex.generate /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf
 ```
 
 Verified multi-token runs now reach ordinary text generation. The prompt
-`Elixir is` generated `one of the`, and `Once upon a time` generated
-`of high stress`; `The quick brown fox` generated `, he would`. Short prompts
+`Elixir is` generated `a common mole`, and `Once upon a time` generated
+`of high stress`; `The quick brown fox` generated `. They were`. Short prompts
 can still produce weak continuations, but the existing GGUF path can produce
 natural word pieces instead of decode noise. Byte-token output is normalized
 through the same SentencePiece-style decoder, so standalone `▁` markers are not

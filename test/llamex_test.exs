@@ -993,6 +993,7 @@ defmodule LlamexTest do
       profile = JSON.decode!(String.trim(output))
 
       assert profile["generated_tokens"] == [2]
+      assert profile["sampler"]["top_p"] == 0.5
       refute Map.has_key?(profile["sampler"], "suppress_tokens")
     after
       File.rm(path)
