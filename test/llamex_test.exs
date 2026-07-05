@@ -1548,6 +1548,14 @@ defmodule LlamexTest do
              "prompt_eval"
            ]
 
+    assert is_integer(profile["timing_summary"]["total_milliseconds"])
+    assert is_integer(profile["timing_summary"]["prefill_milliseconds"])
+    assert is_integer(profile["timing_summary"]["step_milliseconds"])
+    assert is_integer(profile["timing_summary"]["eval_milliseconds"])
+    assert profile["timing_summary"]["total_milliseconds"] >= 0
+    assert is_integer(profile["timing_summary"]["components"]["prefill.backend_prepare"])
+    assert is_integer(profile["timing_summary"]["components"]["eval.logits"])
+
     assert Enum.map(profile["steps"], & &1["piece"]) == ["world"]
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
   end

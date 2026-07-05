@@ -40,7 +40,9 @@ defmodule Llamex.Profile do
       candidates: token_candidates(model, step.candidates),
       eval_timings: step.eval_timings,
       prefill_timings: prefill_timings,
-      timings: [prefill_time, step_time]
+      timings: [prefill_time, step_time],
+      timing_summary:
+        timing_summary([prefill_time, step_time], prefill_timings, [step.eval_timings])
     }
   end
 
@@ -165,8 +167,77 @@ defmodule Llamex.Profile do
       text: Llamex.decode(model, generated_tokens),
       prefill_timings: prefill_timings,
       timings: [prefill_time | Enum.map(steps, & &1.timing)],
+      timing_summary:
+        timing_summary(
+          [prefill_time | Enum.map(steps, & &1.timing)],
+          prefill_timings,
+          Enum.map(steps, & &1.eval_timings)
+        ),
       steps: steps
     }
+  end
+
+  defp timing_summary(timings, prefill_timings, eval_timings) do
+    %{
+      total_milliseconds: sum_milliseconds(timings),
+      prefill_milliseconds: sum_milliseconds(prefill_timings),
+      step_milliseconds: timings |> Enum.reject(&(&1.label == "prefill")) |> sum_milliseconds(),
+      eval_milliseconds: sum_eval_milliseconds(eval_timings),
+      components: component_summary(prefill_timings, eval_timings)
+    }
+  end
+
+  defp component_summary(prefill_timings, eval_timings) do
+    prefill =
+      prefill_timings
+      |> Enum.map(fn timing -> {"prefill.#{timing.label}", timing.milliseconds} end)
+
+    eval =
+      eval_timings
+      |> Enum.flat_map(&flatten_eval_timing/1)
+
+    (prefill ++ eval)
+    |> Enum.group_by(fn {label, _milliseconds} -> label end, fn {_label, milliseconds} ->
+      milliseconds
+    end)
+    |> Map.new(fn {label, values} -> {label, Enum.sum(values)} end)
+  end
+
+  defp flatten_eval_timing(%{layers: layers, output_norm: output_norm, logits: logits}) do
+    [
+      {"eval.output_norm", output_norm.milliseconds},
+      {"eval.#{logits.label}", logits.milliseconds}
+    ] ++
+      Enum.flat_map(layers, &flatten_layer_timing/1)
+  end
+
+  defp flatten_layer_timing(layer) do
+    [{"eval.#{layer.label}", layer.milliseconds}] ++
+      Enum.flat_map(Map.get(layer, :components, []), fn component ->
+        flatten_component_timing("eval.#{layer.label}.#{component.label}", component)
+      end)
+  end
+
+  defp flatten_component_timing(prefix, %{components: components} = timing) do
+    [{prefix, timing.milliseconds}] ++
+      Enum.flat_map(components, fn component ->
+        flatten_component_timing("#{prefix}.#{component.label}", component)
+      end)
+  end
+
+  defp flatten_component_timing(prefix, timing), do: [{prefix, timing.milliseconds}]
+
+  defp sum_eval_milliseconds(eval_timings) do
+    eval_timings
+    |> Enum.flat_map(&flatten_eval_timing/1)
+    |> Enum.map(fn {_label, milliseconds} -> milliseconds end)
+    |> Enum.sum()
+  end
+
+  defp sum_milliseconds(timings) do
+    timings
+    |> Enum.map(& &1.milliseconds)
+    |> Enum.sum()
   end
 
   defp generated_tokens_from_acc(steps) do
