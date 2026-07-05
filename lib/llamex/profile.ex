@@ -14,6 +14,7 @@ defmodule Llamex.Profile do
 
   def generation_step(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
     backend = Map.get(opts, :backend, Llamex.Backend.Nx)
+    reset_profile_caches(backend)
     sampler = Map.get(opts, :sampler, :greedy)
     candidate_count = Map.get(opts, :candidate_count, 0)
 
@@ -49,6 +50,7 @@ defmodule Llamex.Profile do
 
   def prefill_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
     backend = Map.get(opts, :backend, Llamex.Backend.Nx)
+    reset_profile_caches(backend)
     original_prompt_tokens = Llamex.encode(model, prompt)
     context_window = ContextWindow.resolve(model, opts)
     prompt_tokens = ContextWindow.apply(original_prompt_tokens, context_window)
@@ -88,6 +90,7 @@ defmodule Llamex.Profile do
 
   def generation_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
     backend = Map.get(opts, :backend, Llamex.Backend.Nx)
+    reset_profile_caches(backend)
     sampler = Map.get(opts, :sampler, :greedy)
     max_new_tokens = Map.get(opts, :max_new_tokens, 1)
     stop_tokens = stop_tokens(opts)
@@ -253,6 +256,12 @@ defmodule Llamex.Profile do
   end
 
   defp exla_info(_backend), do: nil
+
+  defp reset_profile_caches(backend) when backend in [Llamex.Backend.Nx, Llamex.Backend.NxEXLA] do
+    Llamex.Backend.NxEXLA.clear_process_caches()
+  end
+
+  defp reset_profile_caches(_backend), do: :ok
 
   defp backend_profile(%Context{backend: backend, model: model} = context)
        when backend in [Llamex.Backend.Nx, Llamex.Backend.NxEXLA] do
