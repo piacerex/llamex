@@ -25,7 +25,7 @@ defmodule Llamex.Natural do
   end
 
   def open_ending?(text) when is_binary(text) do
-    Regex.match?(~r/[[:alnum:]]$/u, String.trim(text))
+    Regex.match?(~r/[[:alnum:],;:]$/u, String.trim(text))
   end
 
   def smoke_check(model, generated_tokens, text, opts \\ %{})
@@ -44,7 +44,7 @@ defmodule Llamex.Natural do
       )
       |> add_issue(
         reject_open_ending? and Map.get(opts, :finish_reason) == :length and open_ending?(text),
-        "length limit reached with open text ending"
+        "length limit reached with incomplete text ending"
       )
       |> add_issue(repeated_adjacent_word?(text), "repeated adjacent word in text")
       |> Kernel.++(token_issues(model, generated_tokens))

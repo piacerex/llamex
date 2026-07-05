@@ -1406,13 +1406,21 @@ defmodule LlamexTest do
            }
   end
 
-  test "natural smoke check can reject open length endings" do
+  test "natural smoke check can reject incomplete length endings" do
     assert Llamex.Natural.smoke_check(%{}, [], ". They were", %{
              finish_reason: :length,
              reject_open_ending: true
            }) == %{
              ok: false,
-             issues: ["length limit reached with open text ending"]
+             issues: ["length limit reached with incomplete text ending"]
+           }
+
+    assert Llamex.Natural.smoke_check(%{}, [], "They were,", %{
+             finish_reason: :length,
+             reject_open_ending: true
+           }) == %{
+             ok: false,
+             issues: ["length limit reached with incomplete text ending"]
            }
 
     assert Llamex.Natural.smoke_check(%{}, [], "They were.", %{
