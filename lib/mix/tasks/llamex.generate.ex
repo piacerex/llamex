@@ -15,6 +15,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     {options, positional, invalid} =
       OptionParser.parse(args,
         strict: [
+          backend: :string,
           temperature: :float,
           top_k: :integer,
           top_p: :float,
@@ -47,7 +48,7 @@ defmodule Mix.Tasks.Llamex.Generate do
 
     result =
       Llamex.generate(model, prompt, %{
-        backend: Llamex.Backend.List,
+        backend: backend(options),
         max_new_tokens: max_new_tokens,
         stop_token: stop_token(model),
         sampler: sampler(options)
@@ -60,11 +61,9 @@ defmodule Mix.Tasks.Llamex.Generate do
     Mix.raise(~s(usage: mix llamex.generate MODEL_JSON "prompt text" [max_new_tokens] [options]))
   end
 
-  defp sampler(options) when map_size(options) == 0, do: :greedy
-
   defp sampler(%{natural: true} = options) do
     options
-    |> Map.delete(:natural)
+    |> sampling_options()
     |> Map.put_new(:temperature, 0.8)
     |> Map.put_new(:top_k, 40)
     |> Map.put_new(:top_p, 0.9)
@@ -73,11 +72,29 @@ defmodule Mix.Tasks.Llamex.Generate do
   end
 
   defp sampler(options) do
-    options
-    |> Map.delete(:natural)
-    |> Map.put_new(:temperature, 1.0)
-    |> Map.put_new(:seed, 1)
+    options = sampling_options(options)
+
+    if map_size(options) == 0 do
+      :greedy
+    else
+      options
+      |> Map.put_new(:temperature, 1.0)
+      |> Map.put_new(:seed, 1)
+    end
   end
+
+  defp sampling_options(options) do
+    options
+    |> Map.delete(:backend)
+    |> Map.delete(:natural)
+    |> Map.delete(:chat)
+  end
+
+  defp backend(%{backend: "list"}), do: Llamex.Backend.List
+  defp backend(%{backend: "nx"}), do: Llamex.Backend.Nx
+  defp backend(%{backend: nil}), do: Llamex.Backend.List
+  defp backend(%{backend: backend}), do: Mix.raise("unsupported backend: #{backend}")
+  defp backend(%{}), do: Llamex.Backend.List
 
   defp stop_token(%{tokenizer: nil}), do: nil
 
