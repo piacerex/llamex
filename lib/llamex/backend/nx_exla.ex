@@ -289,15 +289,20 @@ defmodule Llamex.Backend.NxEXLA do
 
     query_heads =
       query
-      |> split_tensor_heads(head_count, nx)
-      |> Enum.map(&rope_tensor(&1, position, rope_theta, rope_dimension_count, nx))
+      |> reshape_tensor_heads(head_count, nx)
+      |> rope_head_matrix(position, rope_theta, rope_dimension_count, nx)
+      |> split_head_matrix(head_count, nx)
 
     key_heads =
       key
-      |> split_tensor_heads(kv_head_count, nx)
-      |> Enum.map(&rope_tensor(&1, position, rope_theta, rope_dimension_count, nx))
+      |> reshape_tensor_heads(kv_head_count, nx)
+      |> rope_head_matrix(position, rope_theta, rope_dimension_count, nx)
+      |> split_head_matrix(kv_head_count, nx)
 
-    value_heads = split_tensor_heads(value, kv_head_count, nx)
+    value_heads =
+      value
+      |> reshape_tensor_heads(kv_head_count, nx)
+      |> split_head_matrix(kv_head_count, nx)
 
     {query_heads, key_heads, value_heads}
   end
@@ -472,41 +477,82 @@ defmodule Llamex.Backend.NxEXLA do
     end)
   end
 
-  defp rope_tensor(vector, position, theta, dimension_count, nx) do
-    vector = tensor(vector)
-    vector_size = vector |> shape() |> elem(0)
-    dimension_count = dimension_count || vector_size - rem(vector_size, 2)
-
-    cond do
-      dimension_count == 0 ->
-        vector
-
-      dimension_count > vector_size ->
-        raise ArgumentError, "RoPE dimension count cannot exceed vector length"
-
-      rem(dimension_count, 2) != 0 ->
-        raise ArgumentError, "RoPE vector length must be even"
-
-      true ->
-        apply_rope_tensor(vector, position, theta, dimension_count, nx)
-    end
-  end
-
   defp stack_tensors(tensors) do
     apply(nx!(), :stack, [Enum.map(tensors, &tensor/1), [axis: 0]])
   end
 
-  defp split_tensor_heads(vector, head_count, nx) do
+  defp reshape_tensor_heads(vector, head_count, nx) do
     size = vector |> shape() |> elem(0)
 
     if rem(size, head_count) != 0 do
       raise ArgumentError, "vector length must be divisible by split size"
     end
 
-    head_size = div(size, head_count)
+    apply(nx, :reshape, [vector, {head_count, div(size, head_count)}])
+  end
+
+  defp rope_head_matrix(heads, position, theta, dimension_count, nx) do
+    {_head_count, head_size} = shape(heads)
+    dimension_count = dimension_count || head_size - rem(head_size, 2)
+
+    cond do
+      dimension_count == 0 ->
+        heads
+
+      dimension_count > head_size ->
+        raise ArgumentError, "RoPE dimension count cannot exceed vector length"
+
+      rem(dimension_count, 2) != 0 ->
+        raise ArgumentError, "RoPE vector length must be even"
+
+      true ->
+        apply_rope_head_matrix(heads, position, theta, dimension_count, nx)
+    end
+  end
+
+  defp apply_rope_head_matrix(heads, position, theta, dimension_count, nx) do
+    {head_count, head_size} = shape(heads)
+    half = div(dimension_count, 2)
+    left = apply(nx, :slice, [heads, [0, 0], [head_count, half]])
+    right = apply(nx, :slice, [heads, [0, half], [head_count, half]])
+    pass_count = head_size - dimension_count
+    angles = rope_angles(position, theta, dimension_count, half)
+    cos = angles |> Enum.map(&:math.cos/1) |> tensor()
+    sin = angles |> Enum.map(&:math.sin/1) |> tensor()
+
+    rotated_left =
+      apply(nx, :subtract, [
+        apply(nx, :multiply, [left, cos]),
+        apply(nx, :multiply, [right, sin])
+      ])
+
+    rotated_right =
+      apply(nx, :add, [
+        apply(nx, :multiply, [left, sin]),
+        apply(nx, :multiply, [right, cos])
+      ])
+
+    parts =
+      if pass_count > 0 do
+        [
+          rotated_left,
+          rotated_right,
+          apply(nx, :slice, [heads, [0, dimension_count], [head_count, pass_count]])
+        ]
+      else
+        [rotated_left, rotated_right]
+      end
+
+    apply(nx, :concatenate, [parts, [axis: 1]])
+  end
+
+  defp split_head_matrix(heads, head_count, nx) do
+    {_head_count, head_size} = shape(heads)
 
     Enum.map(0..(head_count - 1), fn head_index ->
-      apply(nx, :slice, [vector, [head_index * head_size], [head_size]])
+      heads
+      |> then(&apply(nx, :slice, [&1, [head_index, 0], [1, head_size]]))
+      |> then(&apply(nx, :reshape, [&1, {head_size}]))
     end)
   end
 
