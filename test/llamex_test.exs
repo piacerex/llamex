@@ -1775,6 +1775,15 @@ defmodule LlamexTest do
     assert is_integer(profile["backend_profile"]["nx_exla_cache"]["rope_trig_entries"])
     assert is_integer(profile["backend_profile"]["nx_exla_prepare"]["total_milliseconds"])
     assert is_integer(profile["backend_profile"]["nx_exla_prepare"]["layer_combine_milliseconds"])
+
+    assert is_integer(
+             profile["backend_profile"]["nx_exla_prepare"]["layer_qkv_combine_milliseconds"]
+           )
+
+    assert is_integer(
+             profile["backend_profile"]["nx_exla_prepare"]["layer_gate_up_combine_milliseconds"]
+           )
+
     assert is_integer(profile["backend_profile"]["nx_exla_prepare"]["layer_tensor_milliseconds"])
     assert profile["max_new_tokens"] == 2
     assert profile["sampler"] == "greedy"
@@ -1829,6 +1838,15 @@ defmodule LlamexTest do
     assert is_integer(profile["backend_profile"]["nx_exla_cache"]["rope_trig_entries"])
     assert is_integer(profile["backend_profile"]["nx_exla_prepare"]["total_milliseconds"])
     assert is_integer(profile["backend_profile"]["nx_exla_prepare"]["layer_combine_milliseconds"])
+
+    assert is_integer(
+             profile["backend_profile"]["nx_exla_prepare"]["layer_qkv_combine_milliseconds"]
+           )
+
+    assert is_integer(
+             profile["backend_profile"]["nx_exla_prepare"]["layer_gate_up_combine_milliseconds"]
+           )
+
     assert is_integer(profile["backend_profile"]["nx_exla_prepare"]["layer_tensor_milliseconds"])
 
     assert profile["exla"] == %{

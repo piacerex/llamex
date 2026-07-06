@@ -124,6 +124,8 @@ defmodule Llamex.Backend.NxEXLA do
           token_embeddings_milliseconds: token_embeddings_time,
           layers_milliseconds: layers_time,
           layer_combine_milliseconds: layer_stats.combine_milliseconds,
+          layer_qkv_combine_milliseconds: layer_stats.qkv_combine_milliseconds,
+          layer_gate_up_combine_milliseconds: layer_stats.gate_up_combine_milliseconds,
           layer_tensor_milliseconds: layer_stats.tensor_milliseconds,
           output_norm_milliseconds: output_norm_time,
           output_milliseconds: output_time,
@@ -523,28 +525,39 @@ defmodule Llamex.Backend.NxEXLA do
 
   defp prepare_layers(layers) do
     {layers, stats} =
-      Enum.map_reduce(layers, %{combine_milliseconds: 0, tensor_milliseconds: 0}, fn layer,
-                                                                                     stats ->
-        {layer, layer_stats} = prepare_layer_with_stats(layer)
+      Enum.map_reduce(
+        layers,
+        %{
+          combine_milliseconds: 0,
+          qkv_combine_milliseconds: 0,
+          gate_up_combine_milliseconds: 0,
+          tensor_milliseconds: 0
+        },
+        fn layer, stats ->
+          {layer, layer_stats} = prepare_layer_with_stats(layer)
 
-        stats = %{
-          combine_milliseconds: stats.combine_milliseconds + layer_stats.combine_milliseconds,
-          tensor_milliseconds: stats.tensor_milliseconds + layer_stats.tensor_milliseconds
-        }
+          stats = %{
+            combine_milliseconds: stats.combine_milliseconds + layer_stats.combine_milliseconds,
+            qkv_combine_milliseconds:
+              stats.qkv_combine_milliseconds + layer_stats.qkv_combine_milliseconds,
+            gate_up_combine_milliseconds:
+              stats.gate_up_combine_milliseconds + layer_stats.gate_up_combine_milliseconds,
+            tensor_milliseconds: stats.tensor_milliseconds + layer_stats.tensor_milliseconds
+          }
 
-        {layer, stats}
-      end)
+          {layer, stats}
+        end
+      )
 
     {layers, stats}
   end
 
   defp prepare_layer_with_stats(layer) do
-    {combine_time, layer} =
-      timed_prepare_step(fn ->
-        layer
-        |> maybe_prepare_combined(:w_qkv, [:wq, :wk, :wv])
-        |> maybe_prepare_combined(:w_gate_up, [:w_gate, :w_up])
-      end)
+    {qkv_combine_time, layer} =
+      timed_prepare_step(fn -> maybe_prepare_combined(layer, :w_qkv, [:wq, :wk, :wv]) end)
+
+    {gate_up_combine_time, layer} =
+      timed_prepare_step(fn -> maybe_prepare_combined(layer, :w_gate_up, [:w_gate, :w_up]) end)
 
     {tensor_time, layer} =
       timed_prepare_step(fn ->
@@ -558,7 +571,13 @@ defmodule Llamex.Backend.NxEXLA do
         end)
       end)
 
-    {layer, %{combine_milliseconds: combine_time, tensor_milliseconds: tensor_time}}
+    {layer,
+     %{
+       combine_milliseconds: qkv_combine_time + gate_up_combine_time,
+       qkv_combine_milliseconds: qkv_combine_time,
+       gate_up_combine_milliseconds: gate_up_combine_time,
+       tensor_milliseconds: tensor_time
+     }}
   end
 
   defp prepared_layer_tensor_keys(layer) do
