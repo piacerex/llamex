@@ -930,8 +930,16 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   defp concatenate_rows(rows) do
-    apply(nx!(), :concatenate, [Enum.map(rows, &tensor/1), [axis: 0]])
+    if Enum.all?(rows, &list_matrix?/1) do
+      rows
+      |> Enum.flat_map(& &1)
+      |> tensor()
+    else
+      apply(nx!(), :concatenate, [Enum.map(rows, &tensor/1), [axis: 0]])
+    end
   end
+
+  defp list_matrix?(rows), do: is_list(rows) and match?([first | _] when is_list(first), rows)
 
   defp tensor(values) when is_list(values), do: apply(nx!(), :tensor, [values, [type: {:f, 32}]])
   defp tensor(value), do: value
