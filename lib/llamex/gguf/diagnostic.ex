@@ -29,6 +29,10 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def inspect_binary(binary) when is_binary(binary) do
     gguf = Llamex.GGUF.Reader.read_binary(binary)
+    inspect_reader(gguf)
+  end
+
+  def inspect_reader(%Llamex.GGUF.Reader{} = gguf) do
     chat_template = chat_template_status(gguf.metadata)
     missing_chat_template_tokens = missing_chat_template_tokens(gguf.metadata)
 
@@ -56,6 +60,14 @@ defmodule Llamex.GGUF.Diagnostic do
       compatibility_issues: compatibility_issues(gguf.metadata, gguf.tensors),
       loadable?: loadable?(gguf.metadata, gguf.tensors)
     }
+  end
+
+  def loadable?(%Llamex.GGUF.Reader{} = gguf) do
+    loadable?(gguf.metadata, gguf.tensors)
+  end
+
+  def compatibility_issues(%Llamex.GGUF.Reader{} = gguf) do
+    compatibility_issues(gguf.metadata, gguf.tensors)
   end
 
   def format(%{} = diagnostic) do

@@ -3971,6 +3971,26 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects incompatible gguf models before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-incompatible-model-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_unsupported_tensor_type))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: unsupported tensor type: type_99 (1)",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "loads gguf output norm and output tensors" do
     path =
       Path.join(

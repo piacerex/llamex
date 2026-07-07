@@ -8,6 +8,7 @@ defmodule Llamex.GGUF.ModelLoader do
   def load(path) when is_binary(path) do
     binary = File.read!(path)
     gguf = Llamex.GGUF.Reader.read_binary(binary)
+    validate_loadable!(gguf)
 
     gguf
     |> to_model_map(binary)
@@ -61,6 +62,19 @@ defmodule Llamex.GGUF.ModelLoader do
   end
 
   defp put_merges(attrs, _tokenizer), do: attrs
+
+  defp validate_loadable!(gguf) do
+    if Llamex.GGUF.Diagnostic.loadable?(gguf) do
+      :ok
+    else
+      issues =
+        gguf
+        |> Llamex.GGUF.Diagnostic.compatibility_issues()
+        |> Enum.join("; ")
+
+      raise ArgumentError, "GGUF model is not loadable by Llamex: #{issues}"
+    end
+  end
 
   defp token_count(metadata) do
     metadata
