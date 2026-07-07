@@ -40,7 +40,9 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_architectures: @supported_architectures,
       architecture_supported?: architecture_supported?(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
+      tokenizer_kind: tokenizer_kind(gguf.metadata),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
+      tokenizer_merge_count: tokenizer_merge_count(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
       chat_template: chat_template,
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
@@ -64,7 +66,9 @@ defmodule Llamex.GGUF.Diagnostic do
       "loadable: #{diagnostic.loadable?}",
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
+      "tokenizer kind: #{diagnostic.tokenizer_kind}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
+      "tokenizer merges: #{diagnostic.tokenizer_merge_count}",
       "special tokens: #{format_special_tokens(diagnostic.special_tokens)}",
       "chat template: #{diagnostic.chat_template}",
       "chat usable: #{diagnostic.chat_usable}",
@@ -114,6 +118,20 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp tokenizer_supported?(metadata) do
     match?(%{values: [_first | _rest]}, metadata_value(metadata, "tokenizer.ggml.tokens"))
+  end
+
+  defp tokenizer_kind(metadata) do
+    case metadata_value(metadata, "tokenizer.ggml.merges") do
+      %{values: [_first | _rest]} -> "bpe"
+      _other -> "whitespace"
+    end
+  end
+
+  defp tokenizer_merge_count(metadata) do
+    case metadata_value(metadata, "tokenizer.ggml.merges") do
+      %{values: values} -> length(values)
+      _other -> 0
+    end
   end
 
   defp loadable?(metadata, tensors) do

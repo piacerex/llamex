@@ -3375,6 +3375,8 @@ defmodule LlamexTest do
     assert diagnostic.supported_architectures == ["llama"]
     assert diagnostic.architecture_supported? == true
     assert diagnostic.tokenizer_supported? == true
+    assert diagnostic.tokenizer_kind == "whitespace"
+    assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.loadable? == false
 
     assert diagnostic.tensor_shapes == [
@@ -3405,6 +3407,8 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor elements: 4"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer supported: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: whitespace"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 0"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "loadable: false"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
@@ -3419,6 +3423,8 @@ defmodule LlamexTest do
     assert diagnostic.architecture == "llama"
     assert diagnostic.architecture_supported? == true
     assert diagnostic.tokenizer_supported? == true
+    assert diagnostic.tokenizer_kind == "whitespace"
+    assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.unsupported_tensor_types == %{}
     assert diagnostic.loadable? == true
 
@@ -3426,6 +3432,8 @@ defmodule LlamexTest do
 
     assert formatted =~ "architecture supported: true"
     assert formatted =~ "tokenizer supported: true"
+    assert formatted =~ "tokenizer kind: whitespace"
+    assert formatted =~ "tokenizer merges: 0"
     assert formatted =~ "loadable: true"
   end
 
@@ -3449,6 +3457,8 @@ defmodule LlamexTest do
       assert diagnostic["chat_usable"] == false
       assert diagnostic["architecture_supported?"] == true
       assert diagnostic["tokenizer_supported?"] == true
+      assert diagnostic["tokenizer_kind"] == "whitespace"
+      assert diagnostic["tokenizer_merge_count"] == 0
       assert diagnostic["loadable?"] == false
 
       assert diagnostic["tensor_shapes"] == [
@@ -3592,6 +3602,13 @@ defmodule LlamexTest do
 
     assert Llamex.Tokenizer.encode(tokenizer, "low") == [5]
     assert Llamex.Tokenizer.decode(tokenizer, [5]) == "low"
+
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_bpe_gguf())
+
+    assert diagnostic.tokenizer_kind == "bpe"
+    assert diagnostic.tokenizer_merge_count == 2
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: bpe"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 2"
   end
 
   test "reads gguf metadata from a file path" do
