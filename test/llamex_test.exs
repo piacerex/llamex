@@ -3373,6 +3373,15 @@ defmodule LlamexTest do
     assert diagnostic.tensor_element_count == 4
     assert diagnostic.architecture == "llama"
     assert diagnostic.supported_architectures == ["llama"]
+
+    assert diagnostic.supported_combinations == [
+             %{
+               architecture: "llama",
+               tokenizers: ["whitespace", "bpe"],
+               tensor_types: diagnostic.supported_tensor_type_names
+             }
+           ]
+
     assert diagnostic.architecture_supported? == true
     assert diagnostic.tokenizer_supported? == true
     assert diagnostic.tokenizer_kind == "whitespace"
@@ -3411,6 +3420,10 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor elements: 4"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported architectures: llama"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "supported combinations: llama+whitespace/bpe+"
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported tokenizers: whitespace, bpe"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: whitespace"
@@ -3468,6 +3481,15 @@ defmodule LlamexTest do
       assert diagnostic["chat_template"] == "none"
       assert diagnostic["chat_usable"] == false
       assert diagnostic["architecture_supported?"] == true
+
+      assert diagnostic["supported_combinations"] == [
+               %{
+                 "architecture" => "llama",
+                 "tokenizers" => ["whitespace", "bpe"],
+                 "tensor_types" => diagnostic["supported_tensor_type_names"]
+               }
+             ]
+
       assert diagnostic["tokenizer_supported?"] == true
       assert diagnostic["tokenizer_kind"] == "whitespace"
       assert diagnostic["supported_tokenizers"] == ["whitespace", "bpe"]

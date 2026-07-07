@@ -36,6 +36,16 @@ defmodule Llamex.GGUF.Diagnostic do
     @supported_tensor_types
   end
 
+  def supported_combinations do
+    [
+      %{
+        architecture: "llama",
+        tokenizers: supported_tokenizers(),
+        tensor_types: supported_tensor_type_names()
+      }
+    ]
+  end
+
   def inspect_file(path) when is_binary(path) do
     path
     |> File.read!()
@@ -57,6 +67,7 @@ defmodule Llamex.GGUF.Diagnostic do
       metadata_count: gguf.metadata_count,
       architecture: metadata_value(gguf.metadata, "general.architecture"),
       supported_architectures: supported_architectures(),
+      supported_combinations: supported_combinations(),
       architecture_supported?: architecture_supported?(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_kind: tokenizer_kind(gguf.metadata),
@@ -93,6 +104,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "GGUF v#{diagnostic.version}",
       "architecture: #{diagnostic.architecture || "unknown"}",
       "supported architectures: #{Enum.join(diagnostic.supported_architectures, ", ")}",
+      "supported combinations: #{format_supported_combinations(diagnostic.supported_combinations)}",
       "architecture supported: #{diagnostic.architecture_supported?}",
       "supported tokenizers: #{Enum.join(diagnostic.supported_tokenizers, ", ")}",
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
@@ -331,6 +343,16 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.sort()
     |> Enum.map(fn {type, count} -> "#{type}=#{count}" end)
     |> Enum.join(", ")
+  end
+
+  defp format_supported_combinations(combinations) do
+    combinations
+    |> Enum.map(fn combination ->
+      tokenizers = Enum.join(combination.tokenizers, "/")
+      tensor_types = Enum.join(combination.tensor_types, "/")
+      "#{combination.architecture}+#{tokenizers}+#{tensor_types}"
+    end)
+    |> Enum.join("; ")
   end
 
   defp format_compatibility_issues([]), do: "none"
