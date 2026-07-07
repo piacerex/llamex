@@ -70,6 +70,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_combinations: supported_combinations(),
       architecture_supported?: architecture_supported?(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
+      tokenizer_model: tokenizer_model(gguf.metadata),
       tokenizer_kind: tokenizer_kind(gguf.metadata),
       supported_tokenizers: supported_tokenizers(),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
@@ -112,6 +113,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
+      "tokenizer model: #{diagnostic.tokenizer_model || "unknown"}",
       "tokenizer kind: #{diagnostic.tokenizer_kind}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
       "tokenizer merges: #{diagnostic.tokenizer_merge_count}",
@@ -166,6 +168,8 @@ defmodule Llamex.GGUF.Diagnostic do
   defp tokenizer_supported?(metadata) do
     match?(%{values: [_first | _rest]}, metadata_value(metadata, "tokenizer.ggml.tokens"))
   end
+
+  defp tokenizer_model(metadata), do: metadata_value(metadata, "tokenizer.ggml.model")
 
   defp tokenizer_kind(metadata) do
     case metadata_value(metadata, "tokenizer.ggml.merges") do

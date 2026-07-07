@@ -560,7 +560,7 @@ mix llamex.gguf.inspect first.gguf second.gguf --json
 
 The inspection output includes supported architecture/tokenizer/tensor type
 combinations, special tokens, chat template support, missing marker tokens,
-tokenizer kind/merge counts, plus representative raw GGUF dimensions and
+tokenizer model/kind/merge counts, plus representative raw GGUF dimensions and
 normalized schema shapes for key tensors. This is the fastest way to decide
 whether `--chat` is safe for a checkpoint and whether tensor layout looks
 plausible.
@@ -610,6 +610,7 @@ supported tokenizers: whitespace, bpe
 tokenizer supported: true
 loadable: true
 compatibility issues: none
+tokenizer model: unknown
 tokenizer kind: whitespace
 tokenizer tokens: 32128
 tokenizer merges: 0
