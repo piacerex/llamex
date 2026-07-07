@@ -3,7 +3,13 @@ defmodule Llamex.Natural do
   Natural text generation defaults shared by CLI tasks.
   """
 
-  def sampler(model, opts \\ %{}) when is_map(opts) do
+  def sampler(model, opts \\ %{})
+
+  def sampler(%Llamex.PreparedModel{} = prepared_model, opts) when is_map(opts) do
+    sampler(prepared_model.model, opts)
+  end
+
+  def sampler(model, opts) when is_map(opts) do
     opts
     |> Map.put_new(:temperature, 0.8)
     |> Map.put_new(:top_k, 40)
@@ -13,6 +19,10 @@ defmodule Llamex.Natural do
     |> Map.put_new(:no_repeat_adjacent_word, true)
     |> Map.put_new(:seed, 1)
     |> put_suppressed_tokens(model)
+  end
+
+  def control_stop_tokens(%Llamex.PreparedModel{} = prepared_model) do
+    control_stop_tokens(prepared_model.model)
   end
 
   def control_stop_tokens(%{tokenizer: nil}), do: []

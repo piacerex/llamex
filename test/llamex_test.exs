@@ -22,6 +22,63 @@ defmodule LlamexTest do
     assert next_token == 0
   end
 
+  test "reuses a prepared model for context and generation" do
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>"),
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+    context = Llamex.new_context(prepared)
+
+    assert %Llamex.PreparedModel{model: ^model, backend: Llamex.Backend.List} = prepared
+    assert context.model == model
+    assert context.backend == Llamex.Backend.List
+    assert Llamex.encode(prepared, "hello") == [1]
+    assert Llamex.decode(prepared, [2]) == "world"
+
+    result =
+      Llamex.generate(prepared, "hello", %{
+        max_new_tokens: 1,
+        sampler: :greedy
+      })
+
+    assert result.text == "world"
+    assert result.context.backend == Llamex.Backend.List
+  end
+
+  test "natural helpers unwrap prepared models" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "<ctrl>" => 1, "hello" => 2},
+        "<unk>",
+        token_types: [
+          %{id: 0, token: "<unk>", type: :unknown},
+          %{id: 1, token: "<ctrl>", type: :control},
+          %{id: 2, token: "hello", type: :normal}
+        ],
+        special_tokens: %{unknown: %{id: 0, token: "<unk>"}}
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: %{0 => [0.0], 1 => [1.0], 2 => [2.0]}
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    assert Llamex.Natural.control_stop_tokens(prepared) == [1]
+    assert Llamex.Natural.sampler(prepared).suppress_tokens == [0, 1]
+  end
+
   test "kv cache exposes entries in append order" do
     cache = Llamex.KVCache.new()
 

@@ -380,6 +380,32 @@ IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
 result.text
 ```
 
+#### Prepared Nx EXLA Reuse
+
+Prepare once when reusing the same GGUF model for multiple prompts. This keeps
+backend tensor preparation outside each generation call.
+
+```elixir
+Llamex.Backend.NxEXLA.configure!(:cpu)
+
+model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf")
+prepared = Llamex.prepare_model(model, Llamex.Backend.NxEXLA)
+
+prompt = "The quick brown fox"
+start_time = DateTime.utc_now()
+
+result =
+  Llamex.generate(prepared, prompt, %{
+    max_new_tokens: 8,
+    stop_tokens: Llamex.Natural.control_stop_tokens(prepared),
+    sampler: Llamex.Natural.sampler(prepared)
+  })
+
+IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
+
+result.text
+```
+
 #### Nx EXLA CUDA GPU
 
 ```elixir

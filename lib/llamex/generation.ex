@@ -3,7 +3,7 @@ defmodule Llamex.Generation do
   Prompt-to-text generation loop.
   """
 
-  alias Llamex.{Context, ContextWindow, Engine, Model, Sampler}
+  alias Llamex.{Context, ContextWindow, Engine, Model, PreparedModel, Sampler}
 
   def prefill(%Model{} = model, prompt, opts) when is_binary(prompt) and is_map(opts) do
     backend = Map.fetch!(opts, :backend)
@@ -11,6 +11,25 @@ defmodule Llamex.Generation do
     context_window = ContextWindow.resolve(model, opts)
     prompt_tokens = ContextWindow.apply(original_prompt_tokens, context_window)
     context = Context.new(model, backend)
+    context = ingest_prompt(context, prompt_tokens)
+
+    %{
+      context: context,
+      prompt_tokens: prompt_tokens,
+      original_prompt_token_count: length(original_prompt_tokens),
+      context_window: context_window,
+      prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),
+      current_token: seed_token(prompt_tokens)
+    }
+  end
+
+  def prefill(%PreparedModel{} = prepared_model, prompt, opts)
+      when is_binary(prompt) and is_map(opts) do
+    model = prepared_model.model
+    original_prompt_tokens = Llamex.encode(model, prompt)
+    context_window = ContextWindow.resolve(model, opts)
+    prompt_tokens = ContextWindow.apply(original_prompt_tokens, context_window)
+    context = Context.new_prepared(model, prepared_model.backend)
     context = ingest_prompt(context, prompt_tokens)
 
     %{
@@ -204,6 +223,56 @@ defmodule Llamex.Generation do
     end
 
     state = prefill(model, prompt, Map.take(opts, [:backend, :context_window]))
+    %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} = state
+
+    effective_max_new_tokens =
+      ContextWindow.generation_budget(max_new_tokens, length(prompt_tokens), state.context_window)
+
+    sampler_state = new_sampler_state(sampler)
+
+    {context, generated_tokens, finish_reason} =
+      generate_tokens(
+        context,
+        current_token,
+        effective_max_new_tokens,
+        stop_tokens,
+        sampler,
+        sampler_state,
+        prompt_tokens,
+        []
+      )
+
+    %{
+      text: Llamex.decode(model, generated_tokens),
+      prompt_tokens: prompt_tokens,
+      original_prompt_token_count: state.original_prompt_token_count,
+      context_window: state.context_window,
+      prompt_truncated?: state.prompt_truncated?,
+      exla: exla_info(context.backend),
+      requested_max_new_tokens: max_new_tokens,
+      effective_max_new_tokens: effective_max_new_tokens,
+      generated_tokens: generated_tokens,
+      finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
+      context: context
+    }
+  end
+
+  def generate(%PreparedModel{} = prepared_model, prompt, opts)
+      when is_binary(prompt) and is_map(opts) do
+    generate_prepared(prepared_model, prompt, opts)
+  end
+
+  defp generate_prepared(%PreparedModel{} = prepared_model, prompt, opts) do
+    model = prepared_model.model
+    max_new_tokens = Map.fetch!(opts, :max_new_tokens)
+    stop_tokens = stop_tokens(opts)
+    sampler = Map.get(opts, :sampler, :greedy)
+
+    if max_new_tokens < 0 do
+      raise ArgumentError, "max_new_tokens must be zero or positive"
+    end
+
+    state = prefill(prepared_model, prompt, Map.take(opts, [:context_window]))
     %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} = state
 
     effective_max_new_tokens =
