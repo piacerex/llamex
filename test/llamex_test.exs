@@ -1820,6 +1820,32 @@ defmodule LlamexTest do
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
   end
 
+  test "benchmark task can print JSON results for multiple token counts" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Benchmark.run([
+          "priv/models/tiny.json",
+          "--json",
+          "--prompt",
+          "hello",
+          "--tokens",
+          "1,2",
+          "--backend",
+          "list"
+        ])
+      end)
+
+    results = JSON.decode!(String.trim(output))
+
+    assert Enum.map(results, & &1["requested_max_new_tokens"]) == [1, 2]
+    assert Enum.all?(results, &(&1["model_path"] == "priv/models/tiny.json"))
+    assert Enum.all?(results, &(&1["prompt"] == "hello"))
+    assert Enum.all?(results, &is_integer(&1["total_milliseconds"]))
+    assert Enum.all?(results, &is_integer(&1["generated_tokens"]))
+    assert Enum.all?(results, &Map.has_key?(&1, "milliseconds_per_generated_token"))
+    assert Enum.all?(results, &is_map(&1["timing_components"]))
+  end
+
   test "generate task profile includes configured exla target" do
     output =
       capture_io(fn ->
