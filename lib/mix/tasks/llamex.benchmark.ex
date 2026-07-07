@@ -173,7 +173,9 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       eval_milliseconds: profile.timing_summary.eval_milliseconds,
       milliseconds_per_generated_token:
         milliseconds_per_generated_token(total_milliseconds, generated_count),
-      timing_components: profile.timing_summary.components
+      timing_components: profile.timing_summary.components,
+      prompt_eval_steps: profile.prompt_eval_steps,
+      prompt_eval_summary: profile.prompt_eval_summary
     }
   end
 

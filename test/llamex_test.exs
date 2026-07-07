@@ -1772,6 +1772,9 @@ defmodule LlamexTest do
     assert profile["prompt_tokens"] == 1
     assert profile["prompt_token_ids"] == [1]
     assert profile["prompt_pieces"] == ["hello"]
+    assert profile["prompt_eval_steps"] == []
+    assert profile["prompt_eval_summary"]["token_count"] == 0
+    assert profile["prompt_eval_summary"]["layers"] == []
     assert profile["backend"] == "Elixir.Llamex.Backend.Nx"
     assert profile["backend_profile"]["tensor_backend?"] == true
     assert profile["backend_profile"]["layer_count"] == 0
@@ -1860,6 +1863,16 @@ defmodule LlamexTest do
     assert Enum.all?(results, &Map.has_key?(&1["summary"], "tokens_per_second"))
     assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["phase"] == "measured" end))
     assert Enum.all?(results, &Enum.all?(&1["warmups"], fn run -> run["phase"] == "warmup" end))
+
+    assert Enum.all?(
+             results,
+             &Enum.all?(&1["runs"], fn run -> is_list(run["prompt_eval_steps"]) end)
+           )
+
+    assert Enum.all?(
+             results,
+             &Enum.all?(&1["runs"], fn run -> is_map(run["prompt_eval_summary"]) end)
+           )
   end
 
   test "generate task profile includes configured exla target" do

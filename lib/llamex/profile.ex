@@ -42,6 +42,8 @@ defmodule Llamex.Profile do
       candidates: token_candidates(model, step.candidates),
       eval_timings: step.eval_timings,
       prefill_timings: prefill_timings,
+      prompt_eval_steps: state.prompt_eval_steps,
+      prompt_eval_summary: state.prompt_eval_summary,
       timings: [prefill_time, step_time],
       timing_summary:
         timing_summary([prefill_time, step_time], prefill_timings, [step.eval_timings])
@@ -171,6 +173,8 @@ defmodule Llamex.Profile do
       finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
       text: Llamex.decode(model, generated_tokens),
       prefill_timings: prefill_timings,
+      prompt_eval_steps: state.prompt_eval_steps,
+      prompt_eval_summary: state.prompt_eval_summary,
       timings: [prefill_time | Enum.map(steps, & &1.timing)],
       timing_summary:
         timing_summary(
@@ -244,6 +248,34 @@ defmodule Llamex.Profile do
     |> Enum.map(& &1.milliseconds)
     |> Enum.sum()
   end
+
+  defp prompt_eval_summary(steps) do
+    flattened =
+      steps
+      |> Enum.flat_map(&flatten_eval_timing(&1.eval_timings))
+
+    %{
+      token_count: length(steps),
+      total_milliseconds:
+        flattened |> Enum.map(fn {_label, milliseconds} -> milliseconds end) |> Enum.sum(),
+      layers: timing_label_summary(flattened, &layer_timing_label?/1),
+      components: timing_label_summary(flattened, fn _label -> true end)
+    }
+  end
+
+  defp timing_label_summary(flattened, predicate) do
+    flattened
+    |> Enum.filter(fn {label, _milliseconds} -> predicate.(label) end)
+    |> Enum.group_by(fn {label, _milliseconds} -> label end, fn {_label, milliseconds} ->
+      milliseconds
+    end)
+    |> Enum.map(fn {label, milliseconds} ->
+      %{label: label, milliseconds: Enum.sum(milliseconds)}
+    end)
+    |> Enum.sort_by(& &1.label)
+  end
+
+  defp layer_timing_label?(label), do: Regex.match?(~r/^eval\.layer_\d+$/, label)
 
   defp generated_tokens_from_acc(steps) do
     steps
@@ -335,15 +367,26 @@ defmodule Llamex.Profile do
           Llamex.Context.new(model, backend)
         end)
 
-      {prompt_eval_time, context} =
+      {prompt_eval_time, {context, prompt_eval_steps}} =
         timed("prompt_eval", fn ->
           prompt_tokens
           |> Enum.drop(-1)
-          |> Enum.reduce(context, fn token, context ->
-            {context, _logits, _eval_timings} = timed_eval(context, token)
-            context
+          |> Enum.with_index(1)
+          |> Enum.reduce({context, []}, fn {token, index}, {context, steps} ->
+            {context, _logits, eval_timings} = timed_eval(context, token)
+
+            step = %{
+              index: index,
+              token: token,
+              piece: token_piece(model, token),
+              eval_timings: eval_timings
+            }
+
+            {context, [step | steps]}
           end)
         end)
+
+      prompt_eval_steps = Enum.reverse(prompt_eval_steps)
 
       state = %{
         context: context,
@@ -351,7 +394,9 @@ defmodule Llamex.Profile do
         original_prompt_token_count: length(original_prompt_tokens),
         context_window: context_window,
         prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),
-        current_token: seed_token(prompt_tokens)
+        current_token: seed_token(prompt_tokens),
+        prompt_eval_steps: prompt_eval_steps,
+        prompt_eval_summary: prompt_eval_summary(prompt_eval_steps)
       }
 
       {state, [encode_time, prepare_time, prompt_eval_time]}
@@ -733,6 +778,12 @@ defmodule Llamex.Profile do
 
   defp token_pieces(model, token_ids) do
     Enum.map(token_ids, &Map.fetch!(model.tokenizer.id_to_token, &1))
+  end
+
+  defp token_piece(%{tokenizer: nil}, token_id), do: Integer.to_string(token_id)
+
+  defp token_piece(model, token_id) do
+    Map.get(model.tokenizer.id_to_token, token_id, Integer.to_string(token_id))
   end
 
   defp stop_tokens(%{stop_tokens: stop_tokens}) when is_list(stop_tokens), do: stop_tokens
