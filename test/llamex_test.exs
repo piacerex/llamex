@@ -293,6 +293,41 @@ defmodule LlamexTest do
     assert result.context.backend == Llamex.Backend.List
   end
 
+  test "public chat stream API works with prepared models" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "<|im_start|>" => 1,
+          "<|im_end|>" => 2,
+          "user" => 3,
+          "assistant" => 4,
+          "\n" => 5,
+          "Hello" => 6,
+          "world" => 7
+        },
+        "<unk>",
+        chat_template: chatml_template()
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 8, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: Map.new(0..7, &{&1, [&1 * 1.0]})
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    chunks =
+      prepared
+      |> Llamex.stream_chat("Hello", %{max_new_tokens: 1})
+      |> Enum.to_list()
+
+    assert Enum.map(chunks, & &1.text) == ["world", ""]
+    assert List.last(chunks).finish_reason == :length
+  end
+
   test "adds configured bos and eos tokens while encoding" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
@@ -1539,6 +1574,63 @@ defmodule LlamexTest do
     assert result.generated_tokens == [2, 2]
     assert result.finish_reason == :stop_sequence
     assert result.text == "world world"
+  end
+
+  test "streams generated token chunks" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    chunks =
+      model
+      |> Llamex.stream("hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 2
+      })
+      |> Enum.to_list()
+
+    assert Enum.map(chunks, & &1.token) == [2, 2, nil]
+    assert Enum.map(chunks, & &1.text) == ["world", "world", ""]
+    assert List.last(chunks).finish_reason == :length
+    assert List.last(chunks).generated_tokens == [2, 2]
+  end
+
+  test "prepared stream stops on stop sequences" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    chunks =
+      prepared
+      |> Llamex.stream("hello", %{
+        max_new_tokens: 4,
+        stop_sequence: "world world"
+      })
+      |> Enum.to_list()
+
+    assert Enum.map(chunks, & &1.token) == [2, 2]
+    assert List.last(chunks).finish_reason == :stop_sequence
+    assert List.last(chunks).generated_tokens == [2, 2]
   end
 
   test "prefills and steps generation with a loaded model" do

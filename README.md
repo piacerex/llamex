@@ -409,6 +409,24 @@ IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
 result.text
 ```
 
+#### Token Streaming
+
+Use `stream/3` to receive token chunks as they are generated. Each chunk
+includes `:token`, `:text`, `:generated_tokens`, `:context`, and
+`:finish_reason`; the final length-limited chunk has `token: nil`.
+
+```elixir
+prepared
+|> Llamex.stream("The quick brown fox", %{
+  max_new_tokens: 8,
+  stop_sequences: ["</s>"],
+  sampler: Llamex.Natural.sampler(prepared)
+})
+|> Enum.each(fn chunk ->
+  IO.write(chunk.text)
+end)
+```
+
 #### Nx EXLA CUDA GPU
 
 ```elixir
@@ -490,6 +508,8 @@ Llamex.generate(prepared, prompt, %{
   sampler: Llamex.Natural.sampler(prepared)
 })
 ```
+
+Use `stream_chat/3` with a supported chat template when streaming chat prompts.
 
 #### List Backend
 

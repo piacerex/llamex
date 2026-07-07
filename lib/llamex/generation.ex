@@ -264,6 +264,47 @@ defmodule Llamex.Generation do
     generate_prepared(prepared_model, prompt, opts)
   end
 
+  def stream(model_or_prepared, prompt, opts) when is_binary(prompt) and is_map(opts) do
+    max_new_tokens = Map.fetch!(opts, :max_new_tokens)
+
+    if max_new_tokens < 0 do
+      raise ArgumentError, "max_new_tokens must be zero or positive"
+    end
+
+    stop_tokens = stop_tokens(opts)
+    stop_sequences = stop_sequences(opts)
+    sampler = Map.get(opts, :sampler, :greedy)
+    state = prefill_for_stream(model_or_prepared, prompt, opts)
+
+    effective_max_new_tokens =
+      ContextWindow.generation_budget(
+        max_new_tokens,
+        length(state.prompt_tokens),
+        state.context_window
+      )
+
+    initial_state = %{
+      context: state.context,
+      current_token: state.current_token,
+      remaining: effective_max_new_tokens,
+      stop_tokens: stop_tokens,
+      stop_sequences: stop_sequences,
+      sampler: sampler,
+      sampler_state: new_sampler_state(sampler),
+      prompt_tokens: state.prompt_tokens,
+      generated_tokens: [],
+      finish_reason: nil,
+      requested_max_new_tokens: max_new_tokens,
+      effective_max_new_tokens: effective_max_new_tokens
+    }
+
+    Stream.resource(
+      fn -> initial_state end,
+      &stream_next/1,
+      fn _state -> :ok end
+    )
+  end
+
   defp generate_prepared(%PreparedModel{} = prepared_model, prompt, opts) do
     model = prepared_model.model
     max_new_tokens = Map.fetch!(opts, :max_new_tokens)
@@ -325,6 +366,78 @@ defmodule Llamex.Generation do
 
   defp seed_token([]), do: raise(ArgumentError, "prompt must encode to at least one token")
   defp seed_token(prompt_tokens), do: List.last(prompt_tokens)
+
+  defp prefill_for_stream(%Model{} = model, prompt, opts) do
+    prefill(model, prompt, Map.take(opts, [:backend, :context_window]))
+  end
+
+  defp prefill_for_stream(%PreparedModel{} = prepared_model, prompt, opts) do
+    prefill(prepared_model, prompt, Map.take(opts, [:context_window]))
+  end
+
+  defp stream_next(%{finish_reason: finish_reason} = state) when not is_nil(finish_reason),
+    do: {:halt, state}
+
+  defp stream_next(%{remaining: 0} = state) do
+    finish_reason =
+      finish_reason(:length, state.requested_max_new_tokens, state.effective_max_new_tokens)
+
+    chunk = stream_chunk(state, nil, "", finish_reason)
+    {[chunk], %{state | finish_reason: finish_reason}}
+  end
+
+  defp stream_next(state) do
+    history = state.prompt_tokens ++ Enum.reverse(state.generated_tokens)
+
+    {next_token, context, sampler_state} =
+      sample_next(
+        state.context,
+        state.current_token,
+        state.sampler,
+        state.sampler_state,
+        history
+      )
+
+    generated_tokens = [next_token | state.generated_tokens]
+    generated_text = Llamex.decode(context.model, Enum.reverse(generated_tokens))
+
+    finish_reason =
+      cond do
+        stop_token?(next_token, state.stop_tokens) -> :stop
+        stop_sequence?(generated_text, state.stop_sequences) -> :stop_sequence
+        true -> nil
+      end
+
+    next_state = %{
+      state
+      | context: context,
+        current_token: next_token,
+        sampler_state: sampler_state,
+        remaining: state.remaining - 1,
+        generated_tokens: generated_tokens,
+        finish_reason: finish_reason
+    }
+
+    chunk =
+      stream_chunk(
+        next_state,
+        next_token,
+        Llamex.decode(context.model, [next_token]),
+        finish_reason
+      )
+
+    {[chunk], next_state}
+  end
+
+  defp stream_chunk(state, token, text, finish_reason) do
+    %{
+      token: token,
+      text: text,
+      finish_reason: finish_reason,
+      generated_tokens: Enum.reverse(state.generated_tokens),
+      context: state.context
+    }
+  end
 
   defp generate_tokens(
          context,

@@ -65,6 +65,16 @@ defmodule Llamex do
     Generation.generate(prepared_model, prompt, opts)
   end
 
+  def stream(%Model{} = model, prompt, opts)
+      when is_binary(prompt) and is_map(opts) do
+    Generation.stream(model, prompt, opts)
+  end
+
+  def stream(%PreparedModel{} = prepared_model, prompt, opts)
+      when is_binary(prompt) and is_map(opts) do
+    Generation.stream(prepared_model, prompt, opts)
+  end
+
   def generate_chat(model_or_prepared, messages, opts)
       when is_list(messages) and is_map(opts) do
     prompt = chat_prompt(model_or_prepared, messages, opts)
@@ -75,6 +85,18 @@ defmodule Llamex do
       when is_binary(prompt) and is_map(opts) do
     prompt = chat_prompt(model_or_prepared, prompt, opts)
     generate(model_or_prepared, prompt, Map.delete(opts, :system))
+  end
+
+  def stream_chat(model_or_prepared, messages, opts)
+      when is_list(messages) and is_map(opts) do
+    prompt = chat_prompt(model_or_prepared, messages, opts)
+    stream(model_or_prepared, prompt, Map.delete(opts, :system))
+  end
+
+  def stream_chat(model_or_prepared, prompt, opts)
+      when is_binary(prompt) and is_map(opts) do
+    prompt = chat_prompt(model_or_prepared, prompt, opts)
+    stream(model_or_prepared, prompt, Map.delete(opts, :system))
   end
 
   def prefill(%Model{} = model, prompt, opts)
