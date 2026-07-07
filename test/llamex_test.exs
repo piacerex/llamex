@@ -1454,6 +1454,7 @@ defmodule LlamexTest do
 
     assert result.generated_tokens == [2]
     assert result.finish_reason == :stop
+    assert result.prepared? == false
     assert result.sampler == %{temperature: 1.0, top_k: 1, seed: 42}
     assert result.text == "world"
   end
@@ -1624,6 +1625,7 @@ defmodule LlamexTest do
 
     assert result.generated_tokens == [2, 2]
     assert result.finish_reason == :stop_sequence
+    assert result.prepared?
     assert result.text == "world world"
   end
 
@@ -1652,6 +1654,7 @@ defmodule LlamexTest do
 
     assert Enum.map(chunks, & &1.token) == [2, 2, nil]
     assert Enum.map(chunks, & &1.text) == ["world", "world", ""]
+    assert Enum.map(chunks, & &1.prepared?) == [false, false, false]
 
     assert Enum.map(chunks, & &1.sampler) == [
              %{temperature: 1.0, top_k: 1, seed: 42},
@@ -1688,6 +1691,7 @@ defmodule LlamexTest do
       |> Enum.to_list()
 
     assert Enum.map(chunks, & &1.token) == [2, 2]
+    assert Enum.map(chunks, & &1.prepared?) == [true, true]
     assert List.last(chunks).finish_reason == :stop_sequence
     assert List.last(chunks).generated_tokens == [2, 2]
   end
@@ -1710,6 +1714,7 @@ defmodule LlamexTest do
     step = Llamex.step(state.context, state.current_token, %{sampler: :greedy})
 
     assert state.prompt_tokens == [1]
+    assert state.prepared? == false
     assert step.token == 2
     assert step.text == "world"
     assert step.context.tokens == [1]
@@ -1888,6 +1893,7 @@ defmodule LlamexTest do
     assert profile.prompt_token_ids == [1]
     assert profile.prompt_pieces == ["hello"]
     assert profile.backend == Llamex.Backend.List
+    assert profile.prepared? == false
     assert profile.max_new_tokens == 2
     assert profile.stop_token == nil
     assert profile.stop_tokens == []
@@ -1946,6 +1952,32 @@ defmodule LlamexTest do
     assert profile.finish_reason == :stop
     assert profile.text == "world"
     assert Enum.map(profile.timings, & &1.label) == ["prefill", "step_1"]
+  end
+
+  test "profiles prepared generation route" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    profile =
+      Llamex.Profile.generation_steps(prepared, "hello", %{
+        max_new_tokens: 1
+      })
+
+    assert profile.prepared? == true
+    assert profile.backend == Llamex.Backend.List
+    assert profile.generated_tokens == [2]
   end
 
   test "profiles multiple sampled generation steps" do
@@ -2223,6 +2255,8 @@ defmodule LlamexTest do
     assert Enum.all?(results, &Map.has_key?(&1["summary"], "tokens_per_second"))
     assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["phase"] == "measured" end))
     assert Enum.all?(results, &Enum.all?(&1["warmups"], fn run -> run["phase"] == "warmup" end))
+    assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["prepared?"] == true end))
+    assert Enum.all?(results, &Enum.all?(&1["warmups"], fn run -> run["prepared?"] == true end))
     assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["sampler"]["seed"] == 42 end))
 
     assert Enum.all?(

@@ -3,7 +3,7 @@ defmodule Llamex.Profile do
   Small profiling helpers for local GGUF generation experiments.
   """
 
-  alias Llamex.{Context, ContextWindow, Tensor}
+  alias Llamex.{Context, ContextWindow, PreparedModel, Tensor}
   alias Llamex.Layers.{Attention, Linear}
 
   def timed(label, fun) when is_binary(label) and is_function(fun, 0) do
@@ -13,7 +13,8 @@ defmodule Llamex.Profile do
   end
 
   def generation_step(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
-    backend = Map.get(opts, :backend, Llamex.Backend.Nx)
+    backend = profile_backend(model, opts)
+    display_model = profile_model(model)
     reset_profile_caches(backend)
     sampler = Map.get(opts, :sampler, :greedy)
     candidate_count = Map.get(opts, :candidate_count, 0)
@@ -30,16 +31,17 @@ defmodule Llamex.Profile do
       end)
 
     %{
-      backend: backend,
-      exla: exla_info(backend),
+      backend: step.context.backend,
+      exla: exla_info(step.context.backend),
       backend_profile: backend_profile(state.context),
       prompt_tokens: length(state.prompt_tokens),
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
       prompt_truncated?: state.prompt_truncated?,
+      prepared?: state.prepared?,
       token: step.token,
       text: step.text,
-      candidates: token_candidates(model, step.candidates),
+      candidates: token_candidates(display_model, step.candidates),
       eval_timings: step.eval_timings,
       prefill_timings: prefill_timings,
       prompt_eval_steps: state.prompt_eval_steps,
@@ -51,12 +53,13 @@ defmodule Llamex.Profile do
   end
 
   def prefill_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
-    backend = Map.get(opts, :backend, Llamex.Backend.Nx)
+    backend = profile_backend(model, opts)
     reset_profile_caches(backend)
-    original_prompt_tokens = Llamex.encode(model, prompt)
-    context_window = ContextWindow.resolve(model, opts)
+    display_model = profile_model(model)
+    original_prompt_tokens = Llamex.encode(display_model, prompt)
+    context_window = ContextWindow.resolve(display_model, opts)
     prompt_tokens = ContextWindow.apply(original_prompt_tokens, context_window)
-    context = Llamex.Context.new(model, backend)
+    context = profile_context(model, backend)
     prefill_tokens = Enum.drop(prompt_tokens, -1)
 
     {steps, context} =
@@ -71,7 +74,7 @@ defmodule Llamex.Profile do
         step = %{
           index: index,
           token: token,
-          piece: Map.fetch!(model.tokenizer.id_to_token, token),
+          piece: Map.fetch!(display_model.tokenizer.id_to_token, token),
           timing: timing
         }
 
@@ -84,14 +87,15 @@ defmodule Llamex.Profile do
       context_window: context_window,
       prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),
       current_token: List.last(prompt_tokens),
-      current_piece: Map.fetch!(model.tokenizer.id_to_token, List.last(prompt_tokens)),
+      current_piece: Map.fetch!(display_model.tokenizer.id_to_token, List.last(prompt_tokens)),
       context_tokens: context.tokens,
       steps: Enum.reverse(steps)
     }
   end
 
   def generation_steps(model, prompt, opts) when is_binary(prompt) and is_map(opts) do
-    backend = Map.get(opts, :backend, Llamex.Backend.Nx)
+    backend = profile_backend(model, opts)
+    display_model = profile_model(model)
     reset_profile_caches(backend)
     sampler = Map.get(opts, :sampler, :greedy)
     max_new_tokens = Map.get(opts, :max_new_tokens, 1)
@@ -126,18 +130,20 @@ defmodule Llamex.Profile do
             end)
 
           step_info =
-            model
+            display_model
             |> token_info(step.token)
             |> Map.merge(%{
               index: index,
               text: step.text,
               timing: step_time,
               eval_timings: step.eval_timings,
-              candidates: token_candidates(model, step.candidates)
+              candidates: token_candidates(display_model, step.candidates)
             })
 
           finish_reason = if stop_token?(step.token, stop_tokens), do: :stop, else: :length
-          generated_text = Llamex.decode(model, generated_tokens_from_acc([step_info | steps]))
+
+          generated_text =
+            Llamex.decode(display_model, generated_tokens_from_acc([step_info | steps]))
 
           finish_reason =
             if finish_reason == :stop or not stop_sequence?(generated_text, stop_sequences) do
@@ -161,8 +167,8 @@ defmodule Llamex.Profile do
     generated_tokens = Enum.map(steps, & &1.token)
 
     %{
-      backend: backend,
-      exla: exla_info(backend),
+      backend: context.backend,
+      exla: exla_info(context.backend),
       backend_profile: backend_profile(context),
       max_new_tokens: max_new_tokens,
       requested_max_new_tokens: max_new_tokens,
@@ -175,13 +181,14 @@ defmodule Llamex.Profile do
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
       prompt_truncated?: state.prompt_truncated?,
+      prepared?: state.prepared?,
       prompt_token_ids: state.prompt_tokens,
-      prompt_pieces: token_pieces(model, state.prompt_tokens),
+      prompt_pieces: token_pieces(display_model, state.prompt_tokens),
       generated_tokens: generated_tokens,
-      generated_pieces: token_pieces(model, generated_tokens),
-      generated_token_info: Enum.map(generated_tokens, &token_info(model, &1)),
+      generated_pieces: token_pieces(display_model, generated_tokens),
+      generated_token_info: Enum.map(generated_tokens, &token_info(display_model, &1)),
       finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
-      text: Llamex.decode(model, generated_tokens),
+      text: Llamex.decode(display_model, generated_tokens),
       prefill_timings: prefill_timings,
       prompt_eval_steps: state.prompt_eval_steps,
       prompt_eval_summary: state.prompt_eval_summary,
@@ -363,6 +370,8 @@ defmodule Llamex.Profile do
 
   defp timed_prefill(model, prompt, backend, opts) do
     timed("prefill", fn ->
+      source_model = model
+      model = profile_model(source_model)
       context_window = ContextWindow.resolve(model, opts)
 
       {encode_time, original_prompt_tokens} =
@@ -376,7 +385,7 @@ defmodule Llamex.Profile do
         timed("backend_prepare", fn ->
           case Map.fetch(opts, :prepared_model) do
             {:ok, prepared_model} -> Llamex.Context.new_prepared(prepared_model, backend)
-            :error -> Llamex.Context.new(model, backend)
+            :error -> profile_context(source_model, backend)
           end
         end)
 
@@ -407,6 +416,7 @@ defmodule Llamex.Profile do
         original_prompt_token_count: length(original_prompt_tokens),
         context_window: context_window,
         prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),
+        prepared?: profile_prepared?(source_model, opts),
         current_token: seed_token(prompt_tokens),
         prompt_eval_steps: prompt_eval_steps,
         prompt_eval_summary: prompt_eval_summary(prompt_eval_steps)
@@ -415,6 +425,21 @@ defmodule Llamex.Profile do
       {state, [encode_time, prepare_time, prompt_eval_time]}
     end)
   end
+
+  defp profile_backend(%PreparedModel{backend: backend}, _opts), do: backend
+  defp profile_backend(_model, opts), do: Map.get(opts, :backend, Llamex.Backend.Nx)
+
+  defp profile_model(%PreparedModel{model: model}), do: model
+  defp profile_model(model), do: model
+
+  defp profile_context(%PreparedModel{model: model, backend: backend}, _default_backend) do
+    Llamex.Context.new_prepared(model, backend)
+  end
+
+  defp profile_context(model, backend), do: Llamex.Context.new(model, backend)
+
+  defp profile_prepared?(%PreparedModel{}, _opts), do: true
+  defp profile_prepared?(_model, opts), do: Map.has_key?(opts, :prepared_model)
 
   defp seed_token([]), do: raise(ArgumentError, "prompt must encode to at least one token")
   defp seed_token(prompt_tokens), do: List.last(prompt_tokens)

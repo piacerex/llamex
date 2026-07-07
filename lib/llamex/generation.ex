@@ -19,6 +19,7 @@ defmodule Llamex.Generation do
       original_prompt_token_count: length(original_prompt_tokens),
       context_window: context_window,
       prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),
+      prepared?: false,
       current_token: seed_token(prompt_tokens)
     }
   end
@@ -38,6 +39,7 @@ defmodule Llamex.Generation do
       original_prompt_token_count: length(original_prompt_tokens),
       context_window: context_window,
       prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),
+      prepared?: true,
       current_token: seed_token(prompt_tokens)
     }
   end
@@ -250,6 +252,7 @@ defmodule Llamex.Generation do
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
       prompt_truncated?: state.prompt_truncated?,
+      prepared?: state.prepared?,
       exla: exla_info(context.backend),
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
@@ -295,6 +298,7 @@ defmodule Llamex.Generation do
       prompt_tokens: state.prompt_tokens,
       generated_tokens: [],
       finish_reason: nil,
+      prepared?: state.prepared?,
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens
     }
@@ -344,6 +348,7 @@ defmodule Llamex.Generation do
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
       prompt_truncated?: state.prompt_truncated?,
+      prepared?: state.prepared?,
       exla: exla_info(context.backend),
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
@@ -438,6 +443,7 @@ defmodule Llamex.Generation do
       finish_reason: finish_reason,
       generated_tokens: Enum.reverse(state.generated_tokens),
       sampler: state.sampler,
+      prepared?: state.prepared?,
       context: state.context
     }
   end
