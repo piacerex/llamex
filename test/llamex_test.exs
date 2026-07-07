@@ -79,6 +79,23 @@ defmodule LlamexTest do
     assert Llamex.Natural.sampler(prepared).suppress_tokens == [0, 1]
   end
 
+  test "natural sampler validates sampling options" do
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 1, embedding_size: 1},
+        tokenizer: Llamex.Tokenizer.new(%{"hello" => 0}, "hello"),
+        token_embeddings: %{0 => [0.0]}
+      })
+
+    assert_raise ArgumentError, "top_k must be a positive integer", fn ->
+      Llamex.Natural.sampler(model, %{top_k: 0})
+    end
+
+    assert_raise ArgumentError, "seed must be a non-negative integer", fn ->
+      Llamex.Natural.sampler(model, %{seed: -1})
+    end
+  end
+
   test "kv cache exposes entries in append order" do
     cache = Llamex.KVCache.new()
 

@@ -20,6 +20,53 @@ defmodule Llamex.Sampler do
     raise ArgumentError, "random must be a float greater than or equal to zero and less than one"
   end
 
+  def validate_options!(opts) when is_map(opts) do
+    opts
+    |> validate_option(:temperature, &validate_temperature!/1)
+    |> validate_option(:top_k, &validate_top_k!/1)
+    |> validate_option(:top_p, &validate_top_p!/1)
+    |> validate_option(:min_p, &validate_min_p!/1)
+    |> validate_option(:repetition_penalty, &validate_repetition_penalty!/1)
+    |> validate_option(:seed, &validate_seed!/1)
+    |> validate_option(:random, &validate_random!/1)
+
+    opts
+  end
+
+  def validate_temperature!(temperature) when is_number(temperature) and temperature > 0.0,
+    do: temperature
+
+  def validate_temperature!(_temperature) do
+    raise ArgumentError, "temperature must be greater than zero"
+  end
+
+  def validate_top_k!(top_k) when is_integer(top_k) and top_k > 0, do: top_k
+
+  def validate_top_k!(_top_k) do
+    raise ArgumentError, "top_k must be a positive integer"
+  end
+
+  def validate_top_p!(top_p) when is_number(top_p) and top_p > 0.0 and top_p <= 1.0,
+    do: top_p
+
+  def validate_top_p!(_top_p) do
+    raise ArgumentError, "top_p must be greater than zero and less than or equal to one"
+  end
+
+  def validate_min_p!(min_p) when is_number(min_p) and min_p > 0.0 and min_p <= 1.0,
+    do: min_p
+
+  def validate_min_p!(_min_p) do
+    raise ArgumentError, "min_p must be greater than zero and less than or equal to one"
+  end
+
+  def validate_repetition_penalty!(penalty) when is_number(penalty) and penalty > 0.0,
+    do: penalty
+
+  def validate_repetition_penalty!(_penalty) do
+    raise ArgumentError, "repetition_penalty must be greater than zero"
+  end
+
   def sample(logits, backend, opts) when is_atom(backend) and is_map(opts) do
     random = Map.fetch!(opts, :random)
 
@@ -58,9 +105,7 @@ defmodule Llamex.Sampler do
     values = backend.to_list(logits)
     temperature = Map.fetch!(opts, :temperature)
 
-    if temperature <= 0.0 do
-      raise ArgumentError, "temperature must be greater than zero"
-    end
+    validate_temperature!(temperature)
 
     values
     |> apply_repetition_penalty(Map.get(opts, :history, []), Map.get(opts, :repetition_penalty))
@@ -76,9 +121,7 @@ defmodule Llamex.Sampler do
   defp candidate_distribution(candidates, opts) do
     temperature = Map.fetch!(opts, :temperature)
 
-    if temperature <= 0.0 do
-      raise ArgumentError, "temperature must be greater than zero"
-    end
+    validate_temperature!(temperature)
 
     candidates
     |> reject_suppressed_candidates(Map.get(opts, :suppress_tokens, []))
@@ -92,7 +135,8 @@ defmodule Llamex.Sampler do
   defp apply_repetition_penalty(values, _history, nil), do: values
 
   defp apply_repetition_penalty(values, history, penalty)
-       when is_list(history) and is_number(penalty) and penalty > 0.0 do
+       when is_list(history) do
+    penalty = validate_repetition_penalty!(penalty)
     repeated = MapSet.new(history)
 
     values
@@ -104,10 +148,6 @@ defmodule Llamex.Sampler do
         value
       end
     end)
-  end
-
-  defp apply_repetition_penalty(_values, _history, _penalty) do
-    raise ArgumentError, "repetition_penalty must be greater than zero"
   end
 
   defp penalize(value, penalty) when value >= 0.0, do: value / penalty
@@ -148,9 +188,7 @@ defmodule Llamex.Sampler do
     |> top_k_by_value(top_k)
   end
 
-  defp top_k_candidates(_values, _top_k) do
-    raise ArgumentError, "top_k must be a positive integer"
-  end
+  defp top_k_candidates(_values, top_k), do: validate_top_k!(top_k)
 
   defp top_k_by_value(candidates, top_k) do
     candidates
@@ -203,9 +241,7 @@ defmodule Llamex.Sampler do
     Enum.filter(probabilities, fn {probability, _index} -> probability >= threshold end)
   end
 
-  defp apply_min_p(_probabilities, _min_p) do
-    raise ArgumentError, "min_p must be greater than zero and less than or equal to one"
-  end
+  defp apply_min_p(_probabilities, min_p), do: validate_min_p!(min_p)
 
   defp apply_top_p(probabilities, nil), do: probabilities
 
@@ -215,9 +251,7 @@ defmodule Llamex.Sampler do
     |> keep_until_top_p(top_p, 0.0, [])
   end
 
-  defp apply_top_p(_probabilities, _top_p) do
-    raise ArgumentError, "top_p must be greater than zero and less than or equal to one"
-  end
+  defp apply_top_p(_probabilities, top_p), do: validate_top_p!(top_p)
 
   defp keep_until_top_p([], _top_p, _total, kept), do: Enum.reverse(kept)
 
@@ -254,4 +288,13 @@ defmodule Llamex.Sampler do
   end
 
   defp draw(_probabilities, random), do: validate_random!(random)
+
+  defp validate_option(opts, key, validator) do
+    case Map.fetch(opts, key) do
+      {:ok, value} when not is_nil(value) -> validator.(value)
+      _other -> :ok
+    end
+
+    opts
+  end
 end

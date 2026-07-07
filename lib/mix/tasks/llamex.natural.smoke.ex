@@ -71,6 +71,8 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
     print_results(results, options)
     maybe_fail_on_issue(results, options)
+  rescue
+    exception in ArgumentError -> Mix.raise(Exception.message(exception))
   end
 
   defp run_smoke(_args, _options) do
