@@ -282,6 +282,10 @@ mix llamex.benchmark /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.ggu
   --json
 ```
 
+When using EXLA, read the first benchmark row as a cold run that can include
+compiler and cache setup. Later rows in the same command are warmer and are
+usually better for judging per-token generation cost.
+
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
 
