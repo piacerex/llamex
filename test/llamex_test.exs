@@ -1830,20 +1830,36 @@ defmodule LlamexTest do
           "hello",
           "--tokens",
           "1,2",
-          "--backend",
-          "list"
+          "--backends",
+          "list,nx",
+          "--repeat",
+          "2",
+          "--warmup",
+          "1"
         ])
       end)
 
     results = JSON.decode!(String.trim(output))
 
-    assert Enum.map(results, & &1["requested_max_new_tokens"]) == [1, 2]
+    assert length(results) == 4
+    assert Enum.sort(Enum.map(results, & &1["requested_max_new_tokens"])) == [1, 1, 2, 2]
+
+    assert Enum.sort(Enum.uniq(Enum.map(results, & &1["backend"]))) == [
+             "Llamex.Backend.List",
+             "Llamex.Backend.Nx"
+           ]
+
     assert Enum.all?(results, &(&1["model_path"] == "priv/models/tiny.json"))
     assert Enum.all?(results, &(&1["prompt"] == "hello"))
-    assert Enum.all?(results, &is_integer(&1["total_milliseconds"]))
-    assert Enum.all?(results, &is_integer(&1["generated_tokens"]))
-    assert Enum.all?(results, &Map.has_key?(&1, "milliseconds_per_generated_token"))
-    assert Enum.all?(results, &is_map(&1["timing_components"]))
+    assert Enum.all?(results, &(&1["warmup_count"] == 1))
+    assert Enum.all?(results, &(&1["repeat_count"] == 2))
+    assert Enum.all?(results, &(length(&1["warmups"]) == 1))
+    assert Enum.all?(results, &(length(&1["runs"]) == 2))
+    assert Enum.all?(results, &is_map(&1["summary"]))
+    assert Enum.all?(results, &is_map(&1["summary"]["total_milliseconds"]))
+    assert Enum.all?(results, &Map.has_key?(&1["summary"], "tokens_per_second"))
+    assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["phase"] == "measured" end))
+    assert Enum.all?(results, &Enum.all?(&1["warmups"], fn run -> run["phase"] == "warmup" end))
   end
 
   test "generate task profile includes configured exla target" do
