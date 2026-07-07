@@ -3371,6 +3371,11 @@ defmodule LlamexTest do
     assert diagnostic.version == 3
     assert diagnostic.tensor_count == 1
     assert diagnostic.tensor_element_count == 4
+    assert diagnostic.architecture == "llama"
+    assert diagnostic.supported_architectures == ["llama"]
+    assert diagnostic.architecture_supported? == true
+    assert diagnostic.tokenizer_supported? == true
+    assert diagnostic.loadable? == false
 
     assert diagnostic.tensor_shapes == [
              %{
@@ -3398,11 +3403,30 @@ defmodule LlamexTest do
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template missing tokens: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor elements: 4"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture supported: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer supported: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "loadable: false"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "token_embd.weight=type_99 gguf:[2, 2] schema:[2, 2]"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "eager f32 lower bound: 16 B"
+  end
+
+  test "diagnoses loadable gguf capability summary" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:without_tensor_data))
+
+    assert diagnostic.architecture == "llama"
+    assert diagnostic.architecture_supported? == true
+    assert diagnostic.tokenizer_supported? == true
+    assert diagnostic.unsupported_tensor_types == %{}
+    assert diagnostic.loadable? == true
+
+    formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
+
+    assert formatted =~ "architecture supported: true"
+    assert formatted =~ "tokenizer supported: true"
+    assert formatted =~ "loadable: true"
   end
 
   test "gguf inspect task can print json diagnostics" do
@@ -3423,6 +3447,9 @@ defmodule LlamexTest do
       assert diagnostic["version"] == 3
       assert diagnostic["chat_template"] == "none"
       assert diagnostic["chat_usable"] == false
+      assert diagnostic["architecture_supported?"] == true
+      assert diagnostic["tokenizer_supported?"] == true
+      assert diagnostic["loadable?"] == false
 
       assert diagnostic["tensor_shapes"] == [
                %{

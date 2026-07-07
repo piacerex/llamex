@@ -3,6 +3,7 @@ defmodule Llamex.GGUF.Diagnostic do
   Diagnostics for GGUF model compatibility.
   """
 
+  @supported_architectures ["llama"]
   @supported_tensor_types %{
     0 => "F32",
     1 => "F16",
@@ -36,6 +37,9 @@ defmodule Llamex.GGUF.Diagnostic do
       tensor_count: gguf.tensor_count,
       metadata_count: gguf.metadata_count,
       architecture: metadata_value(gguf.metadata, "general.architecture"),
+      supported_architectures: @supported_architectures,
+      architecture_supported?: architecture_supported?(gguf.metadata),
+      tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
       chat_template: chat_template,
@@ -46,7 +50,8 @@ defmodule Llamex.GGUF.Diagnostic do
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
       supported_tensor_types: supported_tensor_types(gguf.tensors),
       unsupported_tensor_types: unsupported_tensor_types(gguf.tensors),
-      unsupported_tensors: unsupported_tensors(gguf.tensors)
+      unsupported_tensors: unsupported_tensors(gguf.tensors),
+      loadable?: loadable?(gguf.metadata, gguf.tensors)
     }
   end
 
@@ -54,6 +59,9 @@ defmodule Llamex.GGUF.Diagnostic do
     [
       "GGUF v#{diagnostic.version}",
       "architecture: #{diagnostic.architecture || "unknown"}",
+      "architecture supported: #{diagnostic.architecture_supported?}",
+      "tokenizer supported: #{diagnostic.tokenizer_supported?}",
+      "loadable: #{diagnostic.loadable?}",
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
@@ -97,6 +105,21 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp supported_tensor_type?(%{type: type}), do: Map.has_key?(@supported_tensor_types, type)
+
+  defp architecture_supported?(metadata) do
+    metadata
+    |> metadata_value("general.architecture")
+    |> then(&(&1 in @supported_architectures))
+  end
+
+  defp tokenizer_supported?(metadata) do
+    match?(%{values: [_first | _rest]}, metadata_value(metadata, "tokenizer.ggml.tokens"))
+  end
+
+  defp loadable?(metadata, tensors) do
+    architecture_supported?(metadata) and tokenizer_supported?(metadata) and
+      unsupported_tensors(tensors) == []
+  end
 
   defp tensor_element_count(tensors) do
     tensors
