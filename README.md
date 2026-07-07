@@ -7,7 +7,7 @@ Minimal Elixir LLM engine experiment.
 ```bash
 mix test
 mix llamex.generate priv/models/tiny.json hello 2
-mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --top-p 0.9 --seed 42
+mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --top-p 0.9 --min-p 0.05 --seed 42
 mix llamex.generate priv/models/tiny.json hello 2 --profile
 mix llamex.generate model.gguf "The" 1 --natural --profile --candidates 5
 mix llamex.generate priv/models/tiny.json hello 2 --profile --no-stop
@@ -221,6 +221,8 @@ The `mix llamex.generate` task accepts `.gguf` paths and uses the GGUF loader
 for them. Use `--natural` to select a conservative text sampling preset
 (`temperature=0.8`, `top-k=40`, `top-p=0.5`, `repetition-penalty=1.1`,
 `no-repeat-ngram-size=2`, `no-repeat-adjacent-word=true`).
+Use `--min-p VALUE` to keep tokens whose probability is at least
+`VALUE * max_probability` after temperature/top-k filtering.
 Use `--profile` to inspect the model path, prompt, prompt token IDs/pieces,
 generation settings, generated token IDs/pieces/types, timings, and
 `finish_reason` (`stop` or `length`) for generation experiments. Profile output

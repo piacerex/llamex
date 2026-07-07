@@ -1099,6 +1099,26 @@ defmodule LlamexTest do
            }) == 2
   end
 
+  test "samples with min-p" do
+    logits = Llamex.Backend.List.from_list([0.0, 1.0, 2.0])
+
+    assert Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+             temperature: 1.0,
+             min_p: 0.5,
+             random: 0.99
+           }) == 2
+  end
+
+  test "candidate sampling applies min-p" do
+    candidates = [{2.0, 2}, {1.0, 1}, {0.0, 0}]
+
+    assert Llamex.Sampler.sample_candidates(candidates, %{
+             temperature: 1.0,
+             min_p: 0.5,
+             random: 0.99
+           }) == 2
+  end
+
   test "reports sampled candidate probabilities" do
     logits = Llamex.Backend.List.from_list([0.0, 1.0, 2.0])
 
@@ -2175,6 +2195,26 @@ defmodule LlamexTest do
 
     assert [step] = profile["steps"]
     assert Enum.map(step["candidates"], & &1["piece"]) == ["world", "hello"]
+  end
+
+  test "generate task passes min-p sampling option" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello",
+          "1",
+          "--profile",
+          "--temperature",
+          "1.0",
+          "--min-p",
+          "0.5"
+        ])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert profile["sampler"]["min_p"] == 0.5
   end
 
   test "natural generation suppresses byte tokens" do

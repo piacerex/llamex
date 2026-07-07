@@ -55,6 +55,7 @@ defmodule Llamex.Sampler do
     |> apply_temperature(temperature)
     |> top_k_candidates(Map.get(opts, :top_k))
     |> probabilities()
+    |> apply_min_p(Map.get(opts, :min_p))
     |> apply_top_p(Map.get(opts, :top_p))
     |> normalize()
   end
@@ -70,6 +71,7 @@ defmodule Llamex.Sampler do
     |> reject_suppressed_candidates(Map.get(opts, :suppress_tokens, []))
     |> Enum.map(fn {value, index} -> {value / temperature, index} end)
     |> probabilities()
+    |> apply_min_p(Map.get(opts, :min_p))
     |> apply_top_p(Map.get(opts, :top_p))
     |> normalize()
   end
@@ -164,6 +166,20 @@ defmodule Llamex.Sampler do
     total = weighted |> Enum.map(fn {weight, _index} -> weight end) |> Enum.sum()
 
     Enum.map(weighted, fn {weight, index} -> {weight / total, index} end)
+  end
+
+  defp apply_min_p(probabilities, nil), do: probabilities
+
+  defp apply_min_p(probabilities, min_p)
+       when is_number(min_p) and min_p > 0.0 and min_p <= 1.0 do
+    max_probability =
+      probabilities
+      |> Enum.map(fn {probability, _index} -> probability end)
+      |> Enum.max()
+
+    threshold = max_probability * min_p
+
+    Enum.filter(probabilities, fn {probability, _index} -> probability >= threshold end)
   end
 
   defp apply_top_p(probabilities, nil), do: probabilities

@@ -36,6 +36,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           context_window: :integer,
           seed: :integer,
           top_p: :float,
+          min_p: :float,
           top_k: :integer,
           temperature: :float,
           repetition_penalty: :float,
@@ -273,7 +274,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
   defp natural_sampler(model, options) do
     sampler_options =
-      Map.take(options, [:temperature, :top_k, :top_p, :repetition_penalty, :seed])
+      Map.take(options, [:temperature, :top_k, :top_p, :min_p, :repetition_penalty, :seed])
       |> Map.merge(Map.take(options, [:no_repeat_ngram_size, :no_repeat_adjacent_word]))
       |> Map.delete(:exla)
 

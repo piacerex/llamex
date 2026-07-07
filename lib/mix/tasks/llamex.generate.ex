@@ -20,6 +20,7 @@ defmodule Mix.Tasks.Llamex.Generate do
           temperature: :float,
           top_k: :integer,
           top_p: :float,
+          min_p: :float,
           repetition_penalty: :float,
           no_repeat_ngram_size: :integer,
           no_repeat_adjacent_word: :boolean,
