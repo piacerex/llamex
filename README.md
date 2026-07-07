@@ -297,9 +297,11 @@ include compiler and cache setup. Use measured-run `summary.mean`,
 `summary.median`, and `summary.best` values, not a single cold run, when
 deciding whether List or NxEXLA is faster for a prompt and token count.
 Each raw benchmark run also includes `prompt_eval_steps` and
-`prompt_eval_summary`. Use `prompt_eval_steps` to inspect prefill token-by-token
-timings, and `prompt_eval_summary.layers` to compare accumulated prefill layer
-costs across List and NxEXLA. Non-JSON benchmark output also prints
+`prompt_eval_summary`. JSON benchmark runs include the sampler settings, so seed
+and sampling options used for each run can be audited. Use `prompt_eval_steps`
+to inspect prefill token-by-token timings, and `prompt_eval_summary.layers` to
+compare accumulated prefill layer costs across List and NxEXLA. Non-JSON
+benchmark output also prints
 `prompt_eval_top_layers` and `prompt_eval_top_components` so the next prefill
 optimization target is visible without expanding the raw JSON.
 
@@ -359,6 +361,7 @@ result =
 
 IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
 
+result.sampler
 result.text
 ```
 

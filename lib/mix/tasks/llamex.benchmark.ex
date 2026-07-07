@@ -170,6 +170,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       run_index: run_index,
       prompt: prompt,
       requested_max_new_tokens: max_new_tokens,
+      sampler: profile.sampler,
       generated_tokens: generated_count,
       finish_reason: profile.finish_reason,
       text: text,

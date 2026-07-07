@@ -254,6 +254,7 @@ defmodule Llamex.Generation do
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
       generated_tokens: generated_tokens,
+      sampler: sampler,
       finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
       context: context
     }
@@ -347,6 +348,7 @@ defmodule Llamex.Generation do
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
       generated_tokens: generated_tokens,
+      sampler: sampler,
       finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
       context: context
     }

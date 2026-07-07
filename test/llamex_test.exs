@@ -1404,6 +1404,7 @@ defmodule LlamexTest do
 
     assert result.generated_tokens == [2]
     assert result.finish_reason == :stop
+    assert result.sampler == %{temperature: 1.0, top_k: 1, seed: 42}
     assert result.text == "world"
   end
 
@@ -2128,7 +2129,13 @@ defmodule LlamexTest do
           "--repeat",
           "2",
           "--warmup",
-          "1"
+          "1",
+          "--temperature",
+          "1.0",
+          "--top-k",
+          "1",
+          "--seed",
+          "42"
         ])
       end)
 
@@ -2154,6 +2161,12 @@ defmodule LlamexTest do
     assert Enum.all?(results, &Map.has_key?(&1["summary"], "tokens_per_second"))
     assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["phase"] == "measured" end))
     assert Enum.all?(results, &Enum.all?(&1["warmups"], fn run -> run["phase"] == "warmup" end))
+    assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["sampler"]["seed"] == 42 end))
+
+    assert Enum.all?(
+             results,
+             &Enum.all?(&1["warmups"], fn run -> run["sampler"]["seed"] == 42 end)
+           )
 
     assert Enum.all?(
              results,
