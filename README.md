@@ -40,6 +40,9 @@ commands default to the Nx backend, and backend selection is explicit:
 - `Llamex.Backend.NxEXLA`: optional Nx/EXLA path for BEAM experiments
 - `Llamex.Backend.FPGA`: FPGA boundary, currently backed by the List fallback
 
+Greedy generation is regression-tested to agree across List, Nx, and NxEXLA on
+the same tiny model when Nx is available.
+
 ```text
 PC:   operation wrapper -> Llamex.Backend.NxEXLA
 FPGA: operation wrapper -> Llamex.Backend.FPGA
