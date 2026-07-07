@@ -266,9 +266,12 @@ Use `mix llamex.benchmark MODEL --tokens 8,16,24,32 --json` to compare
 generation cost across multiple output lengths after loading the model once.
 The benchmark task reports raw warmup and measured runs plus summary values
 for total, prefill, step, eval, per-generated-token milliseconds, and
-tokens-per-second. It accepts backend comparison, EXLA, natural sampler,
-context window, stop-control, sampling, and `--trim-to-sentence` options used
-by the generation and smoke tasks. For example:
+tokens-per-second. It prepares the model once per backend before warmup and
+measured runs, reporting that one-time cost as `backend_prepare_milliseconds`
+in JSON and `backend_prepare_ms` in text output. It accepts backend comparison,
+EXLA, natural sampler, context window, stop-control, sampling, and
+`--trim-to-sentence` options used by the generation and smoke tasks. For
+example:
 
 ```bash
 mix llamex.benchmark /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf \

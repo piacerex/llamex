@@ -1856,6 +1856,7 @@ defmodule LlamexTest do
     assert Enum.all?(results, &(&1["prompt"] == "hello"))
     assert Enum.all?(results, &(&1["warmup_count"] == 1))
     assert Enum.all?(results, &(&1["repeat_count"] == 2))
+    assert Enum.all?(results, &is_integer(&1["backend_prepare_milliseconds"]))
     assert Enum.all?(results, &(length(&1["warmups"]) == 1))
     assert Enum.all?(results, &(length(&1["runs"]) == 2))
     assert Enum.all?(results, &is_map(&1["summary"]))
@@ -1891,6 +1892,7 @@ defmodule LlamexTest do
 
     assert output =~ "prompt_eval_top_layers=none"
     assert output =~ "prompt_eval_top_components=eval.logits:"
+    assert output =~ "backend_prepare_ms="
   end
 
   test "generate task profile includes configured exla target" do

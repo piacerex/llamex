@@ -364,7 +364,10 @@ defmodule Llamex.Profile do
 
       {prepare_time, context} =
         timed("backend_prepare", fn ->
-          Llamex.Context.new(model, backend)
+          case Map.fetch(opts, :prepared_model) do
+            {:ok, prepared_model} -> Llamex.Context.new_prepared(prepared_model, backend)
+            :error -> Llamex.Context.new(model, backend)
+          end
         end)
 
       {prompt_eval_time, {context, prompt_eval_steps}} =

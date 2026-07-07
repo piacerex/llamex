@@ -24,6 +24,16 @@ defmodule Llamex.Context do
     }
   end
 
+  def new_prepared(model, backend) when is_atom(backend) do
+    %__MODULE__{
+      model: model,
+      backend: backend,
+      tokens: [],
+      token_count: 0,
+      kv_cache: Llamex.KVCache.new()
+    }
+  end
+
   def append(%__MODULE__{} = context, token) when is_integer(token) and token >= 0 do
     %{context | tokens: context.tokens ++ [token], token_count: context.token_count + 1}
   end

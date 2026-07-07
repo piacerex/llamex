@@ -93,10 +93,13 @@ defmodule Mix.Tasks.Llamex.Benchmark do
          repeat_count,
          options
        ) do
+    {prepare_microseconds, prepared_model} =
+      :timer.tc(fn -> backend.prepare_model(model) end)
+
     warmups =
       Enum.map(1..warmup_count//1, fn index ->
         benchmark_once(
-          model,
+          prepared_model,
           model_path,
           prompt,
           max_new_tokens,
@@ -110,7 +113,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
     runs =
       Enum.map(1..repeat_count, fn index ->
         benchmark_once(
-          model,
+          prepared_model,
           model_path,
           prompt,
           max_new_tokens,
@@ -126,6 +129,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       backend: inspect(backend),
       prompt: prompt,
       requested_max_new_tokens: max_new_tokens,
+      backend_prepare_milliseconds: div(prepare_microseconds, 1000),
       warmup_count: warmup_count,
       repeat_count: repeat_count,
       warmups: warmups,
@@ -149,6 +153,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
         backend: backend,
         context_window: Map.get(options, :context_window),
         max_new_tokens: max_new_tokens,
+        prepared_model: model,
         stop_tokens: stop_tokens(model, options),
         sampler: sampler(model, options)
       })
@@ -190,6 +195,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       Mix.shell().info(
         "backend=#{result.backend} tokens=#{result.requested_max_new_tokens} " <>
           "runs=#{result.repeat_count} warmups=#{result.warmup_count} " <>
+          "backend_prepare_ms=#{result.backend_prepare_milliseconds} " <>
           "mean_ms=#{format_float(summary.total_milliseconds.mean)} " <>
           "median_ms=#{format_float(summary.total_milliseconds.median)} " <>
           "best_ms=#{format_float(summary.total_milliseconds.best)} " <>
