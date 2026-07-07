@@ -97,13 +97,21 @@ defmodule Llamex.ChatTemplate do
   end
 
   defp validate_messages!(messages) do
-    Enum.each(messages, fn message ->
+    Enum.each(Enum.with_index(messages), fn {message, index} ->
+      unless is_map(message) do
+        raise ArgumentError, "chat message #{index} must be a map"
+      end
+
       role = message_role(message)
-      _content = message_content(message)
+      content = message_content(message)
 
       if role not in @supported_roles do
         raise ArgumentError,
-              "unsupported chat role: #{role}; supported roles: #{Enum.join(@supported_roles, ", ")}"
+              "unsupported chat role: #{format_role(role)}; supported roles: #{Enum.join(@supported_roles, ", ")}"
+      end
+
+      unless is_binary(content) do
+        raise ArgumentError, "chat message #{index} content must be a string"
       end
     end)
   end
@@ -112,9 +120,14 @@ defmodule Llamex.ChatTemplate do
   defp message_role(%{role: role}) when is_binary(role), do: role
   defp message_role(%{"role" => role}) when is_atom(role), do: Atom.to_string(role)
   defp message_role(%{"role" => role}) when is_binary(role), do: role
+  defp message_role(_message), do: nil
 
   defp message_content(%{content: content}) when is_binary(content), do: content
   defp message_content(%{"content" => content}) when is_binary(content), do: content
+  defp message_content(_message), do: nil
+
+  defp format_role(nil), do: "missing"
+  defp format_role(role), do: role
 
   defp eos_token(tokenizer) do
     get_in(tokenizer.special_tokens, [:eos, :token]) || "</s>"

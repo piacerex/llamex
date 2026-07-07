@@ -237,6 +237,22 @@ defmodule LlamexTest do
                  end
   end
 
+  test "rejects malformed chat messages" do
+    assert_raise ArgumentError, "chat message 0 must be a map", fn ->
+      Llamex.ChatTemplate.apply(chatml_template(), ["hello"])
+    end
+
+    assert_raise ArgumentError,
+                 "unsupported chat role: missing; supported roles: system, user, assistant",
+                 fn ->
+                   Llamex.ChatTemplate.apply(chatml_template(), [%{content: "hello"}])
+                 end
+
+    assert_raise ArgumentError, "chat message 0 content must be a string", fn ->
+      Llamex.ChatTemplate.apply(chatml_template(), [%{role: "user"}])
+    end
+  end
+
   test "public chat prompt API applies tokenizer chat templates" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
