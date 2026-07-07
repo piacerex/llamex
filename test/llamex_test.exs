@@ -225,6 +225,74 @@ defmodule LlamexTest do
              "<|user|>\nBe concise.</s><|user|>\nHello</s><|assistant|>"
   end
 
+  test "public chat prompt API applies tokenizer chat templates" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "<|im_start|>" => 1,
+          "<|im_end|>" => 2,
+          "system" => 3,
+          "user" => 4,
+          "assistant" => 5,
+          "\n" => 6,
+          "Be" => 7,
+          "concise." => 8,
+          "Hello" => 9
+        },
+        "<unk>",
+        chat_template: chatml_template()
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 10, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: Map.new(0..9, &{&1, [&1 * 1.0]})
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    assert Llamex.chat_prompt(prepared, "Hello", %{system: "Be concise."}) ==
+             "<|im_start|>system\nBe concise.<|im_end|>\n<|im_start|>user\nHello<|im_end|>\n<|im_start|>assistant\n"
+  end
+
+  test "public chat generation API works with prepared models" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "<|im_start|>" => 1,
+          "<|im_end|>" => 2,
+          "user" => 3,
+          "assistant" => 4,
+          "\n" => 5,
+          "Hello" => 6,
+          "world" => 7
+        },
+        "<unk>",
+        chat_template: chatml_template()
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 8, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: Map.new(0..7, &{&1, [&1 * 1.0]})
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    result =
+      Llamex.generate_chat(prepared, [%{role: "user", content: "Hello"}], %{
+        max_new_tokens: 1,
+        sampler: :greedy
+      })
+
+    assert result.text == "world"
+    assert result.context.backend == Llamex.Backend.List
+  end
+
   test "adds configured bos and eos tokens while encoding" do
     tokenizer =
       Llamex.Tokenizer.whitespace(

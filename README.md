@@ -452,6 +452,32 @@ IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
 result.text
 ```
 
+#### Prepared Chat Generation
+
+Use `generate_chat/3` when the tokenizer has a supported chat template. It
+formats the prompt or message list first, then runs normal generation.
+
+```elixir
+Llamex.Backend.NxEXLA.configure!(:cpu)
+
+model = Llamex.GGUF.ModelLoader.load("/tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf")
+prepared = Llamex.prepare_model(model, Llamex.Backend.NxEXLA)
+
+messages = [
+  %{role: "system", content: "Be concise."},
+  %{role: "user", content: "Explain Elixir processes in one sentence."}
+]
+
+result =
+  Llamex.generate_chat(prepared, messages, %{
+    max_new_tokens: 32,
+    stop_tokens: Llamex.Natural.control_stop_tokens(prepared),
+    sampler: Llamex.Natural.sampler(prepared)
+  })
+
+result.text
+```
+
 #### List Backend
 
 ```elixir
