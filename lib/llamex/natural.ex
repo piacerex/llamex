@@ -25,7 +25,7 @@ defmodule Llamex.Natural do
   end
 
   def open_ending?(text) when is_binary(text) do
-    Regex.match?(~r/[[:alnum:],;:]$/u, String.trim(text))
+    Regex.match?(~r/[[:alnum:],;:'"‘’“”]$/u, String.trim(text))
   end
 
   def smoke_check(model, generated_tokens, text, opts \\ %{})

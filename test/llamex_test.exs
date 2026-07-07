@@ -2428,6 +2428,14 @@ defmodule LlamexTest do
              issues: ["length limit reached with incomplete text ending"]
            }
 
+    assert Llamex.Natural.smoke_check(%{}, [], "I think it'", %{
+             finish_reason: :length,
+             reject_open_ending: true
+           }) == %{
+             ok: false,
+             issues: ["length limit reached with incomplete text ending"]
+           }
+
     assert Llamex.Natural.smoke_check(%{}, [], "They were.", %{
              finish_reason: :length,
              reject_open_ending: true
