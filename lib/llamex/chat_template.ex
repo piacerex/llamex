@@ -6,6 +6,9 @@ defmodule Llamex.ChatTemplate do
   import Kernel, except: [apply: 2, apply: 3]
 
   @chatml_template "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+  @supported_roles ["system", "user", "assistant"]
+
+  def supported_roles, do: @supported_roles
 
   def supported?(nil), do: true
   def supported?(@chatml_template), do: true
@@ -35,6 +38,8 @@ defmodule Llamex.ChatTemplate do
   end
 
   def apply(@chatml_template, messages) when is_list(messages) do
+    validate_messages!(messages)
+
     Enum.map_join(messages, "", fn message ->
       "<|im_start|>" <>
         message_role(message) <> "\n" <> message_content(message) <> "<|im_end|>\n"
@@ -54,6 +59,8 @@ defmodule Llamex.ChatTemplate do
   end
 
   def apply(template, messages, tokenizer) when is_binary(template) and is_list(messages) do
+    validate_messages!(messages)
+
     cond do
       template == @chatml_template ->
         apply(template, messages)
@@ -87,6 +94,18 @@ defmodule Llamex.ChatTemplate do
           "<|user|>\n" <> message_content(message) <> eos_token
       end
     end) <> "<|assistant|>"
+  end
+
+  defp validate_messages!(messages) do
+    Enum.each(messages, fn message ->
+      role = message_role(message)
+      _content = message_content(message)
+
+      if role not in @supported_roles do
+        raise ArgumentError,
+              "unsupported chat role: #{role}; supported roles: #{Enum.join(@supported_roles, ", ")}"
+      end
+    end)
   end
 
   defp message_role(%{role: role}) when is_atom(role), do: Atom.to_string(role)

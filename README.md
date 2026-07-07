@@ -481,7 +481,9 @@ result.text
 #### Prepared Chat Generation
 
 Use `generate_chat/3` when the tokenizer has a supported chat template. It
-formats the prompt or message list first, then runs normal generation.
+formats the prompt or message list first, then runs normal generation. Supported
+roles are `system`, `user`, and `assistant`; role-marker templates that do not
+have a separate system marker fold system messages into the user marker.
 
 ```elixir
 Llamex.Backend.NxEXLA.configure!(:cpu)

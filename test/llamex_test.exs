@@ -225,6 +225,18 @@ defmodule LlamexTest do
              "<|user|>\nBe concise.</s><|user|>\nHello</s><|assistant|>"
   end
 
+  test "rejects unsupported chat roles" do
+    assert Llamex.ChatTemplate.supported_roles() == ["system", "user", "assistant"]
+
+    assert_raise ArgumentError,
+                 "unsupported chat role: tool; supported roles: system, user, assistant",
+                 fn ->
+                   Llamex.ChatTemplate.apply(chatml_template(), [
+                     %{role: "tool", content: "ignored"}
+                   ])
+                 end
+  end
+
   test "public chat prompt API applies tokenizer chat templates" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
