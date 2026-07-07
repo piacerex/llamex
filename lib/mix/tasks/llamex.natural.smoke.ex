@@ -67,47 +67,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     settings = smoke_settings(max_new_tokens, stop_tokens, sampler, options)
 
     results =
-      Enum.map(prompts, fn prompt ->
-        result =
-          Llamex.generate(model, prompt, %{
-            backend: backend(options),
-            context_window: Map.get(options, :context_window),
-            max_new_tokens: max_new_tokens,
-            stop_tokens: stop_tokens,
-            sampler: sampler
-          })
-
-        result =
-          maybe_complete_open_ending(
-            model,
-            prompt,
-            result,
-            sampler,
-            stop_tokens,
-            max_new_tokens,
-            options
-          )
-          |> maybe_trim_to_sentence(options)
-
-        check =
-          Llamex.Natural.smoke_check(model, result.generated_tokens, result.text, %{
-            finish_reason: result.finish_reason,
-            min_words: min_words(options),
-            reject_open_ending: Map.get(options, :reject_open_ending, false)
-          })
-
-        %{
-          prompt: prompt,
-          settings: settings,
-          text: result.text,
-          generated_tokens: result.generated_tokens,
-          completion_tokens: result.completion_tokens,
-          discarded_text: Map.get(result, :discarded_text, ""),
-          finish_reason: result.finish_reason,
-          ok: check.ok,
-          issues: check.issues
-        }
-      end)
+      smoke_results!(model, prompts, max_new_tokens, stop_tokens, sampler, settings, options)
 
     print_results(results, options)
     maybe_fail_on_issue(results, options)
@@ -115,6 +75,52 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
   defp run_smoke(_args, _options) do
     Mix.raise(~s(usage: mix llamex.natural.smoke MODEL [max_new_tokens] [--json] [--prompt TEXT]))
+  end
+
+  defp smoke_results!(model, prompts, max_new_tokens, stop_tokens, sampler, settings, options) do
+    Enum.map(prompts, fn prompt ->
+      result =
+        Llamex.generate(model, prompt, %{
+          backend: backend(options),
+          context_window: Map.get(options, :context_window),
+          max_new_tokens: max_new_tokens,
+          stop_tokens: stop_tokens,
+          sampler: sampler
+        })
+
+      result =
+        maybe_complete_open_ending(
+          model,
+          prompt,
+          result,
+          sampler,
+          stop_tokens,
+          max_new_tokens,
+          options
+        )
+        |> maybe_trim_to_sentence(options)
+
+      check =
+        Llamex.Natural.smoke_check(model, result.generated_tokens, result.text, %{
+          finish_reason: result.finish_reason,
+          min_words: min_words(options),
+          reject_open_ending: Map.get(options, :reject_open_ending, false)
+        })
+
+      %{
+        prompt: prompt,
+        settings: settings,
+        text: result.text,
+        generated_tokens: result.generated_tokens,
+        completion_tokens: result.completion_tokens,
+        discarded_text: Map.get(result, :discarded_text, ""),
+        finish_reason: result.finish_reason,
+        ok: check.ok,
+        issues: check.issues
+      }
+    end)
+  rescue
+    exception in ArgumentError -> Mix.raise(Exception.message(exception))
   end
 
   defp prompts(%{prompt: prompts}) when is_list(prompts), do: prompts

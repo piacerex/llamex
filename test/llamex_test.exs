@@ -2453,6 +2453,22 @@ defmodule LlamexTest do
            )
   end
 
+  test "benchmark task rejects invalid sampler seed option" do
+    assert_raise Mix.Error, ~r/seed must be a non-negative integer/, fn ->
+      Mix.Tasks.Llamex.Benchmark.run([
+        "priv/models/tiny.json",
+        "--tokens",
+        "1",
+        "--backend",
+        "list",
+        "--temperature",
+        "1.0",
+        "--seed",
+        "-1"
+      ])
+    end
+  end
+
   test "benchmark task prints prompt eval optimization hints" do
     output =
       capture_io(fn ->
@@ -2693,6 +2709,21 @@ defmodule LlamexTest do
     assert result["generated_tokens"] == [2]
     assert result["ok"] == true
     assert result["issues"] == []
+  end
+
+  test "natural smoke task rejects invalid sampler seed option" do
+    assert_raise Mix.Error, ~r/seed must be a non-negative integer/, fn ->
+      Mix.Tasks.Llamex.Natural.Smoke.run([
+        "priv/models/tiny.json",
+        "1",
+        "--prompt",
+        "hello",
+        "--temperature",
+        "1.0",
+        "--seed",
+        "-1"
+      ])
+    end
   end
 
   test "natural smoke task applies natural token suppression" do

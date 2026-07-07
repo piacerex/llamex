@@ -64,24 +64,48 @@ defmodule Mix.Tasks.Llamex.Benchmark do
     repeat_count = positive_integer_option(options, :repeat, 1)
 
     results =
-      for backend <- backends, max_new_tokens <- token_counts do
-        benchmark_case(
-          model,
-          model_path,
-          prompt,
-          max_new_tokens,
-          backend,
-          warmup_count,
-          repeat_count,
-          options
-        )
-      end
+      benchmark_cases!(
+        model,
+        model_path,
+        prompt,
+        token_counts,
+        backends,
+        warmup_count,
+        repeat_count,
+        options
+      )
 
     print_results(results, options)
   end
 
   defp run_benchmark(_args, _options) do
     Mix.raise(~s(usage: mix llamex.benchmark MODEL [--tokens 8,16,24,32] [options]))
+  end
+
+  defp benchmark_cases!(
+         model,
+         model_path,
+         prompt,
+         token_counts,
+         backends,
+         warmup_count,
+         repeat_count,
+         options
+       ) do
+    for backend <- backends, max_new_tokens <- token_counts do
+      benchmark_case(
+        model,
+        model_path,
+        prompt,
+        max_new_tokens,
+        backend,
+        warmup_count,
+        repeat_count,
+        options
+      )
+    end
+  rescue
+    exception in ArgumentError -> Mix.raise(Exception.message(exception))
   end
 
   defp benchmark_case(
