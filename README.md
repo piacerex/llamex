@@ -228,7 +228,8 @@ for them. Use `--natural` to select a conservative text sampling preset
 Use `--min-p VALUE` to keep tokens whose probability is at least
 `VALUE * max_probability` after temperature/top-k filtering. `top-k` must be a
 positive integer, and `top-p`, `min-p`, and `repetition-penalty` are validated
-before sampling. A fixed `random` override must be a float in `[0.0, 1.0)`.
+before sampling. `seed` must be a non-negative integer, and a fixed `random`
+override must be a float in `[0.0, 1.0)`.
 Use `--profile` to inspect the model path, prompt, prompt token IDs/pieces,
 generation settings, generated token IDs/pieces/types, timings, and
 `finish_reason` (`stop` or `length`) for generation experiments. Profile output

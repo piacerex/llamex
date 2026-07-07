@@ -548,8 +548,15 @@ defmodule Llamex.Generation do
     seed = Map.get(opts, :seed)
 
     if seed do
+      seed = validate_seed!(seed)
       :rand.seed_s(:exsss, {seed, seed + 1, seed + 2})
     end
+  end
+
+  defp validate_seed!(seed) when is_integer(seed) and seed >= 0, do: seed
+
+  defp validate_seed!(_seed) do
+    raise ArgumentError, "seed must be a non-negative integer"
   end
 
   defp next_random(%{random: random}, sampler_state) when is_float(random),

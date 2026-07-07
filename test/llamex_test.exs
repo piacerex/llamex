@@ -1532,6 +1532,37 @@ defmodule LlamexTest do
     assert result.text == "world"
   end
 
+  test "generation rejects invalid sampler seeds" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "seed must be a non-negative integer", fn ->
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: %{temperature: 1.0, seed: -1}
+      })
+    end
+
+    assert_raise ArgumentError, "seed must be a non-negative integer", fn ->
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: %{temperature: 1.0, seed: "1"}
+      })
+    end
+  end
+
   test "generation result includes configured exla target" do
     if Code.ensure_loaded?(EXLA) do
       Llamex.Backend.NxEXLA.configure!(:cpu)
