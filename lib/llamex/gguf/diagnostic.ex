@@ -5,6 +5,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
   @supported_architectures ["llama"]
   @supported_tokenizers ["whitespace", "bpe"]
+  @supported_tokenizer_models ["llama", "gpt2"]
   @supported_tensor_types %{
     0 => "F32",
     1 => "F16",
@@ -25,6 +26,8 @@ defmodule Llamex.GGUF.Diagnostic do
   def supported_architectures, do: @supported_architectures
 
   def supported_tokenizers, do: @supported_tokenizers
+
+  def supported_tokenizer_models, do: @supported_tokenizer_models
 
   def supported_tensor_type_names do
     @supported_tensor_types
@@ -71,8 +74,10 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_supported?: architecture_supported?(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_model: tokenizer_model(gguf.metadata),
+      tokenizer_model_supported?: tokenizer_model_supported?(gguf.metadata),
       tokenizer_kind: tokenizer_kind(gguf.metadata),
       supported_tokenizers: supported_tokenizers(),
+      supported_tokenizer_models: supported_tokenizer_models(),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
       tokenizer_merge_count: tokenizer_merge_count(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
@@ -109,6 +114,8 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture supported: #{diagnostic.architecture_supported?}",
       "supported tokenizers: #{Enum.join(diagnostic.supported_tokenizers, ", ")}",
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
+      "supported tokenizer models: #{Enum.join(diagnostic.supported_tokenizer_models, ", ")}",
+      "tokenizer model supported: #{diagnostic.tokenizer_model_supported?}",
       "loadable: #{diagnostic.loadable?}",
       "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
       "metadata: #{diagnostic.metadata_count}",
@@ -171,6 +178,13 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp tokenizer_model(metadata), do: metadata_value(metadata, "tokenizer.ggml.model")
 
+  defp tokenizer_model_supported?(metadata) do
+    case tokenizer_model(metadata) do
+      nil -> true
+      model -> model in @supported_tokenizer_models
+    end
+  end
+
   defp tokenizer_kind(metadata) do
     case metadata_value(metadata, "tokenizer.ggml.merges") do
       %{values: [_first | _rest]} -> "bpe"
@@ -187,6 +201,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp loadable?(metadata, tensors) do
     architecture_supported?(metadata) and tokenizer_supported?(metadata) and
+      tokenizer_model_supported?(metadata) and
       unsupported_tensors(tensors) == []
   end
 
@@ -194,6 +209,7 @@ defmodule Llamex.GGUF.Diagnostic do
     []
     |> add_architecture_issue(metadata)
     |> add_tokenizer_issue(metadata)
+    |> add_tokenizer_model_issue(metadata)
     |> add_tensor_type_issues(tensors)
     |> Enum.reverse()
   end
@@ -212,6 +228,20 @@ defmodule Llamex.GGUF.Diagnostic do
       issues
     else
       ["missing tokenizer.ggml.tokens" | issues]
+    end
+  end
+
+  defp add_tokenizer_model_issue(issues, metadata) do
+    case tokenizer_model(metadata) do
+      nil ->
+        issues
+
+      model ->
+        if tokenizer_model_supported?(metadata) do
+          issues
+        else
+          ["unsupported tokenizer model: #{model}" | issues]
+        end
     end
   end
 
