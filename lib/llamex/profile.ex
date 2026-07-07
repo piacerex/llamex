@@ -560,13 +560,13 @@ defmodule Llamex.Profile do
     seed = Map.get(opts, :seed)
 
     if seed do
-      seed = validate_seed!(seed)
+      seed = Llamex.Sampler.validate_seed!(seed)
       :rand.seed_s(:exsss, {seed, seed + 1, seed + 2})
     end
   end
 
   defp next_random(%{random: random}, sampler_state) when is_float(random),
-    do: {validate_random!(random), sampler_state}
+    do: {Llamex.Sampler.validate_random!(random), sampler_state}
 
   defp next_random(%{random: _random}, _sampler_state) do
     raise ArgumentError, "random must be a float greater than or equal to zero and less than one"
@@ -574,18 +574,6 @@ defmodule Llamex.Profile do
 
   defp next_random(_opts, sampler_state) do
     :rand.uniform_s(sampler_state)
-  end
-
-  defp validate_seed!(seed) when is_integer(seed) and seed >= 0, do: seed
-
-  defp validate_seed!(_seed) do
-    raise ArgumentError, "seed must be a non-negative integer"
-  end
-
-  defp validate_random!(random) when random >= 0.0 and random < 1.0, do: random
-
-  defp validate_random!(_random) do
-    raise ArgumentError, "random must be a float greater than or equal to zero and less than one"
   end
 
   defp timed_eval(%Context{} = context, token) when is_integer(token) and token >= 0 do

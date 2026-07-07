@@ -7,6 +7,19 @@ defmodule Llamex.Sampler do
     backend.argmax(logits)
   end
 
+  def validate_seed!(seed) when is_integer(seed) and seed >= 0, do: seed
+
+  def validate_seed!(_seed) do
+    raise ArgumentError, "seed must be a non-negative integer"
+  end
+
+  def validate_random!(random) when is_float(random) and random >= 0.0 and random < 1.0,
+    do: random
+
+  def validate_random!(_random) do
+    raise ArgumentError, "random must be a float greater than or equal to zero and less than one"
+  end
+
   def sample(logits, backend, opts) when is_atom(backend) and is_map(opts) do
     random = Map.fetch!(opts, :random)
 
@@ -240,7 +253,5 @@ defmodule Llamex.Sampler do
     end)
   end
 
-  defp draw(_probabilities, _random) do
-    raise ArgumentError, "random must be a float greater than or equal to zero and less than one"
-  end
+  defp draw(_probabilities, random), do: validate_random!(random)
 end

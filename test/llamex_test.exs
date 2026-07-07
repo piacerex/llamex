@@ -1197,6 +1197,9 @@ defmodule LlamexTest do
   test "rejects invalid sampler filters" do
     logits = Llamex.Backend.List.from_list([0.0, 1.0, 2.0])
 
+    assert Llamex.Sampler.validate_seed!(0) == 0
+    assert Llamex.Sampler.validate_random!(0.0) == 0.0
+
     assert_raise ArgumentError, "top_k must be a positive integer", fn ->
       Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
         temperature: 1.0,
