@@ -32,14 +32,14 @@ defmodule Llamex.Backend do
               non_neg_integer(),
               number(),
               pos_integer() | nil
-            ) :: {list(tensor()), list(tensor()), list(tensor())}
+            ) :: {term(), term(), term()}
   @callback silu_multiply(tensor(), tensor()) :: tensor()
   @callback rms_norm(tensor(), tensor(), number()) :: tensor()
   @callback attend_head(tensor(), tensor(), tensor()) :: list(number())
-  @callback prepare_kv_entries(list({list(tensor()), list(tensor())})) :: term()
-  @callback append_kv_entry(term(), list(tensor()), list(tensor())) :: term()
+  @callback prepare_kv_entries(list({term(), term()})) :: term()
+  @callback append_kv_entry(term(), term(), term()) :: term()
   @callback attend_heads(
-              list(tensor()),
+              term(),
               term(),
               pos_integer(),
               pos_integer()

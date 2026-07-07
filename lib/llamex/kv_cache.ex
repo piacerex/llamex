@@ -7,7 +7,7 @@ defmodule Llamex.KVCache do
   defstruct [:layers, :prepared_layers]
 
   @type t :: %__MODULE__{
-          layers: %{optional(non_neg_integer()) => list({list(number()), list(number())})},
+          layers: %{optional(non_neg_integer()) => list({term(), term()})},
           prepared_layers: %{optional({non_neg_integer(), module()}) => term()}
         }
 
@@ -16,7 +16,7 @@ defmodule Llamex.KVCache do
   end
 
   def append(%__MODULE__{} = cache, layer_index, key, value)
-      when is_integer(layer_index) and layer_index >= 0 and is_list(key) and is_list(value) do
+      when is_integer(layer_index) and layer_index >= 0 do
     layers =
       Map.update(cache.layers, layer_index, [{key, value}], fn entries ->
         [{key, value} | entries]
@@ -26,8 +26,7 @@ defmodule Llamex.KVCache do
   end
 
   def prepare_entries(%__MODULE__{} = cache, layer_index, backend, entries, key, value)
-      when is_integer(layer_index) and layer_index >= 0 and is_atom(backend) and is_list(entries) and
-             is_list(key) and is_list(value) do
+      when is_integer(layer_index) and layer_index >= 0 and is_atom(backend) and is_list(entries) do
     prepared_key = {layer_index, backend}
 
     prepared =

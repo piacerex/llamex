@@ -177,7 +177,18 @@ defmodule Llamex.Backend.NxEXLA do
       |> apply_repetition_penalty_tensor(opts, vocab_size, nx)
       |> suppress_tokens_tensor(opts, vocab_size, nx)
 
-    {values, indices} = apply(nx, :top_k, [logits, [k: min(top_k, vocab_size)]])
+    top_k_logits(logits, min(top_k, vocab_size), nx)
+  end
+
+  defp top_k_logits(logits, 1, nx) do
+    index = apply(nx, :argmax, [logits])
+    value = apply(nx, :reduce_max, [logits])
+
+    [{apply(nx, :to_number, [value]), apply(nx, :to_number, [index])}]
+  end
+
+  defp top_k_logits(logits, top_k, nx) do
+    {values, indices} = apply(nx, :top_k, [logits, [k: top_k]])
 
     values = apply(nx, :to_flat_list, [values])
     indices = apply(nx, :to_flat_list, [indices])
@@ -280,15 +291,37 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   @impl true
-  def append_kv_entry({:nx_exla_kv_entries, keys, values}, key_heads, value_heads)
-      when is_list(key_heads) and is_list(value_heads) do
+  def append_kv_entry({:nx_exla_kv_entries, keys, values}, key_heads, value_heads) do
     {:nx_exla_kv_entries, append_kv_heads(keys, key_heads), append_kv_heads(values, value_heads)}
+  end
+
+  @impl true
+  def attend_heads(
+        {:nx_exla_heads, query_heads},
+        {:nx_exla_kv_entries, keys, values},
+        head_count,
+        1
+      )
+      when is_integer(head_count) and head_count > 0 do
+    attend_shared_kv_head_matrix(query_heads, keys, values, head_count)
   end
 
   @impl true
   def attend_heads(query_heads, {:nx_exla_kv_entries, keys, values}, head_count, 1)
       when is_list(query_heads) and is_integer(head_count) and head_count > 0 do
     attend_shared_kv_heads(query_heads, keys, values, head_count)
+  end
+
+  @impl true
+  def attend_heads(
+        {:nx_exla_heads, query_heads},
+        {:nx_exla_kv_entries, keys, values},
+        head_count,
+        kv_head_count
+      )
+      when is_integer(head_count) and head_count > 0 and is_integer(kv_head_count) and
+             kv_head_count > 0 do
+    attend_grouped_kv_head_matrix(query_heads, keys, values, head_count, kv_head_count)
   end
 
   @impl true
@@ -372,20 +405,17 @@ defmodule Llamex.Backend.NxEXLA do
       query
       |> reshape_tensor_heads(head_count, nx)
       |> rope_head_matrix(position, rope_theta, rope_dimension_count, nx)
-      |> split_head_matrix(head_count, nx)
 
     key_heads =
       key
       |> reshape_tensor_heads(kv_head_count, nx)
       |> rope_head_matrix(position, rope_theta, rope_dimension_count, nx)
-      |> split_head_matrix(kv_head_count, nx)
 
     value_heads =
       value
       |> reshape_tensor_heads(kv_head_count, nx)
-      |> split_head_matrix(kv_head_count, nx)
 
-    {query_heads, key_heads, value_heads}
+    {{:nx_exla_heads, query_heads}, {:nx_exla_heads, key_heads}, {:nx_exla_heads, value_heads}}
   end
 
   @impl true
@@ -716,16 +746,6 @@ defmodule Llamex.Backend.NxEXLA do
     apply(nx, :concatenate, [parts, [axis: 1]])
   end
 
-  defp split_head_matrix(heads, head_count, nx) do
-    {_head_count, head_size} = shape(heads)
-
-    Enum.map(0..(head_count - 1), fn head_index ->
-      heads
-      |> then(&apply(nx, :slice, [&1, [head_index, 0], [1, head_size]]))
-      |> then(&apply(nx, :reshape, [&1, {head_size}]))
-    end)
-  end
-
   defp attend_head_tensors(query, keys, values) do
     nx = nx!()
     query = tensor(query)
@@ -752,6 +772,16 @@ defmodule Llamex.Backend.NxEXLA do
     |> then(&apply(nx!(), :reshape, [&1, {head_count * head_size}]))
   end
 
+  defp attend_shared_kv_head_matrix(query_heads, key_cache, value_cache, head_count) do
+    {_head_count, head_size} = shape(query_heads)
+    keys = kv_cache_head_tensor(key_cache, 0)
+    values = kv_cache_head_tensor(value_cache, 0)
+
+    query_heads
+    |> attend_query_group_tensors(keys, values)
+    |> then(&apply(nx!(), :reshape, [&1, {head_count * head_size}]))
+  end
+
   defp attend_grouped_kv_heads(query_heads, key_cache, value_cache, head_count, kv_head_count) do
     0..(kv_head_count - 1)
     |> Enum.map(fn kv_head_index ->
@@ -764,15 +794,36 @@ defmodule Llamex.Backend.NxEXLA do
     |> then(&apply(nx!(), :concatenate, [&1, [axis: 0]]))
   end
 
+  defp attend_grouped_kv_head_matrix(
+         query_heads,
+         key_cache,
+         value_cache,
+         head_count,
+         kv_head_count
+       ) do
+    {_head_count, head_size} = shape(query_heads)
+
+    0..(kv_head_count - 1)
+    |> Enum.map(fn kv_head_index ->
+      queries = query_group_tensor(query_heads, kv_head_index, head_count, kv_head_count)
+      keys = kv_cache_head_tensor(key_cache, kv_head_index)
+      values = kv_cache_head_tensor(value_cache, kv_head_index)
+
+      attend_query_group_tensors(queries, keys, values)
+    end)
+    |> then(&apply(nx!(), :concatenate, [&1, [axis: 0]]))
+    |> then(&apply(nx!(), :reshape, [&1, {head_count * head_size}]))
+  end
+
   defp kv_cache_tensors(entries) do
     keys =
       entries
-      |> Enum.map(fn {key_heads, _value_heads} -> stack_tensors(key_heads) end)
+      |> Enum.map(fn {key_heads, _value_heads} -> head_matrix(key_heads) end)
       |> stack_tensors()
 
     values =
       entries
-      |> Enum.map(fn {_key_heads, value_heads} -> stack_tensors(value_heads) end)
+      |> Enum.map(fn {_key_heads, value_heads} -> head_matrix(value_heads) end)
       |> stack_tensors()
 
     {keys, values}
@@ -783,8 +834,12 @@ defmodule Llamex.Backend.NxEXLA do
     {time_count, _kv_head_count, head_size} = shape(cache)
 
     cache
-    |> then(&apply(nx, :slice, [&1, [0, kv_head_index, 0], [time_count, 1, head_size]]))
+    |> then(&take_kv_cache_head(&1, kv_head_index, nx))
     |> then(&apply(nx, :reshape, [&1, {time_count, head_size}]))
+  end
+
+  defp take_kv_cache_head(cache, kv_head_index, nx) do
+    apply(nx, :take, [cache, int_tensor([kv_head_index]), [axis: 1]])
   end
 
   defp append_kv_heads(cache, heads) do
@@ -793,17 +848,29 @@ defmodule Llamex.Backend.NxEXLA do
 
     heads =
       heads
-      |> stack_tensors()
+      |> head_matrix()
       |> then(&apply(nx, :reshape, [&1, {1, kv_head_count, head_size}]))
 
     apply(nx, :concatenate, [[cache, heads], [axis: 0]])
   end
+
+  defp head_matrix({:nx_exla_heads, heads}), do: heads
+  defp head_matrix(heads) when is_list(heads), do: stack_tensors(heads)
 
   defp query_group(query_heads, kv_head_index, head_count, kv_head_count) do
     start_index = ceil_div(kv_head_index * head_count, kv_head_count)
     end_index = ceil_div((kv_head_index + 1) * head_count, kv_head_count)
 
     Enum.slice(query_heads, start_index, end_index - start_index)
+  end
+
+  defp query_group_tensor(query_heads, kv_head_index, head_count, kv_head_count) do
+    nx = nx!()
+    start_index = ceil_div(kv_head_index * head_count, kv_head_count)
+    end_index = ceil_div((kv_head_index + 1) * head_count, kv_head_count)
+    {_query_count, head_size} = shape(query_heads)
+
+    apply(nx, :slice, [query_heads, [start_index, 0], [end_index - start_index, head_size]])
   end
 
   defp ceil_div(value, divisor), do: div(value + divisor - 1, divisor)

@@ -627,11 +627,13 @@ defmodule LlamexTest do
       {result_query, result_key, result_value} = result
       {expected_query, expected_key, expected_value} = expected
 
-      assert Enum.all?(result_query ++ result_key ++ result_value, &match?(%Nx.Tensor{}, &1))
+      assert match?({:nx_exla_heads, %Nx.Tensor{}}, result_query)
+      assert match?({:nx_exla_heads, %Nx.Tensor{}}, result_key)
+      assert match?({:nx_exla_heads, %Nx.Tensor{}}, result_value)
 
       actual_values =
-        (result_query ++ result_key ++ result_value)
-        |> Enum.flat_map(&Llamex.Backend.NxEXLA.to_list/1)
+        [result_query, result_key, result_value]
+        |> Enum.flat_map(fn {:nx_exla_heads, heads} -> Llamex.Backend.NxEXLA.to_list(heads) end)
 
       expected_values = List.flatten(expected_query ++ expected_key ++ expected_value)
 
@@ -738,7 +740,10 @@ defmodule LlamexTest do
         )
 
       assert match?(%Nx.Tensor{}, nx_output)
-      assert [{[nx_key], [nx_value]}] = Llamex.KVCache.entries(nx_cache, 0)
+
+      assert [{{:nx_exla_heads, nx_key}, {:nx_exla_heads, nx_value}}] =
+               Llamex.KVCache.entries(nx_cache, 0)
+
       assert match?(%Nx.Tensor{}, nx_key)
       assert match?(%Nx.Tensor{}, nx_value)
 
