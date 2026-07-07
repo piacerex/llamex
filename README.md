@@ -7,6 +7,7 @@ Minimal Elixir LLM engine experiment.
 ```bash
 mix test
 mix llamex.generate priv/models/tiny.json hello 2
+mix llamex.generate priv/models/tiny.json hello 2 --stream --no-stop
 mix llamex.generate priv/models/tiny.json hello 2 --temperature 1.0 --top-k 1 --top-p 0.9 --min-p 0.05 --seed 42
 mix llamex.generate priv/models/tiny.json hello 2 --profile
 mix llamex.generate model.gguf "The" 1 --natural --profile --candidates 5
@@ -236,6 +237,7 @@ and `residual` on the List backend. Add `--candidates N` with `--profile` to
 inspect the top sampled candidate token pieces and probabilities for each
 generated step. Natural-mode profiles report `suppressed_token_count` instead
 of printing the full internal suppression list.
+Use `--stream` to write generated token text as chunks are produced.
 Use `--stop-token ID`, `--stop-piece TOKEN`, `--stop-special eos`, or
 `--stop-control` to override inferred EOS/stop behavior, or `--no-stop` to force
 generation to continue until `max_new_tokens`. Use `--stop-sequence TEXT` to

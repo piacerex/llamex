@@ -2890,6 +2890,21 @@ defmodule LlamexTest do
     assert profile["finish_reason"] == "length"
   end
 
+  test "generate task can stream text output" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello",
+          "2",
+          "--stream",
+          "--no-stop"
+        ])
+      end)
+
+    assert output == "worldworld\n"
+  end
+
   test "generate task can use an explicit stop token" do
     output =
       capture_io(fn ->

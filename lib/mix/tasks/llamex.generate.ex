@@ -29,6 +29,7 @@ defmodule Mix.Tasks.Llamex.Generate do
           system: :string,
           natural: :boolean,
           profile: :boolean,
+          stream: :boolean,
           context_window: :integer,
           candidates: :integer,
           stop_token: :integer,
@@ -96,6 +97,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> Map.delete(:chat)
     |> Map.delete(:system)
     |> Map.delete(:profile)
+    |> Map.delete(:stream)
     |> Map.delete(:context_window)
     |> Map.delete(:candidates)
     |> Map.delete(:stop_token)
@@ -209,6 +211,28 @@ defmodule Mix.Tasks.Llamex.Generate do
       |> Map.put(:prompt, prompt)
 
     Mix.shell().info(JSON.encode!(profile))
+  end
+
+  defp run_model(
+         model,
+         _model_path,
+         _original_prompt,
+         prompt,
+         max_new_tokens,
+         %{stream: true} = options
+       ) do
+    model
+    |> Llamex.stream(prompt, %{
+      backend: backend(options),
+      context_window: Map.get(options, :context_window),
+      max_new_tokens: max_new_tokens,
+      stop_tokens: stop_tokens(model, options),
+      stop_sequences: stop_sequences(options),
+      sampler: sampler(model, options)
+    })
+    |> Enum.each(fn chunk -> IO.write(chunk.text) end)
+
+    IO.write("\n")
   end
 
   defp run_model(model, _model_path, _original_prompt, prompt, max_new_tokens, options) do
