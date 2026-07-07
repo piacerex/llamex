@@ -553,9 +553,19 @@ defmodule Llamex.Generation do
   end
 
   defp next_random(%{random: random}, sampler_state) when is_float(random),
-    do: {random, sampler_state}
+    do: {validate_random!(random), sampler_state}
+
+  defp next_random(%{random: _random}, _sampler_state) do
+    raise ArgumentError, "random must be a float greater than or equal to zero and less than one"
+  end
 
   defp next_random(_opts, sampler_state) do
     :rand.uniform_s(sampler_state)
+  end
+
+  defp validate_random!(random) when random >= 0.0 and random < 1.0, do: random
+
+  defp validate_random!(_random) do
+    raise ArgumentError, "random must be a float greater than or equal to zero and less than one"
   end
 end

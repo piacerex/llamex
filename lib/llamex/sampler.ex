@@ -239,4 +239,8 @@ defmodule Llamex.Sampler do
       end
     end)
   end
+
+  defp draw(_probabilities, _random) do
+    raise ArgumentError, "random must be a float greater than or equal to zero and less than one"
+  end
 end

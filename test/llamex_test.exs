@@ -1232,6 +1232,39 @@ defmodule LlamexTest do
         random: 0.0
       })
     end
+
+    assert_raise ArgumentError,
+                 "random must be a float greater than or equal to zero and less than one",
+                 fn ->
+                   Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+                     temperature: 1.0,
+                     random: 1.0
+                   })
+                 end
+  end
+
+  test "generation rejects invalid fixed random values" do
+    tokenizer = Llamex.Tokenizer.new(%{"A" => 0, "B" => 1}, "A")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 2, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0, 0.0],
+          1 => [0.0, 1.0]
+        }
+      })
+
+    assert_raise ArgumentError,
+                 "random must be a float greater than or equal to zero and less than one",
+                 fn ->
+                   Llamex.generate(model, "A", %{
+                     backend: Llamex.Backend.List,
+                     max_new_tokens: 1,
+                     sampler: %{temperature: 1.0, random: 1}
+                   })
+                 end
   end
 
   test "candidate sampling applies min-p" do
