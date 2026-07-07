@@ -25,6 +25,7 @@ mix llamex.generate priv/models/tiny.json hello 2 --backend fpga
 mix llamex.generate model.gguf "Hello" 8 --natural
 mix llamex.tokenize model.gguf "Elixir is"
 mix llamex.natural.baseline model.gguf --json
+mix llamex.benchmark model.gguf --tokens 8,16,24,32 --backend nx_exla --exla cpu --natural --json
 ```
 
 ## Backends
@@ -260,6 +261,26 @@ baseline gate. It defaults to the known-good `The quick brown fox` prompt with
 up to 8 completion tokens, sentence trimming, and fail-on-issue enabled.
 JSON smoke output includes the `settings` used for each prompt so baseline
 results are auditable.
+
+Use `mix llamex.benchmark MODEL --tokens 8,16,24,32 --json` to compare
+generation cost across multiple output lengths after loading the model once.
+The benchmark task reports total, prefill, step, eval, and per-generated-token
+milliseconds for each requested token count. It accepts the same backend,
+EXLA, natural sampler, context window, stop-control, sampling, and
+`--trim-to-sentence` options used by the generation and smoke tasks. For
+example:
+
+```bash
+mix llamex.benchmark /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf \
+  --tokens 8,16,24,32 \
+  --backend nx_exla \
+  --exla cpu \
+  --natural \
+  --context-window 96 \
+  --stop-control \
+  --trim-to-sentence \
+  --json
+```
 
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
