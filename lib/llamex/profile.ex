@@ -836,15 +836,7 @@ defmodule Llamex.Profile do
 
   defp stop_token?(token, stop_tokens), do: token in stop_tokens
 
-  defp stop_sequences(%{stop_sequences: stop_sequences}) when is_list(stop_sequences) do
-    Enum.filter(stop_sequences, &(is_binary(&1) and &1 != ""))
-  end
-
-  defp stop_sequences(%{stop_sequence: stop_sequence}) when is_binary(stop_sequence) do
-    if stop_sequence == "", do: [], else: [stop_sequence]
-  end
-
-  defp stop_sequences(_opts), do: []
+  defp stop_sequences(opts), do: Llamex.StopSequences.from_options(opts)
 
   defp stop_sequence?(_text, []), do: false
 

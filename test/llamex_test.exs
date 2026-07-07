@@ -1753,6 +1753,37 @@ defmodule LlamexTest do
     assert result.text == "world world"
   end
 
+  test "generation rejects invalid stop sequences" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "stop sequence must be a string, got: 1", fn ->
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        stop_sequences: ["world", 1]
+      })
+    end
+
+    assert_raise ArgumentError, "stop_sequences must be a list of strings, got: \"world\"", fn ->
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        stop_sequences: "world"
+      })
+    end
+  end
+
   test "streams generated token chunks" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -2150,6 +2181,29 @@ defmodule LlamexTest do
     assert profile.finish_reason == :stop
     assert profile.text == "world"
     assert Enum.map(profile.timings, & &1.label) == ["prefill", "step_1"]
+  end
+
+  test "generation profile rejects invalid stop sequences" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "stop sequence must be a string, got: :world", fn ->
+      Llamex.Profile.generation_steps(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        stop_sequences: [:world]
+      })
+    end
   end
 
   test "profiles prepared generation route" do

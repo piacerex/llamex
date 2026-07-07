@@ -527,6 +527,9 @@ Llamex.generate(prepared, prompt, %{
 })
 ```
 
+Empty stop sequences are ignored; non-string stop sequences raise
+`ArgumentError` so generation settings fail fast.
+
 Use `stream_chat/3` with a supported chat template when streaming chat prompts.
 
 #### List Backend
