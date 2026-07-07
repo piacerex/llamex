@@ -264,27 +264,30 @@ results are auditable.
 
 Use `mix llamex.benchmark MODEL --tokens 8,16,24,32 --json` to compare
 generation cost across multiple output lengths after loading the model once.
-The benchmark task reports total, prefill, step, eval, and per-generated-token
-milliseconds for each requested token count. It accepts the same backend,
-EXLA, natural sampler, context window, stop-control, sampling, and
-`--trim-to-sentence` options used by the generation and smoke tasks. For
-example:
+The benchmark task reports raw warmup and measured runs plus summary values
+for total, prefill, step, eval, per-generated-token milliseconds, and
+tokens-per-second. It accepts backend comparison, EXLA, natural sampler,
+context window, stop-control, sampling, and `--trim-to-sentence` options used
+by the generation and smoke tasks. For example:
 
 ```bash
 mix llamex.benchmark /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf \
   --tokens 8,16,24,32 \
-  --backend nx_exla \
+  --backends list,nx_exla \
   --exla cpu \
   --natural \
   --context-window 96 \
   --stop-control \
   --trim-to-sentence \
+  --warmup 1 \
+  --repeat 3 \
   --json
 ```
 
-When using EXLA, read the first benchmark row as a cold run that can include
-compiler and cache setup. Later rows in the same command are warmer and are
-usually better for judging per-token generation cost.
+When using EXLA, keep at least one warmup run because the first execution can
+include compiler and cache setup. Use measured-run `summary.mean`,
+`summary.median`, and `summary.best` values, not a single cold run, when
+deciding whether List or NxEXLA is faster for a prompt and token count.
 
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
