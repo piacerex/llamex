@@ -288,6 +288,10 @@ When using EXLA, keep at least one warmup run because the first execution can
 include compiler and cache setup. Use measured-run `summary.mean`,
 `summary.median`, and `summary.best` values, not a single cold run, when
 deciding whether List or NxEXLA is faster for a prompt and token count.
+Each raw benchmark run also includes `prompt_eval_steps` and
+`prompt_eval_summary`. Use `prompt_eval_steps` to inspect prefill token-by-token
+timings, and `prompt_eval_summary.layers` to compare accumulated prefill layer
+costs across List and NxEXLA.
 
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
