@@ -3733,6 +3733,7 @@ defmodule LlamexTest do
              %{
                architecture: "llama",
                tokenizers: ["whitespace", "bpe"],
+               tokenizer_models: ["llama", "gpt2"],
                tensor_types: diagnostic.supported_tensor_type_names
              }
            ]
@@ -3780,7 +3781,7 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported architectures: llama"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
-             "supported combinations: llama+whitespace/bpe+"
+             "supported combinations: llama+whitespace/bpe+llama/gpt2+"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported tokenizers: whitespace, bpe"
@@ -3851,6 +3852,7 @@ defmodule LlamexTest do
                %{
                  "architecture" => "llama",
                  "tokenizers" => ["whitespace", "bpe"],
+                 "tokenizer_models" => ["llama", "gpt2"],
                  "tensor_types" => diagnostic["supported_tensor_type_names"]
                }
              ]

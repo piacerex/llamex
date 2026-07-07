@@ -44,6 +44,7 @@ defmodule Llamex.GGUF.Diagnostic do
       %{
         architecture: "llama",
         tokenizers: supported_tokenizers(),
+        tokenizer_models: supported_tokenizer_models(),
         tensor_types: supported_tensor_type_names()
       }
     ]
@@ -383,8 +384,9 @@ defmodule Llamex.GGUF.Diagnostic do
     combinations
     |> Enum.map(fn combination ->
       tokenizers = Enum.join(combination.tokenizers, "/")
+      tokenizer_models = Enum.join(combination.tokenizer_models, "/")
       tensor_types = Enum.join(combination.tensor_types, "/")
-      "#{combination.architecture}+#{tokenizers}+#{tensor_types}"
+      "#{combination.architecture}+#{tokenizers}+#{tokenizer_models}+#{tensor_types}"
     end)
     |> Enum.join("; ")
   end
