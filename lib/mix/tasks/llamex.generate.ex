@@ -65,7 +65,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     original_prompt = prompt
     prompt = maybe_apply_chat_template(model, prompt, options)
 
-    run_model(model, model_path, original_prompt, prompt, max_new_tokens, options)
+    run_model!(model, model_path, original_prompt, prompt, max_new_tokens, options)
   end
 
   defp run_generation(_args, _options) do
@@ -187,6 +187,12 @@ defmodule Mix.Tasks.Llamex.Generate do
   defp special_token_key("eos"), do: :eos
   defp special_token_key("padding"), do: :padding
   defp special_token_key(name), do: Mix.raise("unsupported special stop token: #{name}")
+
+  defp run_model!(model, model_path, original_prompt, prompt, max_new_tokens, options) do
+    run_model(model, model_path, original_prompt, prompt, max_new_tokens, options)
+  rescue
+    exception in ArgumentError -> Mix.raise(Exception.message(exception))
+  end
 
   defp run_model(
          model,

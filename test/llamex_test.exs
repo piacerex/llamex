@@ -2596,6 +2596,20 @@ defmodule LlamexTest do
     assert profile["sampler"]["min_p"] == 0.5
   end
 
+  test "generate task rejects invalid sampler seed option" do
+    assert_raise Mix.Error, ~r/seed must be a non-negative integer/, fn ->
+      Mix.Tasks.Llamex.Generate.run([
+        "priv/models/tiny.json",
+        "hello",
+        "1",
+        "--temperature",
+        "1.0",
+        "--seed",
+        "-1"
+      ])
+    end
+  end
+
   test "natural generation suppresses byte tokens" do
     path =
       Path.join(System.tmp_dir!(), "llamex-natural-#{System.unique_integer([:positive])}.json")
