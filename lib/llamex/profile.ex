@@ -96,6 +96,7 @@ defmodule Llamex.Profile do
     sampler = Map.get(opts, :sampler, :greedy)
     max_new_tokens = Map.get(opts, :max_new_tokens, 1)
     stop_tokens = stop_tokens(opts)
+    stop_sequences = stop_sequences(opts)
     candidate_count = Map.get(opts, :candidate_count, 0)
 
     {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend, opts)
@@ -136,11 +137,19 @@ defmodule Llamex.Profile do
             })
 
           finish_reason = if stop_token?(step.token, stop_tokens), do: :stop, else: :length
+          generated_text = Llamex.decode(model, generated_tokens_from_acc([step_info | steps]))
+
+          finish_reason =
+            if finish_reason == :stop or not stop_sequence?(generated_text, stop_sequences) do
+              finish_reason
+            else
+              :stop_sequence
+            end
 
           next_state =
             {[step_info | steps], step.context, step.token, step.sampler_state, finish_reason}
 
-          if stop_token?(step.token, stop_tokens) do
+          if finish_reason in [:stop, :stop_sequence] do
             {:halt, next_state}
           else
             {:cont, next_state}
@@ -160,6 +169,7 @@ defmodule Llamex.Profile do
       effective_max_new_tokens: effective_max_new_tokens,
       stop_token: List.first(stop_tokens),
       stop_tokens: stop_tokens,
+      stop_sequences: stop_sequences,
       sampler: display_sampler(sampler),
       prompt_tokens: length(state.prompt_tokens),
       original_prompt_token_count: state.original_prompt_token_count,
@@ -795,6 +805,22 @@ defmodule Llamex.Profile do
   defp stop_tokens(_opts), do: []
 
   defp stop_token?(token, stop_tokens), do: token in stop_tokens
+
+  defp stop_sequences(%{stop_sequences: stop_sequences}) when is_list(stop_sequences) do
+    Enum.filter(stop_sequences, &(is_binary(&1) and &1 != ""))
+  end
+
+  defp stop_sequences(%{stop_sequence: stop_sequence}) when is_binary(stop_sequence) do
+    if stop_sequence == "", do: [], else: [stop_sequence]
+  end
+
+  defp stop_sequences(_opts), do: []
+
+  defp stop_sequence?(_text, []), do: false
+
+  defp stop_sequence?(text, stop_sequences) do
+    Enum.any?(stop_sequences, &String.contains?(text, &1))
+  end
 
   defp token_info(model, token_id) do
     model.tokenizer

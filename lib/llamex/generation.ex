@@ -216,6 +216,7 @@ defmodule Llamex.Generation do
       when is_binary(prompt) and is_map(opts) do
     max_new_tokens = Map.fetch!(opts, :max_new_tokens)
     stop_tokens = stop_tokens(opts)
+    stop_sequences = stop_sequences(opts)
     sampler = Map.get(opts, :sampler, :greedy)
 
     if max_new_tokens < 0 do
@@ -236,6 +237,7 @@ defmodule Llamex.Generation do
         current_token,
         effective_max_new_tokens,
         stop_tokens,
+        stop_sequences,
         sampler,
         sampler_state,
         prompt_tokens,
@@ -266,6 +268,7 @@ defmodule Llamex.Generation do
     model = prepared_model.model
     max_new_tokens = Map.fetch!(opts, :max_new_tokens)
     stop_tokens = stop_tokens(opts)
+    stop_sequences = stop_sequences(opts)
     sampler = Map.get(opts, :sampler, :greedy)
 
     if max_new_tokens < 0 do
@@ -286,6 +289,7 @@ defmodule Llamex.Generation do
         current_token,
         effective_max_new_tokens,
         stop_tokens,
+        stop_sequences,
         sampler,
         sampler_state,
         prompt_tokens,
@@ -327,6 +331,7 @@ defmodule Llamex.Generation do
          _current_token,
          0,
          _stop_tokens,
+         _stop_sequences,
          _sampler,
          _sampler_state,
          _prompt_tokens,
@@ -340,6 +345,7 @@ defmodule Llamex.Generation do
          current_token,
          remaining,
          stop_tokens,
+         stop_sequences,
          sampler,
          sampler_state,
          prompt_tokens,
@@ -350,19 +356,28 @@ defmodule Llamex.Generation do
     {next_token, context, sampler_state} =
       sample_next(context, current_token, sampler, sampler_state, history)
 
-    if stop_token?(next_token, stop_tokens) do
-      {context, Enum.reverse([next_token | generated_tokens]), :stop}
-    else
-      generate_tokens(
-        context,
-        next_token,
-        remaining - 1,
-        stop_tokens,
-        sampler,
-        sampler_state,
-        prompt_tokens,
-        [next_token | generated_tokens]
-      )
+    generated_tokens = [next_token | generated_tokens]
+    generated_text = Llamex.decode(context.model, Enum.reverse(generated_tokens))
+
+    cond do
+      stop_token?(next_token, stop_tokens) ->
+        {context, Enum.reverse(generated_tokens), :stop}
+
+      stop_sequence?(generated_text, stop_sequences) ->
+        {context, Enum.reverse(generated_tokens), :stop_sequence}
+
+      true ->
+        generate_tokens(
+          context,
+          next_token,
+          remaining - 1,
+          stop_tokens,
+          stop_sequences,
+          sampler,
+          sampler_state,
+          prompt_tokens,
+          generated_tokens
+        )
     end
   end
 
@@ -372,6 +387,22 @@ defmodule Llamex.Generation do
   defp stop_tokens(_opts), do: []
 
   defp stop_token?(token, stop_tokens), do: token in stop_tokens
+
+  defp stop_sequences(%{stop_sequences: stop_sequences}) when is_list(stop_sequences) do
+    Enum.filter(stop_sequences, &(is_binary(&1) and &1 != ""))
+  end
+
+  defp stop_sequences(%{stop_sequence: stop_sequence}) when is_binary(stop_sequence) do
+    if stop_sequence == "", do: [], else: [stop_sequence]
+  end
+
+  defp stop_sequences(_opts), do: []
+
+  defp stop_sequence?(_text, []), do: false
+
+  defp stop_sequence?(text, stop_sequences) do
+    Enum.any?(stop_sequences, &String.contains?(text, &1))
+  end
 
   defp exla_info(backend) when backend in [Llamex.Backend.Nx, Llamex.Backend.NxEXLA] do
     Llamex.Backend.NxEXLA.configured()

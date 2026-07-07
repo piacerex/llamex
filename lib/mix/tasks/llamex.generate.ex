@@ -32,6 +32,7 @@ defmodule Mix.Tasks.Llamex.Generate do
           candidates: :integer,
           stop_token: :integer,
           stop_piece: :string,
+          stop_sequence: :string,
           stop_special: :string,
           stop_control: :boolean,
           no_stop: :boolean
@@ -98,6 +99,7 @@ defmodule Mix.Tasks.Llamex.Generate do
     |> Map.delete(:candidates)
     |> Map.delete(:stop_token)
     |> Map.delete(:stop_piece)
+    |> Map.delete(:stop_sequence)
     |> Map.delete(:stop_special)
     |> Map.delete(:stop_control)
     |> Map.delete(:no_stop)
@@ -171,6 +173,12 @@ defmodule Mix.Tasks.Llamex.Generate do
 
   defp control_stop_tokens(_model, _options), do: []
 
+  defp stop_sequences(%{stop_sequence: stop_sequence}) when is_binary(stop_sequence) do
+    if stop_sequence == "", do: [], else: [stop_sequence]
+  end
+
+  defp stop_sequences(_options), do: []
+
   defp special_token_key("unknown"), do: :unknown
   defp special_token_key("bos"), do: :bos
   defp special_token_key("eos"), do: :eos
@@ -191,6 +199,7 @@ defmodule Mix.Tasks.Llamex.Generate do
         context_window: Map.get(options, :context_window),
         max_new_tokens: max_new_tokens,
         stop_tokens: stop_tokens(model, options),
+        stop_sequences: stop_sequences(options),
         sampler: sampler(model, options),
         candidate_count: Map.get(options, :candidates, 0)
       })
@@ -208,6 +217,7 @@ defmodule Mix.Tasks.Llamex.Generate do
         context_window: Map.get(options, :context_window),
         max_new_tokens: max_new_tokens,
         stop_tokens: stop_tokens(model, options),
+        stop_sequences: stop_sequences(options),
         sampler: sampler(model, options)
       })
 

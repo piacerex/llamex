@@ -1468,6 +1468,59 @@ defmodule LlamexTest do
     assert result.finish_reason == :stop
   end
 
+  test "generates until a configured stop sequence appears" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 3,
+        stop_sequence: "world"
+      })
+
+    assert result.generated_tokens == [2]
+    assert result.finish_reason == :stop_sequence
+    assert result.text == "world"
+  end
+
+  test "prepared generation supports stop sequences" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    result =
+      Llamex.generate(prepared, "hello", %{
+        max_new_tokens: 4,
+        stop_sequences: ["missing", "world world"]
+      })
+
+    assert result.generated_tokens == [2, 2]
+    assert result.finish_reason == :stop_sequence
+    assert result.text == "world world"
+  end
+
   test "prefills and steps generation with a loaded model" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -2741,6 +2794,27 @@ defmodule LlamexTest do
 
     assert profile["generated_tokens"] == [2]
     assert profile["finish_reason"] == "stop"
+  end
+
+  test "generate task can use an explicit stop sequence" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          "priv/models/tiny.json",
+          "hello",
+          "4",
+          "--profile",
+          "--no-stop",
+          "--stop-sequence",
+          "world world"
+        ])
+      end)
+
+    profile = JSON.decode!(String.trim(output))
+
+    assert profile["generated_tokens"] == [2, 2]
+    assert profile["finish_reason"] == "stop_sequence"
+    assert profile["stop_sequences"] == ["world world"]
   end
 
   test "generate task rejects unknown stop pieces" do

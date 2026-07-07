@@ -236,7 +236,8 @@ generated step. Natural-mode profiles report `suppressed_token_count` instead
 of printing the full internal suppression list.
 Use `--stop-token ID`, `--stop-piece TOKEN`, `--stop-special eos`, or
 `--stop-control` to override inferred EOS/stop behavior, or `--no-stop` to force
-generation to continue until `max_new_tokens`.
+generation to continue until `max_new_tokens`. Use `--stop-sequence TEXT` to
+stop when decoded generated text contains a string sequence.
 Use `mix llamex.tokenize` to inspect prompt token IDs, pieces, and GGUF token
 types before choosing stop pieces or chat prompts.
 Use `--chat` only after `mix llamex.gguf.inspect` reports that the chat template
@@ -476,6 +477,16 @@ result =
   })
 
 result.text
+```
+
+String stop sequences are also available from the public API:
+
+```elixir
+Llamex.generate(prepared, prompt, %{
+  max_new_tokens: 32,
+  stop_sequences: ["</s>", "\nUser:"],
+  sampler: Llamex.Natural.sampler(prepared)
+})
 ```
 
 #### List Backend
