@@ -485,6 +485,8 @@ formats the prompt or message list first, then runs normal generation. Supported
 roles are `system`, `user`, and `assistant`; role-marker templates that do not
 have a separate system marker fold system messages into the user marker. Each
 message must be a map with string-compatible `role` and string `content`.
+When template markers are missing from the tokenizer, inspect the model with
+`mix llamex.gguf.inspect MODEL_GGUF` before using chat generation.
 
 ```elixir
 Llamex.Backend.NxEXLA.configure!(:cpu)

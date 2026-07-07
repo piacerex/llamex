@@ -127,7 +127,7 @@ defmodule Llamex do
       tokenizer.chat_template || raise ArgumentError, "model tokenizer has no chat template"
 
     if not Llamex.ChatTemplate.supported?(template) do
-      raise ArgumentError, "unsupported chat template"
+      raise ArgumentError, chat_template_error("unsupported chat template")
     end
 
     case Llamex.ChatTemplate.missing_tokens(template, tokenizer.token_to_id) do
@@ -136,8 +136,14 @@ defmodule Llamex do
 
       missing ->
         raise ArgumentError,
-              "chat template references missing tokenizer tokens: #{Enum.join(missing, ", ")}"
+              chat_template_error(
+                "chat template references missing tokenizer tokens: #{Enum.join(missing, ", ")}"
+              )
     end
+  end
+
+  defp chat_template_error(message) do
+    message <> "; run mix llamex.gguf.inspect MODEL_GGUF first"
   end
 
   defp chat_messages(prompt, %{system: system}) when is_binary(system) do

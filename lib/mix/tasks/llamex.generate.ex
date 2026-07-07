@@ -307,7 +307,7 @@ defmodule Mix.Tasks.Llamex.Generate do
 
       missing ->
         Mix.raise(
-          "chat template references missing tokenizer tokens: #{Enum.join(missing, ", ")}"
+          "chat template references missing tokenizer tokens: #{Enum.join(missing, ", ")}; run mix llamex.gguf.inspect MODEL_GGUF first"
         )
     end
   end

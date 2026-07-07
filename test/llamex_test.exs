@@ -285,6 +285,28 @@ defmodule LlamexTest do
              "<|im_start|>system\nBe concise.<|im_end|>\n<|im_start|>user\nHello<|im_end|>\n<|im_start|>assistant\n"
   end
 
+  test "public chat prompt API points to gguf inspect for missing template tokens" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "Hello" => 1},
+        "<unk>",
+        chat_template: chatml_template()
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 2, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: Map.new(0..1, &{&1, [&1 * 1.0]})
+      })
+
+    assert_raise ArgumentError,
+                 ~r/chat template references missing tokenizer tokens: <\|im_start\|>, <\|im_end\|>; run mix llamex.gguf.inspect MODEL_GGUF first/,
+                 fn ->
+                   Llamex.chat_prompt(model, "Hello")
+                 end
+  end
+
   test "public chat generation API works with prepared models" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
@@ -2006,9 +2028,11 @@ defmodule LlamexTest do
     try do
       File.write!(path, JSON.encode!(model))
 
-      assert_raise Mix.Error, ~r/chat template references missing tokenizer tokens/, fn ->
-        Mix.Tasks.Llamex.Generate.run([path, "hello", "1", "--chat"])
-      end
+      assert_raise Mix.Error,
+                   ~r/chat template references missing tokenizer tokens.*run mix llamex.gguf.inspect MODEL_GGUF first/,
+                   fn ->
+                     Mix.Tasks.Llamex.Generate.run([path, "hello", "1", "--chat"])
+                   end
     after
       File.rm(path)
     end
@@ -2020,9 +2044,11 @@ defmodule LlamexTest do
     try do
       File.write!(path, tiny_chat_template_gguf())
 
-      assert_raise Mix.Error, ~r/chat template references missing tokenizer tokens/, fn ->
-        Mix.Tasks.Llamex.Generate.run([path, "hello", "1", "--chat"])
-      end
+      assert_raise Mix.Error,
+                   ~r/chat template references missing tokenizer tokens.*run mix llamex.gguf.inspect MODEL_GGUF first/,
+                   fn ->
+                     Mix.Tasks.Llamex.Generate.run([path, "hello", "1", "--chat"])
+                   end
     after
       File.rm(path)
     end
@@ -3314,9 +3340,11 @@ defmodule LlamexTest do
     try do
       File.write!(path, tiny_chat_template_gguf())
 
-      assert_raise Mix.Error, ~r/chat template references missing tokenizer tokens/, fn ->
-        Mix.Tasks.Llamex.Tokenize.run([path, "hello", "--chat"])
-      end
+      assert_raise Mix.Error,
+                   ~r/chat template references missing tokenizer tokens.*run mix llamex.gguf.inspect MODEL_GGUF first/,
+                   fn ->
+                     Mix.Tasks.Llamex.Tokenize.run([path, "hello", "--chat"])
+                   end
     after
       File.rm(path)
     end
