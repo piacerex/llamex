@@ -4,6 +4,7 @@ defmodule Llamex.GGUF.Diagnostic do
   """
 
   @supported_architectures ["llama"]
+  @supported_tokenizers ["whitespace", "bpe"]
   @supported_tensor_types %{
     0 => "F32",
     1 => "F16",
@@ -20,6 +21,20 @@ defmodule Llamex.GGUF.Diagnostic do
     14 => "Q6_K",
     15 => "Q8_K"
   }
+
+  def supported_architectures, do: @supported_architectures
+
+  def supported_tokenizers, do: @supported_tokenizers
+
+  def supported_tensor_type_names do
+    @supported_tensor_types
+    |> Map.values()
+    |> Enum.sort()
+  end
+
+  def supported_tensor_type_ids do
+    @supported_tensor_types
+  end
 
   def inspect_file(path) when is_binary(path) do
     path
@@ -41,10 +56,11 @@ defmodule Llamex.GGUF.Diagnostic do
       tensor_count: gguf.tensor_count,
       metadata_count: gguf.metadata_count,
       architecture: metadata_value(gguf.metadata, "general.architecture"),
-      supported_architectures: @supported_architectures,
+      supported_architectures: supported_architectures(),
       architecture_supported?: architecture_supported?(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_kind: tokenizer_kind(gguf.metadata),
+      supported_tokenizers: supported_tokenizers(),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
       tokenizer_merge_count: tokenizer_merge_count(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
@@ -54,6 +70,8 @@ defmodule Llamex.GGUF.Diagnostic do
       tensor_element_count: tensor_element_count(gguf.tensors),
       tensor_shapes: tensor_shapes(gguf.tensors),
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
+      supported_tensor_type_names: supported_tensor_type_names(),
+      supported_tensor_type_ids: supported_tensor_type_ids(),
       supported_tensor_types: supported_tensor_types(gguf.tensors),
       unsupported_tensor_types: unsupported_tensor_types(gguf.tensors),
       unsupported_tensors: unsupported_tensors(gguf.tensors),
@@ -74,7 +92,9 @@ defmodule Llamex.GGUF.Diagnostic do
     [
       "GGUF v#{diagnostic.version}",
       "architecture: #{diagnostic.architecture || "unknown"}",
+      "supported architectures: #{Enum.join(diagnostic.supported_architectures, ", ")}",
       "architecture supported: #{diagnostic.architecture_supported?}",
+      "supported tokenizers: #{Enum.join(diagnostic.supported_tokenizers, ", ")}",
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
       "loadable: #{diagnostic.loadable?}",
       "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
@@ -90,6 +110,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tensor elements: #{diagnostic.tensor_element_count}",
       "tensor shapes: #{format_tensor_shapes(diagnostic.tensor_shapes)}",
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
+      "supported tensor type names: #{Enum.join(diagnostic.supported_tensor_type_names, ", ")}",
       "supported tensor types: #{format_type_counts(diagnostic.supported_tensor_types)}",
       "unsupported tensor types: #{format_type_counts(diagnostic.unsupported_tensor_types)}",
       format_unsupported_tensors(diagnostic.unsupported_tensors)

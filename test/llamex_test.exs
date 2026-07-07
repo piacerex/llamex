@@ -3376,6 +3376,7 @@ defmodule LlamexTest do
     assert diagnostic.architecture_supported? == true
     assert diagnostic.tokenizer_supported? == true
     assert diagnostic.tokenizer_kind == "whitespace"
+    assert diagnostic.supported_tokenizers == ["whitespace", "bpe"]
     assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.loadable? == false
     assert diagnostic.compatibility_issues == ["unsupported tensor type: type_99 (1)"]
@@ -3390,6 +3391,8 @@ defmodule LlamexTest do
            ]
 
     assert diagnostic.eager_f32_bytes == 16
+    assert "Q2_K" in diagnostic.supported_tensor_type_names
+    assert diagnostic.supported_tensor_type_ids[10] == "Q2_K"
     assert diagnostic.supported_tensor_types == %{}
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
     assert diagnostic.chat_template == "none"
@@ -3407,7 +3410,9 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template missing tokens: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor elements: 4"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture supported: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported architectures: llama"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer supported: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported tokenizers: whitespace, bpe"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: whitespace"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 0"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "loadable: false"
@@ -3419,6 +3424,7 @@ defmodule LlamexTest do
              "token_embd.weight=type_99 gguf:[2, 2] schema:[2, 2]"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "eager f32 lower bound: 16 B"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported tensor type names:"
   end
 
   test "diagnoses loadable gguf capability summary" do
@@ -3464,9 +3470,12 @@ defmodule LlamexTest do
       assert diagnostic["architecture_supported?"] == true
       assert diagnostic["tokenizer_supported?"] == true
       assert diagnostic["tokenizer_kind"] == "whitespace"
+      assert diagnostic["supported_tokenizers"] == ["whitespace", "bpe"]
       assert diagnostic["tokenizer_merge_count"] == 0
       assert diagnostic["loadable?"] == false
       assert diagnostic["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
+      assert "Q8_0" in diagnostic["supported_tensor_type_names"]
+      assert diagnostic["supported_tensor_type_ids"]["8"] == "Q8_0"
 
       assert diagnostic["tensor_shapes"] == [
                %{
