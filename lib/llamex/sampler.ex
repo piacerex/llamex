@@ -93,6 +93,10 @@ defmodule Llamex.Sampler do
     end)
   end
 
+  defp apply_repetition_penalty(_values, _history, _penalty) do
+    raise ArgumentError, "repetition_penalty must be greater than zero"
+  end
+
   defp penalize(value, penalty) when value >= 0.0, do: value / penalty
   defp penalize(value, penalty), do: value * penalty
 
@@ -129,6 +133,10 @@ defmodule Llamex.Sampler do
     values
     |> Enum.with_index()
     |> top_k_by_value(top_k)
+  end
+
+  defp top_k_candidates(_values, _top_k) do
+    raise ArgumentError, "top_k must be a positive integer"
   end
 
   defp top_k_by_value(candidates, top_k) do
@@ -182,12 +190,20 @@ defmodule Llamex.Sampler do
     Enum.filter(probabilities, fn {probability, _index} -> probability >= threshold end)
   end
 
+  defp apply_min_p(_probabilities, _min_p) do
+    raise ArgumentError, "min_p must be greater than zero and less than or equal to one"
+  end
+
   defp apply_top_p(probabilities, nil), do: probabilities
 
   defp apply_top_p(probabilities, top_p) when is_number(top_p) and top_p > 0.0 and top_p <= 1.0 do
     probabilities
     |> Enum.sort_by(fn {probability, _index} -> probability end, :desc)
     |> keep_until_top_p(top_p, 0.0, [])
+  end
+
+  defp apply_top_p(_probabilities, _top_p) do
+    raise ArgumentError, "top_p must be greater than zero and less than or equal to one"
   end
 
   defp keep_until_top_p([], _top_p, _total, kept), do: Enum.reverse(kept)

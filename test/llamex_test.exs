@@ -1194,6 +1194,46 @@ defmodule LlamexTest do
            }) == 2
   end
 
+  test "rejects invalid sampler filters" do
+    logits = Llamex.Backend.List.from_list([0.0, 1.0, 2.0])
+
+    assert_raise ArgumentError, "top_k must be a positive integer", fn ->
+      Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+        temperature: 1.0,
+        top_k: 0,
+        random: 0.0
+      })
+    end
+
+    assert_raise ArgumentError,
+                 "top_p must be greater than zero and less than or equal to one",
+                 fn ->
+                   Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+                     temperature: 1.0,
+                     top_p: 1.1,
+                     random: 0.0
+                   })
+                 end
+
+    assert_raise ArgumentError,
+                 "min_p must be greater than zero and less than or equal to one",
+                 fn ->
+                   Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+                     temperature: 1.0,
+                     min_p: 0.0,
+                     random: 0.0
+                   })
+                 end
+
+    assert_raise ArgumentError, "repetition_penalty must be greater than zero", fn ->
+      Llamex.Sampler.sample(logits, Llamex.Backend.List, %{
+        temperature: 1.0,
+        repetition_penalty: 0.0,
+        random: 0.0
+      })
+    end
+  end
+
   test "candidate sampling applies min-p" do
     candidates = [{2.0, 2}, {1.0, 1}, {0.0, 0}]
 
