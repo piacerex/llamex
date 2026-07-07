@@ -1595,12 +1595,20 @@ defmodule LlamexTest do
       model
       |> Llamex.stream("hello", %{
         backend: Llamex.Backend.List,
-        max_new_tokens: 2
+        max_new_tokens: 2,
+        sampler: %{temperature: 1.0, top_k: 1, seed: 42}
       })
       |> Enum.to_list()
 
     assert Enum.map(chunks, & &1.token) == [2, 2, nil]
     assert Enum.map(chunks, & &1.text) == ["world", "world", ""]
+
+    assert Enum.map(chunks, & &1.sampler) == [
+             %{temperature: 1.0, top_k: 1, seed: 42},
+             %{temperature: 1.0, top_k: 1, seed: 42},
+             %{temperature: 1.0, top_k: 1, seed: 42}
+           ]
+
     assert List.last(chunks).finish_reason == :length
     assert List.last(chunks).generated_tokens == [2, 2]
   end
