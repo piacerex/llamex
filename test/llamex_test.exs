@@ -1875,6 +1875,24 @@ defmodule LlamexTest do
            )
   end
 
+  test "benchmark task prints prompt eval optimization hints" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Benchmark.run([
+          "priv/models/tiny.json",
+          "--prompt",
+          "hello world",
+          "--tokens",
+          "1",
+          "--backend",
+          "list"
+        ])
+      end)
+
+    assert output =~ "prompt_eval_top_layers=none"
+    assert output =~ "prompt_eval_top_components=eval.logits:"
+  end
+
   test "generate task profile includes configured exla target" do
     output =
       capture_io(fn ->

@@ -193,7 +193,9 @@ defmodule Mix.Tasks.Llamex.Benchmark do
           "mean_ms=#{format_float(summary.total_milliseconds.mean)} " <>
           "median_ms=#{format_float(summary.total_milliseconds.median)} " <>
           "best_ms=#{format_float(summary.total_milliseconds.best)} " <>
-          "tokens_per_second=#{format_float(summary.tokens_per_second.mean)}"
+          "tokens_per_second=#{format_float(summary.tokens_per_second.mean)} " <>
+          "prompt_eval_top_layers=#{format_prompt_eval_top(result, :layers)} " <>
+          "prompt_eval_top_components=#{format_prompt_eval_top(result, :components)}"
       )
     end)
   end
@@ -260,6 +262,28 @@ defmodule Mix.Tasks.Llamex.Benchmark do
   defp format_float(nil), do: "n/a"
   defp format_float(value) when is_integer(value), do: Integer.to_string(value)
   defp format_float(value), do: :erlang.float_to_binary(value, decimals: 2)
+
+  defp format_prompt_eval_top(result, key) do
+    result.runs
+    |> Enum.flat_map(fn run ->
+      run.prompt_eval_summary
+      |> Map.get(key, [])
+      |> Enum.map(fn %{label: label, milliseconds: milliseconds} -> {label, milliseconds} end)
+    end)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Enum.map(fn {label, milliseconds} -> {label, Enum.sum(milliseconds)} end)
+    |> Enum.sort_by(fn {_label, milliseconds} -> milliseconds end, :desc)
+    |> Enum.take(3)
+    |> case do
+      [] ->
+        "none"
+
+      entries ->
+        Enum.map_join(entries, ",", fn {label, milliseconds} ->
+          "#{label}:#{format_float(milliseconds)}ms"
+        end)
+    end
+  end
 
   defp summarize_runs(runs) do
     %{
