@@ -550,6 +550,8 @@ tensor layout looks plausible.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `loadable: true` as the quick check that architecture, tokenizer metadata,
 and tensor types are inside Llamex's current supported GGUF surface.
+Use `compatibility_issues: []` in JSON output to confirm that no unsupported
+architecture, missing tokenizer metadata, or unsupported tensor type was found.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 
@@ -585,6 +587,7 @@ architecture: llama
 architecture supported: true
 tokenizer supported: true
 loadable: true
+compatibility issues: none
 tokenizer kind: whitespace
 tokenizer tokens: 32128
 tokenizer merges: 0

@@ -3378,6 +3378,7 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.loadable? == false
+    assert diagnostic.compatibility_issues == ["unsupported tensor type: type_99 (1)"]
 
     assert diagnostic.tensor_shapes == [
              %{
@@ -3412,6 +3413,9 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "loadable: false"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "compatibility issues: unsupported tensor type: type_99 (1)"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "token_embd.weight=type_99 gguf:[2, 2] schema:[2, 2]"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "eager f32 lower bound: 16 B"
@@ -3427,6 +3431,7 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.unsupported_tensor_types == %{}
     assert diagnostic.loadable? == true
+    assert diagnostic.compatibility_issues == []
 
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
@@ -3435,6 +3440,7 @@ defmodule LlamexTest do
     assert formatted =~ "tokenizer kind: whitespace"
     assert formatted =~ "tokenizer merges: 0"
     assert formatted =~ "loadable: true"
+    assert formatted =~ "compatibility issues: none"
   end
 
   test "gguf inspect task can print json diagnostics" do
@@ -3460,6 +3466,7 @@ defmodule LlamexTest do
       assert diagnostic["tokenizer_kind"] == "whitespace"
       assert diagnostic["tokenizer_merge_count"] == 0
       assert diagnostic["loadable?"] == false
+      assert diagnostic["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
 
       assert diagnostic["tensor_shapes"] == [
                %{

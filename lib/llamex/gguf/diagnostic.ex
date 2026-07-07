@@ -53,6 +53,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_tensor_types: supported_tensor_types(gguf.tensors),
       unsupported_tensor_types: unsupported_tensor_types(gguf.tensors),
       unsupported_tensors: unsupported_tensors(gguf.tensors),
+      compatibility_issues: compatibility_issues(gguf.metadata, gguf.tensors),
       loadable?: loadable?(gguf.metadata, gguf.tensors)
     }
   end
@@ -64,6 +65,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture supported: #{diagnostic.architecture_supported?}",
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
       "loadable: #{diagnostic.loadable?}",
+      "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer kind: #{diagnostic.tokenizer_kind}",
@@ -137,6 +139,40 @@ defmodule Llamex.GGUF.Diagnostic do
   defp loadable?(metadata, tensors) do
     architecture_supported?(metadata) and tokenizer_supported?(metadata) and
       unsupported_tensors(tensors) == []
+  end
+
+  defp compatibility_issues(metadata, tensors) do
+    []
+    |> add_architecture_issue(metadata)
+    |> add_tokenizer_issue(metadata)
+    |> add_tensor_type_issues(tensors)
+    |> Enum.reverse()
+  end
+
+  defp add_architecture_issue(issues, metadata) do
+    if architecture_supported?(metadata) do
+      issues
+    else
+      architecture = metadata_value(metadata, "general.architecture") || "unknown"
+      ["unsupported architecture: #{architecture}" | issues]
+    end
+  end
+
+  defp add_tokenizer_issue(issues, metadata) do
+    if tokenizer_supported?(metadata) do
+      issues
+    else
+      ["missing tokenizer.ggml.tokens" | issues]
+    end
+  end
+
+  defp add_tensor_type_issues(issues, tensors) do
+    tensors
+    |> unsupported_tensor_types()
+    |> Enum.sort()
+    |> Enum.reduce(issues, fn {type, count}, issues ->
+      ["unsupported tensor type: #{type} (#{count})" | issues]
+    end)
   end
 
   defp tensor_element_count(tensors) do
@@ -263,6 +299,10 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.map(fn {type, count} -> "#{type}=#{count}" end)
     |> Enum.join(", ")
   end
+
+  defp format_compatibility_issues([]), do: "none"
+
+  defp format_compatibility_issues(issues), do: Enum.join(issues, "; ")
 
   defp format_special_tokens(tokens) when map_size(tokens) == 0, do: "none"
 
