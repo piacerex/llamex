@@ -181,20 +181,39 @@ defmodule Llamex.Backend.NxEXLA do
   end
 
   defp top_k_logits(logits, 1, nx) do
-    index = apply(nx, :argmax, [logits])
-    value = apply(nx, :reduce_max, [logits])
-
-    [{apply(nx, :to_number, [value]), apply(nx, :to_number, [index])}]
+    logits
+    |> then(&apply(nx, :to_flat_list, [&1]))
+    |> top_k_logits_list(1)
   end
 
   defp top_k_logits(logits, top_k, nx) do
-    {values, indices} = apply(nx, :top_k, [logits, [k: top_k]])
-
-    values = apply(nx, :to_flat_list, [values])
-    indices = apply(nx, :to_flat_list, [indices])
-
-    Enum.zip(values, indices)
+    logits
+    |> then(&apply(nx, :to_flat_list, [&1]))
+    |> top_k_logits_list(top_k)
   end
+
+  defp top_k_logits_list(logits, top_k) do
+    logits
+    |> Enum.with_index()
+    |> Enum.reduce([], fn candidate, top -> insert_top_k(candidate, top, top_k) end)
+    |> Enum.reverse()
+  end
+
+  defp insert_top_k(candidate, [], _top_k), do: [candidate]
+
+  defp insert_top_k({value, _index}, [{lowest, _lowest_index} | _rest] = top, top_k)
+       when length(top) == top_k and value <= lowest do
+    top
+  end
+
+  defp insert_top_k(candidate, top, top_k) do
+    [candidate | top]
+    |> Enum.sort_by(fn {value, _index} -> value end)
+    |> trim_lowest(top_k)
+  end
+
+  defp trim_lowest(top, top_k) when length(top) > top_k, do: tl(top)
+  defp trim_lowest(top, _top_k), do: top
 
   @impl true
   def rope(vector, position, theta, dimension_count)
