@@ -3233,6 +3233,21 @@ defmodule LlamexTest do
     end
   end
 
+  test "generate task profile rejects invalid sampler options" do
+    assert_raise Mix.Error, ~r/top_k must be a positive integer/, fn ->
+      Mix.Tasks.Llamex.Generate.run([
+        "priv/models/tiny.json",
+        "hello",
+        "1",
+        "--profile",
+        "--temperature",
+        "1.0",
+        "--top-k",
+        "0"
+      ])
+    end
+  end
+
   test "natural generation suppresses byte tokens" do
     path =
       Path.join(System.tmp_dir!(), "llamex-natural-#{System.unique_integer([:positive])}.json")
