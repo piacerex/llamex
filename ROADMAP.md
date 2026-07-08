@@ -150,7 +150,8 @@ prefix の model config は embedding、context、layer、head、KV head、
 feed-forward、RMSNorm epsilon、RoPE theta、RoPE dimension を `Model`
 config へ変換している。Gemma3 tensor schema は post attention norm の
 内部名変換に加え、output、attention、FFN tensor の shape を config から
-診断できる。Gemma3 tokenizer fixture では special token、BOS 付与、
+診断でき、q/k extra norm と post feed-forward extra norm tensor を
+GGUF load 後の model layer に保持できる。Gemma3 tokenizer fixture では special token、BOS 付与、
 control token 除去、英語 encode、日本語 byte fallback decode を固定している。
 `mix llamex.gguf.inspect --json` の Gemma3 fixture では architecture、
 tokenizer model / pre-tokenizer、chat template、runtime capability、

@@ -8674,6 +8674,53 @@ defmodule LlamexTest do
     end
   end
 
+  test "loads gemma3 gguf extra norm tensors into model layers" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-gemma3-extra-norms-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    matrix = [1.0, 0.0, 0.0, 1.0]
+
+    gguf =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 1,
+        tensors: [
+          {"token_embd.weight", [2, 2], matrix},
+          {"blk.0.attn_norm.weight", [2], [1.0, 1.0]},
+          {"blk.0.attn_q_norm.weight", [2], [0.5, 0.5]},
+          {"blk.0.attn_k_norm.weight", [2], [0.25, 0.25]},
+          {"blk.0.attn_q.weight", [2, 2], matrix},
+          {"blk.0.attn_k.weight", [2, 1], [1.0, 0.0]},
+          {"blk.0.attn_v.weight", [2, 1], [1.0, 0.0]},
+          {"blk.0.attn_output.weight", [2, 2], matrix},
+          {"blk.0.post_attention_norm.weight", [2], [1.5, 1.5]},
+          {"blk.0.post_ffw_norm.weight", [2], [0.75, 0.75]}
+        ]
+      )
+
+    try do
+      File.write!(path, gguf)
+
+      model = Llamex.GGUF.ModelLoader.load(path)
+
+      assert model.architecture == "gemma3"
+      assert [layer] = model.layers
+      assert layer.attention_q_norm == [0.5, 0.5]
+      assert layer.attention_k_norm == [0.25, 0.25]
+      assert layer.feed_forward_norm == [1.5, 1.5]
+      assert layer.post_feed_forward_norm == [0.75, 0.75]
+
+      assert model.tensor_schema.mappings == [
+               %{name: "blk.0.post_attention_norm.weight", schema_name: "blk.0.ffn_norm.weight"}
+             ]
+    after
+      File.rm(path)
+    end
+  end
+
   test "diagnoses unknown architecture runtime status" do
     diagnostic =
       :with_unsupported_architecture_tensor_data
