@@ -5245,6 +5245,35 @@ defmodule LlamexTest do
              "tokenizer token types: control=2, normal=1, unknown=1"
   end
 
+  test "gguf inspect task prints special token flags in json diagnostics" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-inspect-special-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_special_token_gguf())
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--json"])
+        end)
+
+      [diagnostic] = JSON.decode!(String.trim(output))
+
+      assert diagnostic["special_tokens"] == %{
+               "unknown" => %{"id" => 0, "piece" => "<unk>"},
+               "bos" => %{"id" => 1, "piece" => "<s>"},
+               "eos" => %{"id" => 2, "piece" => "</s>"},
+               "add_bos" => true,
+               "add_eos" => false
+             }
+    after
+      File.rm(path)
+    end
+  end
+
   test "gguf inspect task can print json diagnostics for multiple files" do
     first =
       Path.join(System.tmp_dir!(), "llamex-inspect-a-#{System.unique_integer([:positive])}.gguf")
