@@ -6121,6 +6121,9 @@ defmodule LlamexTest do
       assert output =~ "supported tensor types: none"
       assert output =~ "unsupported tensor types: type_99=1"
       assert output =~ "tensor payload by type: type_99=tensors:1, elements:4, gguf:0 B"
+
+      assert output =~
+               "top tensor payloads: token_embd.weight=type_99, dims:2x2, elements:4, gguf:0 B"
     after
       File.rm(path)
     end

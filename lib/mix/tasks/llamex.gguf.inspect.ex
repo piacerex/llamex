@@ -176,7 +176,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "gguf payload bytes: #{format_bytes(summary.gguf_payload_bytes)}",
       "supported tensor types: #{format_type_counts(summary.supported_tensor_types)}",
       "unsupported tensor types: #{format_type_counts(summary.unsupported_tensor_types)}",
-      "tensor payload by type: #{format_tensor_payload_by_type(summary.tensor_payload_by_type)}"
+      "tensor payload by type: #{format_tensor_payload_by_type(summary.tensor_payload_by_type)}",
+      format_top_tensor_payloads(summary.top_tensor_payloads)
     ]
     |> Enum.join("\n")
   end
@@ -276,6 +277,21 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     end)
     |> Enum.join("; ")
   end
+
+  defp format_top_tensor_payloads([]), do: "top tensor payloads: none"
+
+  defp format_top_tensor_payloads(tensors) do
+    tensors =
+      tensors
+      |> Enum.map(fn tensor ->
+        "#{tensor.name}=#{tensor.type}, dims:#{format_dimensions(tensor.dimensions)}, elements:#{tensor.elements}, gguf:#{format_bytes(tensor.gguf_payload_bytes)}, eager_f32:#{format_bytes(tensor.eager_f32_bytes)}, ratio:#{format_ratio(tensor.eager_f32_expansion_ratio)}"
+      end)
+      |> Enum.join("; ")
+
+    "top tensor payloads: " <> tensors
+  end
+
+  defp format_dimensions(dimensions), do: Enum.join(dimensions, "x")
 
   defp format_atoms([]), do: "none"
 
