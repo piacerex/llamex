@@ -684,7 +684,9 @@ unsupported feature metadata before choosing a checkpoint. It also includes the
 architecture-specific `unsupported_feature_metadata_surface` for exact keys such
 as `gemma3.rope.scaling.type`, plus the tensor schema surface for known
 architectures so Gemma 3 extra norm tensor names are visible before loading
-tensor data.
+tensor data. `runtime_feature_status` shows which runtime features are already
+implemented per architecture; for Gemma 3 the extra norm paths are supported
+while the architecture runtime remains blocked.
 `known_combinations` includes diagnostic-only architectures such as Gemma 3 with
 their runtime status, while `supported_combinations` remains limited to loadable
 runtime combinations.

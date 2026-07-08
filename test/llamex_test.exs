@@ -5735,6 +5735,7 @@ defmodule LlamexTest do
              architecture_runtime_status: "supported",
              architecture_runtime_blockers: [],
              architecture_runtime_blocker_details: [],
+             runtime_feature_status: %{architecture_runtime: "supported"},
              model_combination: %{
                architecture: "llama",
                runtime_status: "supported",
@@ -6446,6 +6447,7 @@ defmodule LlamexTest do
       assert summary["architecture_runtime_status"] == "supported"
       assert summary["architecture_runtime_blockers"] == []
       assert summary["architecture_runtime_blocker_details"] == []
+      assert summary["runtime_feature_status"] == %{"architecture_runtime" => "supported"}
 
       assert summary["model_combination"] == %{
                "architecture" => "llama",
@@ -6631,6 +6633,9 @@ defmodule LlamexTest do
     assert output =~ "llama=none"
     assert output =~ "architecture runtime blocker details:"
     assert output =~ "gemma3=architecture_runtime:engine:architecture runtime not implemented"
+    assert output =~ "runtime feature status:"
+    assert output =~ "attention_qk_extra_norm:supported"
+    assert output =~ "post_feed_forward_extra_norm:supported"
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
@@ -6704,6 +6709,15 @@ defmodule LlamexTest do
                }
              ],
              "llama" => []
+           }
+
+    assert surface["runtime_feature_status"] == %{
+             "gemma3" => %{
+               "architecture_runtime" => "blocked",
+               "attention_qk_extra_norm" => "supported",
+               "post_feed_forward_extra_norm" => "supported"
+             },
+             "llama" => %{"architecture_runtime" => "supported"}
            }
 
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
@@ -6889,6 +6903,12 @@ defmodule LlamexTest do
     assert diagnostic.architecture_runtime_blockers == [
              "architecture runtime not implemented"
            ]
+
+    assert diagnostic.runtime_feature_status == %{
+             architecture_runtime: "blocked",
+             attention_qk_extra_norm: "supported",
+             post_feed_forward_extra_norm: "supported"
+           }
 
     assert diagnostic.runtime_capability == %{
              loadable?: false,

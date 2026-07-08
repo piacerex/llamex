@@ -19,6 +19,13 @@ defmodule Llamex.GGUF.Diagnostic do
       }
     ]
   }
+  @runtime_feature_status %{
+    "gemma3" => %{
+      architecture_runtime: "blocked",
+      attention_qk_extra_norm: "supported",
+      post_feed_forward_extra_norm: "supported"
+    }
+  }
   @supported_tokenizers ["whitespace", "bpe"]
   @supported_tokenizer_models ["llama", "gpt2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
@@ -38,6 +45,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :architecture_runtime_status,
     :architecture_runtime_blockers,
     :architecture_runtime_blocker_details,
+    :runtime_feature_status,
     :model_combination,
     :runtime_capability,
     :attention_variant,
@@ -187,6 +195,12 @@ defmodule Llamex.GGUF.Diagnostic do
     end)
   end
 
+  def runtime_feature_status do
+    Map.new(known_architectures(), fn architecture ->
+      {architecture, runtime_feature_status(architecture)}
+    end)
+  end
+
   def tokenizer_metadata_surface do
     Map.new(known_architectures(), fn architecture ->
       {
@@ -206,6 +220,7 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_runtime_surface: architecture_runtime_surface(),
       architecture_runtime_blockers: architecture_runtime_blockers(),
       architecture_runtime_blocker_details: architecture_runtime_blocker_details(),
+      runtime_feature_status: runtime_feature_status(),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
@@ -229,6 +244,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture runtime surface: #{format_architecture_runtime_surface(surface.architecture_runtime_surface)}",
       "architecture runtime blockers: #{format_architecture_runtime_blockers(surface.architecture_runtime_blockers)}",
       "architecture runtime blocker details: #{format_architecture_runtime_blocker_details(surface.architecture_runtime_blocker_details)}",
+      "runtime feature status: #{format_runtime_feature_status(surface.runtime_feature_status)}",
       "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
       "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
@@ -293,6 +309,7 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_runtime_status: architecture_runtime_status(gguf.metadata),
       architecture_runtime_blockers: architecture_runtime_blockers(gguf.metadata),
       architecture_runtime_blocker_details: architecture_runtime_blocker_details(gguf.metadata),
+      runtime_feature_status: runtime_feature_status(gguf.metadata),
       model_combination: model_combination(gguf.metadata, gguf.tensors),
       runtime_capability: runtime_capability(gguf.metadata, gguf.tensors),
       attention_variant: attention_variant(gguf.metadata),
@@ -375,6 +392,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture runtime status: #{diagnostic.architecture_runtime_status}",
       "architecture runtime blockers: #{format_list(diagnostic.architecture_runtime_blockers)}",
       "architecture runtime blocker details: #{format_blocker_details(diagnostic.architecture_runtime_blocker_details)}",
+      "runtime feature status: #{format_runtime_feature_status(%{(diagnostic.architecture || "unknown") => diagnostic.runtime_feature_status})}",
       "model combination: #{format_model_combination(diagnostic.model_combination)}",
       "runtime capability: #{format_runtime_capability(diagnostic.runtime_capability)}",
       "attention variant: #{format_variant(diagnostic.attention_variant)}",
@@ -537,6 +555,24 @@ defmodule Llamex.GGUF.Diagnostic do
     |> metadata_value("general.architecture")
     |> then(&Map.get(@architecture_runtime_blocker_details, &1, []))
   end
+
+  defp runtime_feature_status(metadata) when is_map(metadata) do
+    metadata
+    |> metadata_value("general.architecture")
+    |> runtime_feature_status()
+  end
+
+  defp runtime_feature_status(architecture) do
+    Map.get(@runtime_feature_status, architecture, %{
+      architecture_runtime: architecture_runtime_status_for_surface(architecture)
+    })
+  end
+
+  defp architecture_runtime_status_for_surface(architecture)
+       when architecture in @supported_architectures,
+       do: "supported"
+
+  defp architecture_runtime_status_for_surface(_architecture), do: "blocked"
 
   defp tokenizer_supported?(metadata) do
     match?(%{values: [_first | _rest]}, metadata_value(metadata, "tokenizer.ggml.tokens"))
@@ -1354,6 +1390,20 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.sort()
     |> Enum.map(fn {architecture, details} ->
       "#{architecture}=#{format_blocker_details(details)}"
+    end)
+    |> Enum.join("; ")
+  end
+
+  defp format_runtime_feature_status(surface) do
+    surface
+    |> Enum.sort()
+    |> Enum.map(fn {architecture, statuses} ->
+      features =
+        statuses
+        |> Enum.sort()
+        |> Enum.map_join("/", fn {feature, status} -> "#{feature}:#{status}" end)
+
+      "#{architecture}=#{features}"
     end)
     |> Enum.join("; ")
   end
