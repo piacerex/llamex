@@ -38,6 +38,20 @@ defmodule Llamex.GGUF.TensorSchema do
     "blk.0.ffn_down.weight"
   ]
 
+  @unsupported_feature_parts %{
+    "gemma3" => ["attn_q_norm", "attn_k_norm", "post_ffw_norm"]
+  }
+
+  def surface(architectures) when is_list(architectures) do
+    Map.new(architectures, fn architecture ->
+      {architecture,
+       %{
+         interesting_tensor_names: interesting_tensor_names(architecture),
+         unsupported_feature_parts: Map.get(@unsupported_feature_parts, architecture, [])
+       }}
+    end)
+  end
+
   def required_tensor_names(_architecture), do: [@token_embedding_name]
 
   def token_embedding_name(_architecture), do: @token_embedding_name
@@ -103,7 +117,7 @@ defmodule Llamex.GGUF.TensorSchema do
 
   def unsupported_feature_name?("gemma3", "blk." <> rest) do
     case String.split(rest, ".", parts: 3) do
-      [_index, part, "weight"] -> part in ["attn_q_norm", "attn_k_norm", "post_ffw_norm"]
+      [_index, part, "weight"] -> part in Map.fetch!(@unsupported_feature_parts, "gemma3")
       _other -> false
     end
   end

@@ -5949,6 +5949,12 @@ defmodule LlamexTest do
     assert output =~
              "unsupported feature metadata: *.attention.sliding_window, *.rope.scaling.type"
 
+    assert output =~ "tensor schema surface:"
+    assert output =~ "llama=interesting:12, unsupported_features:none"
+
+    assert output =~
+             "gemma3=interesting:15, unsupported_features:attn_q_norm/attn_k_norm/post_ffw_norm"
+
     assert output =~ "supported tensor type names:"
     assert output =~ "supported tensor type ids: 0:F32, 1:F16, 2:Q4_0"
     assert output =~ "10:Q2_K, 11:Q3_K, 12:Q4_K, 13:Q5_K, 14:Q6_K, 15:Q8_K"
@@ -5984,6 +5990,18 @@ defmodule LlamexTest do
     assert surface["unsupported_feature_metadata"] == [
              "*.attention.sliding_window",
              "*.rope.scaling.type"
+           ]
+
+    assert surface["tensor_schema_surface"]["llama"]["unsupported_feature_parts"] == []
+
+    assert surface["tensor_schema_surface"]["gemma3"]["unsupported_feature_parts"] == [
+             "attn_q_norm",
+             "attn_k_norm",
+             "post_ffw_norm"
+           ]
+
+    assert "blk.0.post_ffw_norm.weight" in surface["tensor_schema_surface"]["gemma3"][
+             "interesting_tensor_names"
            ]
 
     assert "Q8_0" in surface["supported_tensor_type_names"]

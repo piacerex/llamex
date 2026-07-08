@@ -98,6 +98,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_pre_tokenizers: supported_pre_tokenizers(),
       supported_chat_templates: supported_chat_templates(),
       unsupported_feature_metadata: unsupported_feature_metadata(),
+      tensor_schema_surface: Llamex.GGUF.TensorSchema.surface(known_architectures()),
       supported_tensor_type_names: supported_tensor_type_names(),
       supported_tensor_type_ids: supported_tensor_type_ids(),
       supported_combinations: supported_combinations()
@@ -113,6 +114,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
       "supported chat templates: #{Enum.join(surface.supported_chat_templates, ", ")}",
       "unsupported feature metadata: #{Enum.join(surface.unsupported_feature_metadata, ", ")}",
+      "tensor schema surface: #{format_tensor_schema_surface(surface.tensor_schema_surface)}",
       "supported tensor type names: #{Enum.join(surface.supported_tensor_type_names, ", ")}",
       "supported tensor type ids: #{format_supported_tensor_type_ids(surface.supported_tensor_type_ids)}",
       "supported combinations: #{format_supported_combinations(surface.supported_combinations)}"
@@ -944,6 +946,18 @@ defmodule Llamex.GGUF.Diagnostic do
     ids
     |> Enum.sort_by(fn {id, _name} -> id end)
     |> Enum.map_join(", ", fn {id, name} -> "#{id}:#{name}" end)
+  end
+
+  defp format_tensor_schema_surface(surface) do
+    surface
+    |> Enum.sort()
+    |> Enum.map(fn {architecture, schema} ->
+      unsupported = Enum.join(schema.unsupported_feature_parts, "/")
+      unsupported = if unsupported == "", do: "none", else: unsupported
+
+      "#{architecture}=interesting:#{length(schema.interesting_tensor_names)}, unsupported_features:#{unsupported}"
+    end)
+    |> Enum.join("; ")
   end
 
   defp format_compatibility_issues([]), do: "none"
