@@ -5244,6 +5244,8 @@ defmodule LlamexTest do
            ]
 
     assert diagnostic.eager_f32_bytes == 16
+    assert diagnostic.gguf_payload_bytes == 0
+    assert diagnostic.eager_f32_expansion_ratio == nil
     assert "Q2_K" in diagnostic.supported_tensor_type_names
     assert "BF16" in diagnostic.supported_tensor_type_names
     assert diagnostic.supported_tensor_type_ids[10] == "Q2_K"
@@ -5309,6 +5311,9 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:with_q4_0_tensor_data))
 
     assert diagnostic.supported_tensor_types == %{"Q4_0" => 1}
+    assert diagnostic.eager_f32_bytes == 128
+    assert diagnostic.gguf_payload_bytes == 18
+    assert_in_delta diagnostic.eager_f32_expansion_ratio, 7.11, 0.01
 
     assert diagnostic.supported_tensors == [
              %{name: "token_embd.weight", type: 2, type_name: "Q4_0", dimensions: [32]}
@@ -5320,6 +5325,8 @@ defmodule LlamexTest do
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~ "supported tensor types: Q4_0=1"
+    assert formatted =~ "gguf payload bytes: 18 B"
+    assert formatted =~ "eager f32 expansion ratio: 7.11x"
     assert formatted =~ "supported tensors:\n- token_embd.weight: Q4_0 [32]"
     assert formatted =~ "unsupported tensor types: none"
   end
@@ -5328,6 +5335,9 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_mixed_quantized_gguf())
 
     assert diagnostic.supported_tensor_types == %{"Q4_0" => 1, "Q8_0" => 1}
+    assert diagnostic.eager_f32_bytes == 256
+    assert diagnostic.gguf_payload_bytes == 52
+    assert_in_delta diagnostic.eager_f32_expansion_ratio, 4.92, 0.01
 
     assert diagnostic.supported_tensors == [
              %{name: "token_embd.weight", type: 2, type_name: "Q4_0", dimensions: [32]},
@@ -5342,6 +5352,8 @@ defmodule LlamexTest do
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~ "supported tensor types: Q4_0=1, Q8_0=1"
+    assert formatted =~ "gguf payload bytes: 52 B"
+    assert formatted =~ "eager f32 expansion ratio: 4.92x"
     assert formatted =~ "supported tensors:\n- token_embd.weight: Q4_0 [32]"
     assert formatted =~ "- output.weight: Q8_0 [32]"
     assert formatted =~ "unsupported tensor types: none"
@@ -5571,6 +5583,8 @@ defmodule LlamexTest do
              ]
 
       assert diagnostic["special_tokens"] == %{}
+      assert diagnostic["gguf_payload_bytes"] == 0
+      assert diagnostic["eager_f32_expansion_ratio"] == nil
       assert diagnostic["supported_tensors"] == []
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
       assert diagnostic["missing_required_tensors"] == []

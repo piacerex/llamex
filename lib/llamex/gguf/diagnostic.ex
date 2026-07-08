@@ -149,6 +149,8 @@ defmodule Llamex.GGUF.Diagnostic do
       tensor_element_count: tensor_element_count(gguf.tensors),
       tensor_shapes: tensor_shapes(gguf.tensors),
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
+      gguf_payload_bytes: gguf_payload_bytes(gguf.tensors),
+      eager_f32_expansion_ratio: eager_f32_expansion_ratio(gguf.tensors),
       missing_required_tensors: missing_required_tensors(gguf.tensors),
       tensor_shape_issues: tensor_shape_issues(gguf.metadata, gguf.tensors),
       supported_tensor_type_names: supported_tensor_type_names(),
@@ -206,6 +208,8 @@ defmodule Llamex.GGUF.Diagnostic do
       "tensor elements: #{diagnostic.tensor_element_count}",
       "tensor shapes: #{format_tensor_shapes(diagnostic.tensor_shapes)}",
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
+      "gguf payload bytes: #{format_bytes(diagnostic.gguf_payload_bytes)}",
+      "eager f32 expansion ratio: #{format_ratio(diagnostic.eager_f32_expansion_ratio)}",
       "missing required tensors: #{format_missing_required_tensors(diagnostic.missing_required_tensors)}",
       "tensor shape issues: #{format_tensor_shape_issues(diagnostic.tensor_shape_issues)}",
       "supported tensor type names: #{Enum.join(diagnostic.supported_tensor_type_names, ", ")}",
@@ -462,6 +466,22 @@ defmodule Llamex.GGUF.Diagnostic do
   defp find_tensor(tensors, name), do: Enum.find(tensors, &(&1.name == name))
 
   defp eager_f32_bytes(tensors), do: tensor_element_count(tensors) * 4
+
+  defp gguf_payload_bytes(tensors) do
+    tensors
+    |> Enum.map(&tensor_payload_bytes/1)
+    |> Enum.sum()
+  end
+
+  defp eager_f32_expansion_ratio(tensors) do
+    payload_bytes = gguf_payload_bytes(tensors)
+
+    if payload_bytes == 0 do
+      nil
+    else
+      eager_f32_bytes(tensors) / payload_bytes
+    end
+  end
 
   defp tensor_shapes(tensors) do
     interesting =
@@ -749,6 +769,9 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp format_bytes(bytes), do: "#{Float.round(bytes / 1024 / 1024 / 1024, 1)} GiB"
 
+  defp format_ratio(nil), do: "unknown"
+  defp format_ratio(ratio), do: "#{Float.round(ratio, 2)}x"
+
   defp format_tensor_shapes([]), do: "none"
 
   defp format_tensor_shapes(tensors) do
@@ -789,4 +812,60 @@ defmodule Llamex.GGUF.Diagnostic do
   defp schema_shape(dimensions), do: dimensions
 
   defp format_dimensions(dimensions), do: inspect(dimensions, charlists: :as_lists)
+
+  defp tensor_payload_bytes(%{type: 0, dimensions: dimensions}), do: element_count(dimensions) * 4
+  defp tensor_payload_bytes(%{type: 1, dimensions: dimensions}), do: element_count(dimensions) * 2
+
+  defp tensor_payload_bytes(%{type: 30, dimensions: dimensions}),
+    do: element_count(dimensions) * 2
+
+  defp tensor_payload_bytes(%{type: 2, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 32, 2 + div(32, 2))
+
+  defp tensor_payload_bytes(%{type: 3, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 32, 4 + div(32, 2))
+
+  defp tensor_payload_bytes(%{type: 6, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 32, 2 + 4 + div(32, 2))
+
+  defp tensor_payload_bytes(%{type: 7, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 32, 4 + 4 + div(32, 2))
+
+  defp tensor_payload_bytes(%{type: 8, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 32, 2 + 32)
+
+  defp tensor_payload_bytes(%{type: 9, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 32, 4 + 32)
+
+  defp tensor_payload_bytes(%{type: 10, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 256, 16 + 64 + 4)
+
+  defp tensor_payload_bytes(%{type: 11, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 256, 32 + 64 + 12 + 2)
+
+  defp tensor_payload_bytes(%{type: 12, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 256, 4 + 12 + div(256, 2))
+
+  defp tensor_payload_bytes(%{type: 13, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 256, 4 + 12 + div(256, 8) + div(256, 2))
+
+  defp tensor_payload_bytes(%{type: 14, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 256, 128 + 64 + 16 + 2)
+
+  defp tensor_payload_bytes(%{type: 15, dimensions: dimensions}),
+    do: block_payload_bytes(dimensions, 256, 4 + 256 + 32)
+
+  defp tensor_payload_bytes(_tensor), do: 0
+
+  defp block_payload_bytes(dimensions, block_size, bytes_per_block) do
+    count = element_count(dimensions)
+
+    if rem(count, block_size) == 0 do
+      div(count, block_size) * bytes_per_block
+    else
+      0
+    end
+  end
+
+  defp element_count(dimensions), do: Enum.product(dimensions)
 end

@@ -612,6 +612,10 @@ loadable for plain prompt generation while still lacking a usable chat template.
 Use `supported_tensors` and `unsupported_tensors` in JSON output to see the
 per-tensor type, dimensions, and quantization mix behind the aggregate tensor
 type counts.
+Compare `gguf_payload_bytes` with `eager_f32_bytes` or
+`eager_f32_expansion_ratio` to estimate the memory cost of the current eager F32
+expansion path before moving a checkpoint to a more compact quantized
+representation.
 Supported chat templates currently cover ChatML, `<|user|>`/`<|assistant|>`
 role markers, and Llama header markers using `<|start_header_id|>`,
 `<|end_header_id|>`, and `<|eot_id|>`, including templates that start with
@@ -679,6 +683,9 @@ tokenizer tokens: 32128
 tokenizer merges: 0
 supported tensor type names: BF16, F16, F32, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, Q8_K
 supported tensor types: F32=13, Q2_K=25, Q3_K=18, Q6_K=1
+eager f32 lower bound: ...
+gguf payload bytes: ...
+eager f32 expansion ratio: ...
 supported tensors:
 - token_embd.weight: Q2_K [256, 32128]
 - ...
