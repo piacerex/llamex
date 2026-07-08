@@ -4652,6 +4652,49 @@ defmodule LlamexTest do
            ]
   end
 
+  test "tokenize task prints adjacent special token pieces" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-tokenize-special-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 4, "embedding_size" => 1},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "special_tokens" => %{
+          "bos" => %{"id" => 1, "token" => "<s>"},
+          "eos" => %{"id" => 2, "token" => "</s>"}
+        },
+        "vocab" => %{"<unk>" => 0, "<s>" => 1, "</s>" => 2, "hello" => 3}
+      },
+      "token_embeddings" => Map.new(0..3, &{Integer.to_string(&1), [&1 * 1.0]})
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Tokenize.run([path, "<s>hello</s>"])
+        end)
+
+      result = JSON.decode!(String.trim(output))
+
+      assert result["token_count"] == 3
+
+      assert result["tokens"] == [
+               %{"id" => 1, "piece" => "<s>"},
+               %{"id" => 3, "piece" => "hello"},
+               %{"id" => 2, "piece" => "</s>"}
+             ]
+    after
+      File.rm(path)
+    end
+  end
+
   test "tokenize task applies chat template with system prompt" do
     path =
       Path.join(
