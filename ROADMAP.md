@@ -26,6 +26,23 @@
 - 次の最適化対象は推測ではなく profile 結果から選ぶ。
 - 性能改善は public API や backend 責務境界を崩さない範囲で行う。
 
+## 現在の進捗
+
+現時点では、当面の完了目標に必要な主要経路は一通り実装済みと扱う。
+
+- tokenizer による自然文 encode / decode。
+- GGUF metadata、tokenizer、tensor の読み込み。
+- F32 / F16 / BF16 と主要 Q 系 tensor の F32 展開読み込み。
+- prepared model、KV cache、RoPE、attention を通した生成経路。
+- List / Nx / NxEXLA backend の差し替え。
+- temperature、top-k、top-p、min-p、repeat penalty、seed 指定。
+- stop token、stop sequence、streaming、chat template。
+- benchmark / profile による backend 比較と計測。
+
+以降は、実モデル上での性能・互換性・メモリ効率を伸ばす段階とする。
+変更は profile 結果、互換性診断、smoke test のいずれかで効果を確認できる
+単位に分ける。
+
 ## 優先ロードマップ
 
 ### 1. トークナイザ対応
