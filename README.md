@@ -616,6 +616,8 @@ Compare `gguf_payload_bytes` with `eager_f32_bytes` or
 `eager_f32_expansion_ratio` to estimate the memory cost of the current eager F32
 expansion path before moving a checkpoint to a more compact quantized
 representation.
+Use `tensor_payload_by_type` to find which tensor types contribute most to that
+expansion before choosing the next compact in-memory representation.
 Supported chat templates currently cover ChatML, `<|user|>`/`<|assistant|>`
 role markers, and Llama header markers using `<|start_header_id|>`,
 `<|end_header_id|>`, and `<|eot_id|>`, including templates that start with
@@ -686,6 +688,7 @@ supported tensor types: F32=13, Q2_K=25, Q3_K=18, Q6_K=1
 eager f32 lower bound: ...
 gguf payload bytes: ...
 eager f32 expansion ratio: ...
+tensor payload by type: ...
 supported tensors:
 - token_embd.weight: Q2_K [256, 32128]
 - ...

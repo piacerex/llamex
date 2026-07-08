@@ -151,6 +151,7 @@ defmodule Llamex.GGUF.Diagnostic do
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
       gguf_payload_bytes: gguf_payload_bytes(gguf.tensors),
       eager_f32_expansion_ratio: eager_f32_expansion_ratio(gguf.tensors),
+      tensor_payload_by_type: tensor_payload_by_type(gguf.tensors),
       missing_required_tensors: missing_required_tensors(gguf.tensors),
       tensor_shape_issues: tensor_shape_issues(gguf.metadata, gguf.tensors),
       supported_tensor_type_names: supported_tensor_type_names(),
@@ -210,6 +211,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
       "gguf payload bytes: #{format_bytes(diagnostic.gguf_payload_bytes)}",
       "eager f32 expansion ratio: #{format_ratio(diagnostic.eager_f32_expansion_ratio)}",
+      "tensor payload by type: #{format_tensor_payload_by_type(diagnostic.tensor_payload_by_type)}",
       "missing required tensors: #{format_missing_required_tensors(diagnostic.missing_required_tensors)}",
       "tensor shape issues: #{format_tensor_shape_issues(diagnostic.tensor_shape_issues)}",
       "supported tensor type names: #{Enum.join(diagnostic.supported_tensor_type_names, ", ")}",
@@ -482,6 +484,29 @@ defmodule Llamex.GGUF.Diagnostic do
       eager_f32_bytes(tensors) / payload_bytes
     end
   end
+
+  defp tensor_payload_by_type(tensors) do
+    tensors
+    |> Enum.group_by(&tensor_type_name(&1.type))
+    |> Map.new(fn {type_name, tensors} ->
+      eager_f32_bytes = eager_f32_bytes(tensors)
+      gguf_payload_bytes = gguf_payload_bytes(tensors)
+
+      {type_name,
+       %{
+         tensors: length(tensors),
+         elements: tensor_element_count(tensors),
+         eager_f32_bytes: eager_f32_bytes,
+         gguf_payload_bytes: gguf_payload_bytes,
+         eager_f32_expansion_ratio: expansion_ratio(eager_f32_bytes, gguf_payload_bytes)
+       }}
+    end)
+  end
+
+  defp expansion_ratio(_eager_f32_bytes, 0), do: nil
+
+  defp expansion_ratio(eager_f32_bytes, gguf_payload_bytes),
+    do: eager_f32_bytes / gguf_payload_bytes
 
   defp tensor_shapes(tensors) do
     interesting =
@@ -771,6 +796,17 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp format_ratio(nil), do: "unknown"
   defp format_ratio(ratio), do: "#{Float.round(ratio, 2)}x"
+
+  defp format_tensor_payload_by_type(payload) when map_size(payload) == 0, do: "none"
+
+  defp format_tensor_payload_by_type(payload) do
+    payload
+    |> Enum.sort()
+    |> Enum.map(fn {type_name, stats} ->
+      "#{type_name}=tensors:#{stats.tensors}, elements:#{stats.elements}, gguf:#{format_bytes(stats.gguf_payload_bytes)}, eager_f32:#{format_bytes(stats.eager_f32_bytes)}, ratio:#{format_ratio(stats.eager_f32_expansion_ratio)}"
+    end)
+    |> Enum.join("; ")
+  end
 
   defp format_tensor_shapes([]), do: "none"
 
