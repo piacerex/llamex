@@ -4654,6 +4654,7 @@ defmodule LlamexTest do
     assert diagnostic.chat_template == "none"
     assert diagnostic.chat_usable == false
     assert diagnostic.special_tokens == %{}
+    assert diagnostic.unsupported_features == []
     assert diagnostic.missing_chat_template_tokens == []
 
     assert diagnostic.unsupported_tensors == [
@@ -4684,6 +4685,7 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required metadata: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "model config:"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "embedding_size=2"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "unsupported features: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required tensors: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor shape issues: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: llama"
@@ -4758,6 +4760,39 @@ defmodule LlamexTest do
 
     assert formatted =~ "missing required metadata: llama.embedding_length"
     assert formatted =~ "compatibility issues: missing required metadata: llama.embedding_length"
+  end
+
+  test "diagnoses unsupported gguf attention and rope variants" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
+
+    diagnostic =
+      parsed
+      |> put_in(
+        [Access.key!(:metadata), "llama.attention.sliding_window"],
+        %{type: :uint32, value: 128}
+      )
+      |> put_in(
+        [Access.key!(:metadata), "llama.rope.scaling.type"],
+        %{type: :string, value: "linear"}
+      )
+      |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert diagnostic.loadable? == false
+
+    assert diagnostic.unsupported_features == [
+             "unsupported attention variant: sliding_window",
+             "unsupported RoPE scaling: linear"
+           ]
+
+    assert diagnostic.compatibility_issues == diagnostic.unsupported_features
+
+    formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
+
+    assert formatted =~
+             "unsupported features: unsupported attention variant: sliding_window; unsupported RoPE scaling: linear"
+
+    assert formatted =~
+             "compatibility issues: unsupported attention variant: sliding_window; unsupported RoPE scaling: linear"
   end
 
   test "diagnoses missing required gguf tensors" do

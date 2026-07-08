@@ -119,6 +119,7 @@ defmodule Llamex.GGUF.Diagnostic do
       tokenizer_merge_count: tokenizer_merge_count(gguf.metadata),
       tokenizer_token_types: tokenizer_token_types(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
+      unsupported_features: unsupported_features(gguf.metadata),
       chat_template: chat_template,
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
       missing_chat_template_tokens: missing_chat_template_tokens,
@@ -172,6 +173,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tokenizer merges: #{diagnostic.tokenizer_merge_count}",
       "tokenizer token types: #{format_type_counts(diagnostic.tokenizer_token_types)}",
       "special tokens: #{format_special_tokens(diagnostic.special_tokens)}",
+      "unsupported features: #{format_unsupported_features(diagnostic.unsupported_features)}",
       "chat template: #{diagnostic.chat_template}",
       "chat usable: #{diagnostic.chat_usable}",
       format_missing_chat_template_tokens(diagnostic.missing_chat_template_tokens),
@@ -283,6 +285,7 @@ defmodule Llamex.GGUF.Diagnostic do
     architecture_supported?(metadata) and tokenizer_supported?(metadata) and
       tokenizer_model_supported?(metadata) and pre_tokenizer_supported?(metadata) and
       missing_required_metadata(metadata) == [] and
+      unsupported_features(metadata) == [] and
       missing_required_tensors(tensors) == [] and
       tensor_shape_issues(metadata, tensors) == [] and
       unsupported_tensors(tensors) == []
@@ -295,6 +298,7 @@ defmodule Llamex.GGUF.Diagnostic do
     |> add_tokenizer_model_issue(metadata)
     |> add_pre_tokenizer_issue(metadata)
     |> add_required_metadata_issues(metadata)
+    |> add_unsupported_feature_issues(metadata)
     |> add_required_tensor_issues(tensors)
     |> add_tensor_shape_issues(metadata, tensors)
     |> add_tensor_type_issues(tensors)
@@ -352,6 +356,12 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.reduce(issues, fn key, issues ->
       ["missing required metadata: #{key}" | issues]
     end)
+  end
+
+  defp add_unsupported_feature_issues(issues, metadata) do
+    metadata
+    |> unsupported_features()
+    |> Enum.reduce(issues, fn issue, issues -> [issue | issues] end)
   end
 
   defp add_required_tensor_issues(issues, tensors) do
@@ -530,6 +540,28 @@ defmodule Llamex.GGUF.Diagnostic do
     |> put_special_token(metadata, tokens, :padding, "tokenizer.ggml.padding_token_id")
   end
 
+  defp unsupported_features(metadata) do
+    []
+    |> add_sliding_window_issue(metadata)
+    |> add_rope_scaling_issue(metadata)
+    |> Enum.reverse()
+  end
+
+  defp add_sliding_window_issue(issues, metadata) do
+    case metadata_value(metadata, "llama.attention.sliding_window") do
+      nil -> issues
+      _window -> ["unsupported attention variant: sliding_window" | issues]
+    end
+  end
+
+  defp add_rope_scaling_issue(issues, metadata) do
+    case metadata_value(metadata, "llama.rope.scaling.type") do
+      nil -> issues
+      "none" -> issues
+      type -> ["unsupported RoPE scaling: #{type}" | issues]
+    end
+  end
+
   defp put_special_token(attrs, metadata, tokens, name, key) do
     case metadata_value(metadata, key) do
       id when is_integer(id) ->
@@ -612,6 +644,10 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.map(fn {name, %{id: id, piece: piece}} -> "#{name}=#{id}:#{piece}" end)
     |> Enum.join(", ")
   end
+
+  defp format_unsupported_features([]), do: "none"
+
+  defp format_unsupported_features(features), do: Enum.join(features, "; ")
 
   defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
 
