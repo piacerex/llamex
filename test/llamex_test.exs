@@ -1947,6 +1947,36 @@ defmodule LlamexTest do
     assert result.text == "world world"
   end
 
+  test "prepared streaming supports stop sequences" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    chunks =
+      prepared
+      |> Llamex.stream("hello", %{
+        max_new_tokens: 4,
+        stop_sequences: ["missing", "world world"]
+      })
+      |> Enum.to_list()
+
+    assert Enum.map(chunks, & &1.token) == [2, 2]
+    assert Enum.map(chunks, & &1.text) == ["world", "world"]
+    assert List.last(chunks).finish_reason == :stop_sequence
+    assert Enum.all?(chunks, & &1.prepared?)
+  end
+
   test "generation rejects invalid stop sequences" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
