@@ -202,6 +202,12 @@ defmodule Llamex.GGUF.Diagnostic do
     end)
   end
 
+  def runtime_feature_blockers do
+    Map.new(known_architectures(), fn architecture ->
+      {architecture, runtime_feature_blockers(architecture)}
+    end)
+  end
+
   def tokenizer_metadata_surface do
     Map.new(known_architectures(), fn architecture ->
       {
@@ -222,6 +228,7 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_runtime_blockers: architecture_runtime_blockers(),
       architecture_runtime_blocker_details: architecture_runtime_blocker_details(),
       runtime_feature_status: runtime_feature_status(),
+      runtime_feature_blockers: runtime_feature_blockers(),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
@@ -246,6 +253,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture runtime blockers: #{format_architecture_runtime_blockers(surface.architecture_runtime_blockers)}",
       "architecture runtime blocker details: #{format_architecture_runtime_blocker_details(surface.architecture_runtime_blocker_details)}",
       "runtime feature status: #{format_runtime_feature_status(surface.runtime_feature_status)}",
+      "runtime feature blockers: #{format_runtime_feature_blocker_surface(surface.runtime_feature_blockers)}",
       "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
       "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
@@ -614,12 +622,28 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.sort()
   end
 
-  defp runtime_feature_blockers(metadata) do
+  defp runtime_feature_blockers(metadata) when is_map(metadata) do
     []
     |> add_architecture_feature_blocker(metadata)
     |> add_attention_feature_blocker(metadata)
     |> add_rope_feature_blocker(metadata)
     |> Enum.reverse()
+  end
+
+  defp runtime_feature_blockers(architecture) do
+    if architecture in @supported_architectures do
+      []
+    else
+      [
+        %{
+          feature: :architecture_runtime,
+          component: "engine",
+          reason: "architecture runtime not implemented",
+          issue: architecture_issue(architecture),
+          value: architecture
+        }
+      ]
+    end
   end
 
   defp add_architecture_feature_blocker(blockers, metadata) do
@@ -890,10 +914,17 @@ defmodule Llamex.GGUF.Diagnostic do
     end
   end
 
-  defp architecture_issue(metadata) do
+  defp architecture_issue(metadata) when is_map(metadata) do
     architecture = metadata_value(metadata, "general.architecture") || "unknown"
+    architecture_issue(architecture, architecture_known?(metadata))
+  end
 
-    if architecture_known?(metadata) do
+  defp architecture_issue(architecture) when is_binary(architecture) do
+    architecture_issue(architecture, architecture in @known_architectures)
+  end
+
+  defp architecture_issue(architecture, known?) do
+    if known? do
       "unsupported architecture runtime: #{architecture}"
     else
       "unsupported architecture: #{architecture}"
@@ -1525,6 +1556,15 @@ defmodule Llamex.GGUF.Diagnostic do
       "#{blocker.feature}:#{blocker.component}:#{blocker.reason}:#{blocker.issue}"
     end)
     |> Enum.join("/")
+  end
+
+  defp format_runtime_feature_blocker_surface(surface) do
+    surface
+    |> Enum.sort()
+    |> Enum.map(fn {architecture, blockers} ->
+      "#{architecture}=#{format_feature_blockers(blockers)}"
+    end)
+    |> Enum.join("; ")
   end
 
   defp format_blocker_details([]), do: "none"

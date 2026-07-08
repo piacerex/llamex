@@ -6750,6 +6750,11 @@ defmodule LlamexTest do
     assert output =~ "runtime feature status:"
     assert output =~ "attention_qk_extra_norm:supported"
     assert output =~ "post_feed_forward_extra_norm:supported"
+    assert output =~ "runtime feature blockers:"
+
+    assert output =~
+             "gemma3=architecture_runtime:engine:architecture runtime not implemented"
+
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
@@ -6838,6 +6843,19 @@ defmodule LlamexTest do
                "attention_variant" => "supported",
                "rope_variant" => "supported"
              }
+           }
+
+    assert surface["runtime_feature_blockers"] == %{
+             "gemma3" => [
+               %{
+                 "feature" => "architecture_runtime",
+                 "component" => "engine",
+                 "reason" => "architecture runtime not implemented",
+                 "issue" => "unsupported architecture runtime: gemma3",
+                 "value" => "gemma3"
+               }
+             ],
+             "llama" => []
            }
 
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
