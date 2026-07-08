@@ -3,6 +3,7 @@ defmodule Llamex.GGUF.Diagnostic do
   Diagnostics for GGUF model compatibility.
   """
 
+  @known_architectures ["llama", "gemma3"]
   @supported_architectures ["llama"]
   @supported_tokenizers ["whitespace", "bpe"]
   @supported_tokenizer_models ["llama", "gpt2"]
@@ -52,6 +53,8 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def supported_architectures, do: @supported_architectures
 
+  def known_architectures, do: @known_architectures
+
   def supported_tokenizers, do: @supported_tokenizers
 
   def supported_tokenizer_models, do: @supported_tokenizer_models
@@ -87,6 +90,7 @@ defmodule Llamex.GGUF.Diagnostic do
   def supported_surface do
     %{
       supported_architectures: supported_architectures(),
+      known_architectures: known_architectures(),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
@@ -101,6 +105,7 @@ defmodule Llamex.GGUF.Diagnostic do
   def format_supported_surface(%{} = surface \\ supported_surface()) do
     [
       "supported architectures: #{Enum.join(surface.supported_architectures, ", ")}",
+      "known architectures: #{Enum.join(surface.known_architectures, ", ")}",
       "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
       "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
@@ -140,8 +145,10 @@ defmodule Llamex.GGUF.Diagnostic do
       tensor_count: gguf.tensor_count,
       metadata_count: gguf.metadata_count,
       architecture: metadata_value(gguf.metadata, "general.architecture"),
+      known_architectures: known_architectures(),
       supported_architectures: supported_architectures(),
       supported_combinations: supported_combinations(),
+      architecture_known?: architecture_known?(gguf.metadata),
       architecture_supported?: architecture_supported?(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_model: tokenizer_model(gguf.metadata),
@@ -202,7 +209,9 @@ defmodule Llamex.GGUF.Diagnostic do
       "GGUF v#{diagnostic.version}",
       "architecture: #{diagnostic.architecture || "unknown"}",
       "supported architectures: #{Enum.join(diagnostic.supported_architectures, ", ")}",
+      "known architectures: #{Enum.join(diagnostic.known_architectures, ", ")}",
       "supported combinations: #{format_supported_combinations(diagnostic.supported_combinations)}",
+      "architecture known: #{diagnostic.architecture_known?}",
       "architecture supported: #{diagnostic.architecture_supported?}",
       "supported tokenizers: #{Enum.join(diagnostic.supported_tokenizers, ", ")}",
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
@@ -289,6 +298,12 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp supported_tensor_type?(%{type: type}), do: Map.has_key?(@supported_tensor_types, type)
+
+  defp architecture_known?(metadata) do
+    metadata
+    |> metadata_value("general.architecture")
+    |> then(&(&1 in @known_architectures))
+  end
 
   defp architecture_supported?(metadata) do
     metadata
@@ -463,7 +478,12 @@ defmodule Llamex.GGUF.Diagnostic do
       issues
     else
       architecture = metadata_value(metadata, "general.architecture") || "unknown"
-      ["unsupported architecture: #{architecture}" | issues]
+
+      if architecture_known?(metadata) do
+        ["unsupported architecture runtime: #{architecture}" | issues]
+      else
+        ["unsupported architecture: #{architecture}" | issues]
+      end
     end
   end
 

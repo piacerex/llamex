@@ -5360,6 +5360,7 @@ defmodule LlamexTest do
     assert diagnostic.tensor_count == 1
     assert diagnostic.tensor_element_count == 4
     assert diagnostic.architecture == "llama"
+    assert diagnostic.known_architectures == ["llama", "gemma3"]
     assert diagnostic.supported_architectures == ["llama"]
 
     assert diagnostic.supported_combinations == [
@@ -5373,6 +5374,7 @@ defmodule LlamexTest do
            ]
 
     assert diagnostic.architecture_supported? == true
+    assert diagnostic.architecture_known? == true
     assert diagnostic.tokenizer_supported? == true
     assert diagnostic.tokenizer_model == "llama"
     assert diagnostic.tokenizer_model_supported? == true
@@ -5426,7 +5428,9 @@ defmodule LlamexTest do
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template missing tokens: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor elements: 4"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture known: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture supported: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "known architectures: llama, gemma3"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported architectures: llama"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
@@ -5771,7 +5775,7 @@ defmodule LlamexTest do
            }
 
     assert diagnostic.compatibility_issues == [
-             "unsupported architecture: gemma3",
+             "unsupported architecture runtime: gemma3",
              "unsupported attention variant: sliding_window",
              "unsupported RoPE scaling: linear"
            ]
@@ -5922,6 +5926,7 @@ defmodule LlamexTest do
       end)
 
     assert output =~ "supported architectures: llama"
+    assert output =~ "known architectures: llama, gemma3"
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
@@ -5950,6 +5955,7 @@ defmodule LlamexTest do
     surface = JSON.decode!(String.trim(output))
 
     assert surface["supported_architectures"] == ["llama"]
+    assert surface["known_architectures"] == ["llama", "gemma3"]
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
     assert surface["supported_tokenizer_models"] == ["llama", "gpt2"]
     assert surface["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]
@@ -6070,6 +6076,7 @@ defmodule LlamexTest do
       |> Llamex.GGUF.Diagnostic.inspect_reader()
 
     assert diagnostic.architecture == "gemma3"
+    assert diagnostic.architecture_known? == true
     assert diagnostic.architecture_supported? == false
     assert diagnostic.missing_required_metadata == []
     assert diagnostic.tensor_shape_issues == []
@@ -6081,15 +6088,16 @@ defmodule LlamexTest do
     assert diagnostic.model_config.attention_head_count_kv == 1
     assert diagnostic.model_config.feed_forward_size == 8
     assert diagnostic.loadable? == false
-    assert diagnostic.compatibility_issues == ["unsupported architecture: gemma3"]
+    assert diagnostic.compatibility_issues == ["unsupported architecture runtime: gemma3"]
 
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~ "architecture: gemma3"
+    assert formatted =~ "architecture known: true"
     assert formatted =~ "architecture supported: false"
     assert formatted =~ "missing required metadata: none"
     assert formatted =~ "embedding_size=2"
-    assert formatted =~ "compatibility issues: unsupported architecture: gemma3"
+    assert formatted =~ "compatibility issues: unsupported architecture runtime: gemma3"
   end
 
   test "diagnoses gguf special tokens" do
