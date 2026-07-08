@@ -120,6 +120,7 @@ defmodule Llamex.GGUF.Diagnostic do
       chat_template: chat_template,
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
       missing_chat_template_tokens: missing_chat_template_tokens,
+      chat_template_issues: chat_template_issues(chat_template, missing_chat_template_tokens),
       tensor_element_count: tensor_element_count(gguf.tensors),
       tensor_shapes: tensor_shapes(gguf.tensors),
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
@@ -170,6 +171,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "chat template: #{diagnostic.chat_template}",
       "chat usable: #{diagnostic.chat_usable}",
       format_missing_chat_template_tokens(diagnostic.missing_chat_template_tokens),
+      "chat template issues: #{format_chat_template_issues(diagnostic.chat_template_issues)}",
       "tensor elements: #{diagnostic.tensor_element_count}",
       "tensor shapes: #{format_tensor_shapes(diagnostic.tensor_shapes)}",
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
@@ -441,6 +443,16 @@ defmodule Llamex.GGUF.Diagnostic do
   defp chat_usable?("supported", []), do: true
   defp chat_usable?(_chat_template, _missing_tokens), do: false
 
+  defp chat_template_issues("none", _missing_tokens), do: []
+
+  defp chat_template_issues("unsupported", _missing_tokens), do: ["unsupported chat template"]
+
+  defp chat_template_issues("supported", []), do: []
+
+  defp chat_template_issues("supported", missing_tokens) do
+    ["chat template missing tokens: #{Enum.join(missing_tokens, ", ")}"]
+  end
+
   defp missing_chat_template_tokens(metadata) do
     template = metadata_value(metadata, "tokenizer.chat_template")
 
@@ -536,6 +548,10 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_tensor_shape_issues([]), do: "none"
 
   defp format_tensor_shape_issues(issues), do: Enum.join(issues, "; ")
+
+  defp format_chat_template_issues([]), do: "none"
+
+  defp format_chat_template_issues(issues), do: Enum.join(issues, "; ")
 
   defp format_special_tokens(tokens) when map_size(tokens) == 0, do: "none"
 

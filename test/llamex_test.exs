@@ -4393,6 +4393,7 @@ defmodule LlamexTest do
       assert diagnostic["version"] == 3
       assert diagnostic["chat_template"] == "none"
       assert diagnostic["chat_usable"] == false
+      assert diagnostic["chat_template_issues"] == []
       assert diagnostic["architecture_supported?"] == true
 
       assert diagnostic["supported_combinations"] == [
@@ -4602,11 +4603,18 @@ defmodule LlamexTest do
     assert diagnostic.chat_usable == false
     assert diagnostic.missing_chat_template_tokens == ["<|im_start|>", "<|im_end|>"]
 
+    assert diagnostic.chat_template_issues == [
+             "chat template missing tokens: <|im_start|>, <|im_end|>"
+           ]
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template: supported"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: false"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "chat template missing tokens: <|im_start|>, <|im_end|>"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "chat template issues: chat template missing tokens: <|im_start|>, <|im_end|>"
   end
 
   test "diagnoses chat templates as usable when markers exist" do
@@ -4615,8 +4623,10 @@ defmodule LlamexTest do
     assert diagnostic.chat_template == "supported"
     assert diagnostic.chat_usable == true
     assert diagnostic.missing_chat_template_tokens == []
+    assert diagnostic.chat_template_issues == []
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template issues: none"
   end
 
   test "diagnoses role marker chat templates with system markers as usable" do
@@ -4625,13 +4635,28 @@ defmodule LlamexTest do
     assert diagnostic.chat_template == "supported"
     assert diagnostic.chat_usable == true
     assert diagnostic.missing_chat_template_tokens == []
+    assert diagnostic.chat_template_issues == []
 
     assert diagnostic.special_tokens == %{
              eos: %{id: 1, piece: "</s>"}
            }
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template issues: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "special tokens: eos=1:</s>"
+  end
+
+  test "diagnoses unsupported chat templates" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_unsupported_chat_template_gguf())
+
+    assert diagnostic.chat_template == "unsupported"
+    assert diagnostic.chat_usable == false
+    assert diagnostic.chat_template_issues == ["unsupported chat template"]
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template: unsupported"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "chat template issues: unsupported chat template"
   end
 
   test "builds a tokenizer with gguf chat template metadata" do
@@ -6020,6 +6045,23 @@ defmodule LlamexTest do
       kv_string("general.architecture", "llama"),
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "<|im_start|>", "<|im_end|>"]),
       kv_string("tokenizer.chat_template", chatml_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_unsupported_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "Hello"]),
+      kv_string("tokenizer.chat_template", "{{ messages | unsupported_filter }}")
     ]
 
     header = [

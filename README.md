@@ -578,6 +578,8 @@ looks plausible.
 Use `--supported` without a model path to print the current supported GGUF
 surface before choosing a checkpoint.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
+Use `chat_template_issues: []` to confirm that the template is supported and all
+required marker tokens are present.
 Use `loadable: true` as the quick check that architecture, tokenizer metadata,
 tokenizer model metadata when present, required model metadata, required tensors,
 required tensor shapes, and tensor types are inside Llamex's current supported
