@@ -7,7 +7,7 @@ defmodule Llamex.ChatTemplate do
 
   @chatml_template "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
   @supported_roles ["system", "user", "assistant"]
-  @supported_families ["chatml", "role_markers", "llama_header_markers"]
+  @supported_families ["chatml", "role_markers", "llama_header_markers", "gemma_turn_markers"]
 
   def supported_roles, do: @supported_roles
 
@@ -17,7 +17,8 @@ defmodule Llamex.ChatTemplate do
   def supported?(@chatml_template), do: true
 
   def supported?(template) when is_binary(template) do
-    role_marker_template?(template) or header_marker_template?(template)
+    role_marker_template?(template) or header_marker_template?(template) or
+      gemma_turn_marker_template?(template)
   end
 
   def family(nil), do: "none"
@@ -33,6 +34,9 @@ defmodule Llamex.ChatTemplate do
       header_marker_template?(template) ->
         "llama_header_markers"
 
+      gemma_turn_marker_template?(template) ->
+        "gemma_turn_markers"
+
       role_marker_template?(template) ->
         "role_markers"
 
@@ -44,10 +48,17 @@ defmodule Llamex.ChatTemplate do
   def markers(nil), do: []
 
   def markers(template) when is_binary(template) do
-    ~r/<\|[^>]+\|>/
-    |> Regex.scan(template)
-    |> Enum.map(&List.first/1)
-    |> Enum.uniq()
+    pipe_markers =
+      ~r/<\|[^>]+\|>/
+      |> Regex.scan(template)
+      |> Enum.map(&List.first/1)
+
+    gemma_markers =
+      ~r/<(?:start|end)_of_turn>/
+      |> Regex.scan(template)
+      |> Enum.map(&List.first/1)
+
+    Enum.uniq(pipe_markers ++ gemma_markers)
   end
 
   def missing_tokens(nil, _token_to_id), do: []
@@ -104,6 +115,9 @@ defmodule Llamex.ChatTemplate do
       header_marker_template?(template) ->
         apply_header_marker_template(template, messages)
 
+      gemma_turn_marker_template?(template) ->
+        apply_gemma_turn_marker_template(messages)
+
       true ->
         raise ArgumentError, "unsupported chat template"
     end
@@ -124,6 +138,12 @@ defmodule Llamex.ChatTemplate do
     String.contains?(template, "<|start_header_id|>") and
       String.contains?(template, "<|end_header_id|>") and
       String.contains?(template, "<|eot_id|>")
+  end
+
+  defp gemma_turn_marker_template?(template) do
+    String.contains?(template, "<start_of_turn>") and
+      String.contains?(template, "<end_of_turn>") and
+      String.contains?(template, "model")
   end
 
   defp apply_role_marker_template(template, messages, tokenizer) do
@@ -163,6 +183,49 @@ defmodule Llamex.ChatTemplate do
           message_role(message) <>
           "<|end_header_id|>\n\n" <> message_content(message) <> "<|eot_id|>"
       end) <> "<|start_header_id|>assistant<|end_header_id|>\n\n"
+  end
+
+  defp apply_gemma_turn_marker_template(messages) do
+    prompt =
+      messages
+      |> merge_system_into_gemma_user()
+      |> Enum.map_join("", fn message ->
+        case message_role(message) do
+          "assistant" ->
+            "<start_of_turn>model\n" <> message_content(message) <> "<end_of_turn>\n"
+
+          role ->
+            "<start_of_turn>" <> role <> "\n" <> message_content(message) <> "<end_of_turn>\n"
+        end
+      end)
+
+    prompt <> "<start_of_turn>model\n"
+  end
+
+  defp merge_system_into_gemma_user(messages) do
+    {system_messages, turn_messages} =
+      Enum.split_while(messages, &(message_role(&1) == "system"))
+
+    system_content =
+      system_messages
+      |> Enum.map(&message_content/1)
+      |> Enum.reject(&(&1 in [nil, ""]))
+      |> Enum.join("\n\n")
+
+    case {system_content, turn_messages} do
+      {"", messages} ->
+        messages
+
+      {system_content, [first | rest]} ->
+        if message_role(first) == "user" do
+          [Map.put(first, :content, system_content <> "\n\n" <> message_content(first)) | rest]
+        else
+          [%{role: "user", content: system_content}, first | rest]
+        end
+
+      {system_content, messages} ->
+        [%{role: "user", content: system_content} | messages]
+    end
   end
 
   defp validate_messages!(messages) do

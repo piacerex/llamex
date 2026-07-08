@@ -344,17 +344,28 @@ defmodule LlamexTest do
   test "detects chat template markers missing from tokenizer vocab" do
     assert Llamex.ChatTemplate.markers(chatml_template()) == ["<|im_start|>", "<|im_end|>"]
 
+    assert Llamex.ChatTemplate.markers(gemma_turn_template()) == [
+             "<start_of_turn>",
+             "<end_of_turn>"
+           ]
+
     assert Llamex.ChatTemplate.missing_tokens(chatml_template(), %{
              "<unk>" => 0,
              "<|im_start|>" => 1
            }) == ["<|im_end|>"]
+
+    assert Llamex.ChatTemplate.missing_tokens(gemma_turn_template(), %{
+             "<unk>" => 0,
+             "<start_of_turn>" => 1
+           }) == ["<end_of_turn>"]
   end
 
   test "classifies chat template families" do
     assert Llamex.ChatTemplate.supported_families() == [
              "chatml",
              "role_markers",
-             "llama_header_markers"
+             "llama_header_markers",
+             "gemma_turn_markers"
            ]
 
     assert Llamex.ChatTemplate.family(nil) == "none"
@@ -362,6 +373,7 @@ defmodule LlamexTest do
     assert Llamex.ChatTemplate.family(role_marker_template()) == "role_markers"
     assert Llamex.ChatTemplate.family(system_role_marker_template()) == "role_markers"
     assert Llamex.ChatTemplate.family(llama_header_template()) == "llama_header_markers"
+    assert Llamex.ChatTemplate.family(gemma_turn_template()) == "gemma_turn_markers"
 
     assert Llamex.ChatTemplate.family(llama_header_with_begin_template()) ==
              "llama_header_markers"
@@ -640,6 +652,34 @@ defmodule LlamexTest do
 
     assert Llamex.chat_prompt(prepared, "Hello", %{system: "Be concise."}) ==
              "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nBe concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nHello<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+  end
+
+  test "public chat prompt API applies gemma turn marker templates" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "<start_of_turn>" => 1,
+          "<end_of_turn>" => 2,
+          "Be" => 3,
+          "concise." => 4,
+          "Hello" => 5
+        },
+        "<unk>",
+        chat_template: gemma_turn_template()
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 6, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: Map.new(0..5, &{&1, [&1 * 1.0]})
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    assert Llamex.chat_prompt(prepared, "Hello", %{system: "Be concise."}) ==
+             "<start_of_turn>user\nBe concise.\n\nHello<end_of_turn>\n<start_of_turn>model\n"
   end
 
   test "public chat prompt API points to gguf inspect for missing template tokens" do
@@ -5818,7 +5858,8 @@ defmodule LlamexTest do
     assert surface["supported_chat_templates"] == [
              "chatml",
              "role_markers",
-             "llama_header_markers"
+             "llama_header_markers",
+             "gemma_turn_markers"
            ]
 
     assert surface["supported_chat_templates"] == Llamex.ChatTemplate.supported_families()
@@ -6140,6 +6181,34 @@ defmodule LlamexTest do
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template issues: none"
+  end
+
+  test "diagnoses gemma turn marker chat templates as usable" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gemma_turn_chat_template_gguf())
+
+    assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_template_family == "gemma_turn_markers"
+    assert diagnostic.chat_usable == true
+    assert diagnostic.missing_chat_template_tokens == []
+    assert diagnostic.chat_template_issues == []
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template family: gemma_turn_markers"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template issues: none"
+  end
+
+  test "diagnoses gemma turn marker chat templates with missing markers" do
+    diagnostic =
+      Llamex.GGUF.Diagnostic.inspect_binary(tiny_gemma_missing_turn_chat_template_gguf())
+
+    assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_template_family == "gemma_turn_markers"
+    assert diagnostic.chat_usable == false
+    assert diagnostic.missing_chat_template_tokens == ["<end_of_turn>"]
+
+    assert diagnostic.chat_template_issues == [
+             "chat template missing tokens: <end_of_turn>"
+           ]
   end
 
   test "diagnoses unsupported chat templates" do
@@ -7904,6 +7973,53 @@ defmodule LlamexTest do
     IO.iodata_to_binary([header, metadata])
   end
 
+  defp tiny_gemma_turn_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "gemma3"),
+      kv_array_string("tokenizer.ggml.tokens", [
+        "<unk>",
+        "<start_of_turn>",
+        "<end_of_turn>",
+        "user",
+        "model",
+        "Hello"
+      ]),
+      kv_string("tokenizer.chat_template", gemma_turn_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_gemma_missing_turn_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "gemma3"),
+      kv_array_string("tokenizer.ggml.tokens", [
+        "<unk>",
+        "<start_of_turn>",
+        "user",
+        "model",
+        "Hello"
+      ]),
+      kv_string("tokenizer.chat_template", gemma_turn_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
   defp tiny_byte_token_gguf do
     metadata = [
       kv_string("general.architecture", "llama"),
@@ -7951,6 +8067,10 @@ defmodule LlamexTest do
 
   defp llama_header_with_begin_template do
     "{{ '<|begin_of_text|>' }}{% for message in messages %}{{ '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n' + message['content'] + '<|eot_id|>' }}{% endfor %}{% if add_generation_prompt %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}{% endif %}"
+  end
+
+  defp gemma_turn_template do
+    "{% for message in messages %}{{ '<start_of_turn>' + message['role'] + '\n' + message['content'] + '<end_of_turn>\n' }}{% endfor %}{% if add_generation_prompt %}{{ '<start_of_turn>model\n' }}{% endif %}"
   end
 
   defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]
