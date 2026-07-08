@@ -635,7 +635,8 @@ role markers, and Llama header markers using `<|start_header_id|>`,
 `<|end_header_id|>`, and `<|eot_id|>`, including templates that start with
 `<|begin_of_text|>`. Gemma turn markers using `<start_of_turn>` and
 `<end_of_turn>` are also supported; system messages are folded into the first
-user turn for that format.
+user turn for that format. `tokenizer_metadata_issues` reports Gemma/chat marker
+tokens that are present but not marked as control tokens.
 Use `loadable: true` as the quick check that architecture, tokenizer metadata,
 tokenizer model metadata when present, required model metadata, required tensors,
 required tensor shapes, and tensor types are inside Llamex's current supported

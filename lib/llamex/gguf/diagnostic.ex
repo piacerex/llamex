@@ -354,6 +354,7 @@ defmodule Llamex.GGUF.Diagnostic do
     []
     |> add_tokenizer_scores_issue(metadata)
     |> add_tokenizer_token_type_issue(metadata)
+    |> add_chat_marker_token_type_issues(metadata)
     |> Enum.reverse()
   end
 
@@ -379,6 +380,33 @@ defmodule Llamex.GGUF.Diagnostic do
           "tokenizer token_type count mismatch: tokens=#{length(tokens)} token_types=#{length(token_types)}"
           | issues
         ]
+
+      _other ->
+        issues
+    end
+  end
+
+  defp add_chat_marker_token_type_issues(issues, metadata) do
+    template = metadata_value(metadata, "tokenizer.chat_template")
+
+    case {template, metadata_value(metadata, "tokenizer.ggml.tokens"),
+          metadata_value(metadata, "tokenizer.ggml.token_type")} do
+      {template, %{values: tokens}, %{values: token_types}} when is_binary(template) ->
+        template
+        |> Llamex.ChatTemplate.markers()
+        |> Enum.reduce(issues, fn marker, issues ->
+          case Enum.find_index(tokens, &(&1 == marker)) do
+            nil ->
+              issues
+
+            index ->
+              if Enum.at(token_types, index) == 3 do
+                issues
+              else
+                ["chat marker token should be control: #{marker}" | issues]
+              end
+          end
+        end)
 
       _other ->
         issues

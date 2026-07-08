@@ -6246,10 +6246,26 @@ defmodule LlamexTest do
     assert diagnostic.chat_usable == true
     assert diagnostic.missing_chat_template_tokens == []
     assert diagnostic.chat_template_issues == []
+    assert diagnostic.tokenizer_metadata_issues == []
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template family: gemma_turn_markers"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template issues: none"
+  end
+
+  test "diagnoses gemma turn markers that are not control tokens" do
+    diagnostic =
+      Llamex.GGUF.Diagnostic.inspect_binary(tiny_gemma_normal_turn_chat_template_gguf())
+
+    assert diagnostic.chat_usable == true
+
+    assert diagnostic.tokenizer_metadata_issues == [
+             "chat marker token should be control: <start_of_turn>",
+             "chat marker token should be control: <end_of_turn>"
+           ]
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "tokenizer metadata issues: chat marker token should be control: <start_of_turn>; chat marker token should be control: <end_of_turn>"
   end
 
   test "diagnoses gemma turn marker chat templates with missing markers" do
@@ -8140,6 +8156,32 @@ defmodule LlamexTest do
         "model",
         "Hello"
       ]),
+      kv_array_u32("tokenizer.ggml.token_type", [2, 3, 3, 1, 1, 1]),
+      kv_string("tokenizer.chat_template", gemma_turn_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_gemma_normal_turn_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "gemma3"),
+      kv_array_string("tokenizer.ggml.tokens", [
+        "<unk>",
+        "<start_of_turn>",
+        "<end_of_turn>",
+        "user",
+        "model",
+        "Hello"
+      ]),
+      kv_array_u32("tokenizer.ggml.token_type", [2, 1, 1, 1, 1, 1]),
       kv_string("tokenizer.chat_template", gemma_turn_template())
     ]
 
