@@ -657,9 +657,11 @@ values can be compared with the accepted values directly.
 Use `--supported` without a model path to print the current supported GGUF
 surface, architecture runtime status, model config metadata mapping, supported
 tokenizer metadata mapping, tensor type ID/name pairs, and explicitly
-unsupported feature metadata before choosing a checkpoint. It also
-includes the tensor schema surface for known architectures so Gemma 3 extra norm
-tensor names are visible before loading tensor data.
+unsupported feature metadata before choosing a checkpoint. It also includes the
+architecture-specific `unsupported_feature_metadata_surface` for exact keys such
+as `gemma3.rope.scaling.type`, plus the tensor schema surface for known
+architectures so Gemma 3 extra norm tensor names are visible before loading
+tensor data.
 `known_combinations` includes diagnostic-only architectures such as Gemma 3 with
 their runtime status, while `supported_combinations` remains limited to loadable
 runtime combinations.
@@ -712,7 +714,9 @@ When `unsupported_features` is non-empty, inspect
 `unsupported_feature_metadata_values` to see the exact GGUF metadata values such
 as sliding-window size or RoPE scaling settings that caused the rejection. These
 feature checks follow the model architecture prefix, for example `llama.*` or
-`gemma3.*`.
+`gemma3.*`. Use `unsupported_feature_metadata_surface` from `--supported --json`
+to see the exact metadata keys Llamex currently treats as unsupported for each
+known architecture.
 `Llamex.GGUF.ModelLoader.load/1` uses the same compatibility checks before
 loading tensor data, and load failures include the compact blocking issue group
 list alongside the flat compatibility issue message.
