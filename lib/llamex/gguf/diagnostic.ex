@@ -603,17 +603,16 @@ defmodule Llamex.GGUF.Diagnostic do
   defp tensor_schema_issues(metadata, tensors) do
     architecture = metadata_value(metadata, "general.architecture")
 
-    architecture
-    |> Llamex.GGUF.TensorSchema.unmapped_names(Enum.map(tensors, & &1.name))
-    |> Enum.map(&"unmapped tensor schema: #{&1}")
+    Llamex.GGUF.TensorSchema.unmapped_schema_issues(architecture, Enum.map(tensors, & &1.name))
   end
 
   defp unsupported_tensor_features(metadata, tensors) do
     architecture = metadata_value(metadata, "general.architecture")
 
-    architecture
-    |> Llamex.GGUF.TensorSchema.unsupported_feature_names(Enum.map(tensors, & &1.name))
-    |> Enum.map(&"unsupported tensor feature: extra_norm #{&1}")
+    Llamex.GGUF.TensorSchema.unsupported_feature_issues(
+      architecture,
+      Enum.map(tensors, & &1.name)
+    )
   end
 
   defp missing_required_tensors(metadata, tensors) do

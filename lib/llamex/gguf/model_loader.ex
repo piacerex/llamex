@@ -23,7 +23,7 @@ defmodule Llamex.GGUF.ModelLoader do
     %{
       "config" => config_from_metadata(gguf.metadata),
       "tokenizer" => tokenizer_from_metadata(gguf.metadata),
-      "tensor_schema" => tensor_schema_summary(architecture, tensor_names),
+      "tensor_schema" => Llamex.GGUF.TensorSchema.summary(architecture, tensor_names),
       "tensors" => tensors
     }
   end
@@ -32,21 +32,6 @@ defmodule Llamex.GGUF.ModelLoader do
     gguf
     |> Llamex.GGUF.Reader.read_tensor_data(binary)
     |> then(&Llamex.GGUF.TensorSchema.normalize_tensor_map(architecture, &1))
-  end
-
-  defp tensor_schema_summary(architecture, tensor_names) do
-    %{
-      "architecture" => architecture,
-      "mappings" => Llamex.GGUF.TensorSchema.mappings(architecture, tensor_names),
-      "unsupported_features" =>
-        architecture
-        |> Llamex.GGUF.TensorSchema.unsupported_feature_names(tensor_names)
-        |> Enum.map(&"unsupported tensor feature: extra_norm #{&1}"),
-      "issues" =>
-        architecture
-        |> Llamex.GGUF.TensorSchema.unmapped_names(tensor_names)
-        |> Enum.map(&"unmapped tensor schema: #{&1}")
-    }
   end
 
   defp config_from_metadata(metadata) do

@@ -49,6 +49,15 @@ defmodule Llamex.GGUF.TensorSchema do
     Map.new(tensors, fn {name, tensor} -> {normalize_name(architecture, name), tensor} end)
   end
 
+  def summary(architecture, tensor_names) when is_list(tensor_names) do
+    %{
+      "architecture" => architecture,
+      "mappings" => mappings(architecture, tensor_names),
+      "unsupported_features" => unsupported_feature_issues(architecture, tensor_names),
+      "issues" => unmapped_schema_issues(architecture, tensor_names)
+    }
+  end
+
   def mappings(architecture, tensor_names) when is_list(tensor_names) do
     tensor_names
     |> Enum.map(fn name -> {name, normalize_name(architecture, name)} end)
@@ -64,6 +73,18 @@ defmodule Llamex.GGUF.TensorSchema do
   def unsupported_feature_names(architecture, tensor_names) when is_list(tensor_names) do
     tensor_names
     |> Enum.filter(fn name -> unsupported_feature_name?(architecture, name) end)
+  end
+
+  def unsupported_feature_issues(architecture, tensor_names) when is_list(tensor_names) do
+    architecture
+    |> unsupported_feature_names(tensor_names)
+    |> Enum.map(&"unsupported tensor feature: extra_norm #{&1}")
+  end
+
+  def unmapped_schema_issues(architecture, tensor_names) when is_list(tensor_names) do
+    architecture
+    |> unmapped_names(tensor_names)
+    |> Enum.map(&"unmapped tensor schema: #{&1}")
   end
 
   def normalize_name("gemma3", "blk." <> rest = name) do

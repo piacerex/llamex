@@ -6199,6 +6199,21 @@ defmodule LlamexTest do
   end
 
   test "normalizes gemma3 tensor names for model maps" do
+    assert Llamex.GGUF.TensorSchema.summary("gemma3", [
+             "blk.0.post_attention_norm.weight",
+             "blk.0.post_ffw_norm.weight",
+             "blk.0.unknown.weight"
+           ]) == %{
+             "architecture" => "gemma3",
+             "mappings" => [
+               %{name: "blk.0.post_attention_norm.weight", schema_name: "blk.0.ffn_norm.weight"}
+             ],
+             "unsupported_features" => [
+               "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
+             ],
+             "issues" => ["unmapped tensor schema: blk.0.unknown.weight"]
+           }
+
     assert Llamex.GGUF.TensorSchema.normalize_name(
              "gemma3",
              "blk.12.post_attention_norm.weight"
