@@ -3433,6 +3433,7 @@ defmodule LlamexTest do
 
     [result] = JSON.decode!(String.trim(output))
 
+    assert result["model_path"] == "priv/models/tiny.json"
     assert result["prompt"] == "hello"
     assert result["text"] == "world"
     assert result["generated_tokens"] == [2]
@@ -3800,6 +3801,7 @@ defmodule LlamexTest do
 
       [result] = JSON.decode!(String.trim(output))
 
+      assert result["model_path"] == path
       assert result["ok"] == true
       assert result["issues"] == []
       assert result["text"] == "a b c d e f g ."

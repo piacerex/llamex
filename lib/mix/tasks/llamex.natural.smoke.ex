@@ -70,6 +70,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     results =
       smoke_results!(
         model,
+        model_path,
         prompts,
         max_new_tokens,
         stop_tokens,
@@ -91,6 +92,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
   defp smoke_results!(
          model,
+         model_path,
          prompts,
          max_new_tokens,
          stop_tokens,
@@ -130,6 +132,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
         })
 
       %{
+        model_path: model_path,
         prompt: prompt,
         settings: settings,
         text: result.text,
