@@ -8,14 +8,14 @@ defmodule Llamex.GGUF.Diagnostic do
   @supported_tokenizer_models ["llama", "gpt2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
   @unsupported_feature_metadata [
-    "llama.attention.sliding_window",
-    "llama.rope.scaling.type"
+    "*.attention.sliding_window",
+    "*.rope.scaling.type"
   ]
-  @unsupported_feature_detail_metadata [
-    "llama.attention.sliding_window",
-    "llama.rope.scaling.type",
-    "llama.rope.scaling.factor",
-    "llama.rope.scaling.original_context_length"
+  @unsupported_feature_detail_suffixes [
+    "attention.sliding_window",
+    "rope.scaling.type",
+    "rope.scaling.factor",
+    "rope.scaling.original_context_length"
   ]
   @required_metadata_suffixes ["embedding_length"]
   @required_tensor_names ["token_embd.weight"]
@@ -681,7 +681,10 @@ defmodule Llamex.GGUF.Diagnostic do
     if unsupported_features(metadata) == [] do
       %{}
     else
-      @unsupported_feature_detail_metadata
+      prefix = metadata_prefix(metadata)
+
+      @unsupported_feature_detail_suffixes
+      |> Enum.map(&metadata_key(prefix, &1))
       |> Enum.flat_map(fn key ->
         case metadata_value(metadata, key) do
           nil -> []
@@ -694,14 +697,17 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp add_sliding_window_issue(issues, metadata) do
-    case metadata_value(metadata, "llama.attention.sliding_window") do
+    case metadata_value(
+           metadata,
+           metadata_key(metadata_prefix(metadata), "attention.sliding_window")
+         ) do
       nil -> issues
       _window -> ["unsupported attention variant: sliding_window" | issues]
     end
   end
 
   defp add_rope_scaling_issue(issues, metadata) do
-    case metadata_value(metadata, "llama.rope.scaling.type") do
+    case metadata_value(metadata, metadata_key(metadata_prefix(metadata), "rope.scaling.type")) do
       nil -> issues
       "none" -> issues
       type -> ["unsupported RoPE scaling: #{type}" | issues]

@@ -5682,6 +5682,55 @@ defmodule LlamexTest do
     assert formatted =~ "llama.rope.scaling.type=linear"
   end
 
+  test "diagnoses unsupported gemma3 attention and rope metadata by architecture prefix" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
+
+    diagnostic =
+      parsed
+      |> put_in(
+        [Access.key!(:metadata), "general.architecture"],
+        %{type: :string, value: "gemma3"}
+      )
+      |> put_in([Access.key!(:metadata), "gemma3.embedding_length"], %{type: :uint32, value: 2})
+      |> put_in(
+        [Access.key!(:metadata), "gemma3.attention.sliding_window"],
+        %{type: :uint32, value: 1024}
+      )
+      |> put_in(
+        [Access.key!(:metadata), "gemma3.rope.scaling.type"],
+        %{type: :string, value: "linear"}
+      )
+      |> put_in(
+        [Access.key!(:metadata), "gemma3.rope.scaling.factor"],
+        %{type: :float32, value: 4.0}
+      )
+      |> put_in(
+        [Access.key!(:metadata), "gemma3.rope.scaling.original_context_length"],
+        %{type: :uint32, value: 32_768}
+      )
+      |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert diagnostic.architecture == "gemma3"
+
+    assert diagnostic.unsupported_features == [
+             "unsupported attention variant: sliding_window",
+             "unsupported RoPE scaling: linear"
+           ]
+
+    assert diagnostic.unsupported_feature_metadata_values == %{
+             "gemma3.attention.sliding_window" => 1024,
+             "gemma3.rope.scaling.factor" => 4.0,
+             "gemma3.rope.scaling.original_context_length" => 32_768,
+             "gemma3.rope.scaling.type" => "linear"
+           }
+
+    assert diagnostic.compatibility_issues == [
+             "unsupported architecture: gemma3",
+             "unsupported attention variant: sliding_window",
+             "unsupported RoPE scaling: linear"
+           ]
+  end
+
   test "diagnoses missing required gguf tensors" do
     parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:with_missing_token_embeddings_tensor_data))
 
@@ -5828,10 +5877,12 @@ defmodule LlamexTest do
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
-    assert output =~ "supported chat templates: chatml, role_markers, llama_header_markers"
 
     assert output =~
-             "unsupported feature metadata: llama.attention.sliding_window, llama.rope.scaling.type"
+             "supported chat templates: chatml, role_markers, llama_header_markers, gemma_turn_markers"
+
+    assert output =~
+             "unsupported feature metadata: *.attention.sliding_window, *.rope.scaling.type"
 
     assert output =~ "supported tensor type names:"
     assert output =~ "supported tensor type ids: 0:F32, 1:F16, 2:Q4_0"
@@ -5865,8 +5916,8 @@ defmodule LlamexTest do
     assert surface["supported_chat_templates"] == Llamex.ChatTemplate.supported_families()
 
     assert surface["unsupported_feature_metadata"] == [
-             "llama.attention.sliding_window",
-             "llama.rope.scaling.type"
+             "*.attention.sliding_window",
+             "*.rope.scaling.type"
            ]
 
     assert "Q8_0" in surface["supported_tensor_type_names"]
