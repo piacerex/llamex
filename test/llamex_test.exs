@@ -5407,6 +5407,15 @@ defmodule LlamexTest do
     assert diagnostic.loadable? == false
     assert diagnostic.compatibility_issues == ["unsupported tensor type: type_99 (1)"]
 
+    assert diagnostic.compatibility_issue_groups == %{
+             runtime: [],
+             tokenizer: [],
+             metadata: [],
+             features: [],
+             tensor_features: [],
+             tensors: ["unsupported tensor type: type_99 (1)"]
+           }
+
     assert diagnostic.tensor_shapes == [
              %{
                name: "token_embd.weight",
@@ -5484,6 +5493,12 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "loadable: false"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "compatibility issue groups: features=none"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "tensors=unsupported tensor type: type_99 (1)"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "compatibility issues: unsupported tensor type: type_99 (1)"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
@@ -5499,6 +5514,14 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.summary(diagnostic) == %{
              loadable?: true,
              compatibility_issues: [],
+             compatibility_issue_groups: %{
+               runtime: [],
+               tokenizer: [],
+               metadata: [],
+               features: [],
+               tensor_features: [],
+               tensors: []
+             },
              chat_usable: false,
              chat_template_family: "none",
              chat_template_issues: [],
@@ -5817,6 +5840,15 @@ defmodule LlamexTest do
              "unsupported attention variant: sliding_window",
              "unsupported RoPE scaling: linear"
            ]
+
+    assert diagnostic.compatibility_issue_groups.runtime == [
+             "unsupported architecture runtime: gemma3"
+           ]
+
+    assert diagnostic.compatibility_issue_groups.features == [
+             "unsupported attention variant: sliding_window",
+             "unsupported RoPE scaling: linear"
+           ]
   end
 
   test "diagnoses missing required gguf tensors" do
@@ -5828,6 +5860,11 @@ defmodule LlamexTest do
     assert diagnostic.loadable? == false
 
     assert diagnostic.compatibility_issues == [
+             "missing required tensor: token_embd.weight",
+             "unmapped tensor schema: other.weight"
+           ]
+
+    assert diagnostic.compatibility_issue_groups.tensors == [
              "missing required tensor: token_embd.weight",
              "unmapped tensor schema: other.weight"
            ]

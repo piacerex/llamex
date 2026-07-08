@@ -22,6 +22,7 @@ defmodule Llamex.GGUF.Diagnostic do
   @summary_keys [
     :loadable?,
     :compatibility_issues,
+    :compatibility_issue_groups,
     :chat_usable,
     :chat_template_family,
     :chat_template_issues,
@@ -252,6 +253,7 @@ defmodule Llamex.GGUF.Diagnostic do
       unsupported_tensor_types: unsupported_tensor_types(gguf.tensors),
       unsupported_tensors: unsupported_tensors(gguf.tensors),
       compatibility_issues: compatibility_issues(gguf.metadata, gguf.tensors),
+      compatibility_issue_groups: compatibility_issue_groups(gguf.metadata, gguf.tensors),
       loadable?: loadable?(gguf.metadata, gguf.tensors)
     }
   end
@@ -288,6 +290,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "missing model config metadata: #{format_missing_model_config_metadata(diagnostic.missing_model_config_metadata)}",
       "loadable: #{diagnostic.loadable?}",
       "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
+      "compatibility issue groups: #{format_compatibility_issue_groups(diagnostic.compatibility_issue_groups)}",
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer model: #{diagnostic.tokenizer_model || "unknown"}",
@@ -561,6 +564,29 @@ defmodule Llamex.GGUF.Diagnostic do
     |> add_tensor_shape_issues(metadata, tensors)
     |> add_tensor_type_issues(tensors)
     |> Enum.reverse()
+  end
+
+  defp compatibility_issue_groups(metadata, tensors) do
+    %{
+      runtime: [] |> add_architecture_issue(metadata) |> Enum.reverse(),
+      tokenizer:
+        []
+        |> add_tokenizer_issue(metadata)
+        |> add_tokenizer_model_issue(metadata)
+        |> add_pre_tokenizer_issue(metadata)
+        |> Enum.reverse(),
+      metadata: [] |> add_required_metadata_issues(metadata) |> Enum.reverse(),
+      features: [] |> add_unsupported_feature_issues(metadata) |> Enum.reverse(),
+      tensor_features:
+        [] |> add_unsupported_tensor_feature_issues(metadata, tensors) |> Enum.reverse(),
+      tensors:
+        []
+        |> add_required_tensor_issues(metadata, tensors)
+        |> add_tensor_schema_issues(metadata, tensors)
+        |> add_tensor_shape_issues(metadata, tensors)
+        |> add_tensor_type_issues(tensors)
+        |> Enum.reverse()
+    }
   end
 
   defp add_architecture_issue(issues, metadata) do
@@ -1070,6 +1096,16 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_compatibility_issues([]), do: "none"
 
   defp format_compatibility_issues(issues), do: Enum.join(issues, "; ")
+
+  defp format_compatibility_issue_groups(groups) do
+    groups
+    |> Enum.sort()
+    |> Enum.map(fn {group, issues} ->
+      issues = if issues == [], do: "none", else: Enum.join(issues, "; ")
+      "#{group}=#{issues}"
+    end)
+    |> Enum.join(", ")
+  end
 
   defp format_missing_required_metadata([]), do: "none"
 
