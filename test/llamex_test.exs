@@ -8294,8 +8294,13 @@ defmodule LlamexTest do
         architecture: "gemma3",
         block_count: 0,
         context_size: 32,
+        tokens: ["<unk>", "hello", "<start_of_turn>", "<end_of_turn>", "user", "model"],
+        extra_metadata: [
+          kv_string("tokenizer.ggml.chat_template", gemma_turn_template())
+        ],
         tensors: [
-          {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+          {"token_embd.weight", [2, 6],
+           [1.0, 0.0, 0.0, 1.0, 0.5, 0.5, 0.25, 0.25, 0.2, 0.8, 0.0, 1.0]}
         ]
       )
 
@@ -8322,6 +8327,17 @@ defmodule LlamexTest do
       assert result.generated_tokens == [1]
       assert result.generated_pieces == ["hello"]
       assert result.text == "hello"
+
+      chat_result =
+        Llamex.generate_chat(model, [%{role: "user", content: "hello"}], %{
+          backend: Llamex.Backend.List,
+          max_new_tokens: 1,
+          sampler: :greedy
+        })
+
+      assert chat_result.generated_tokens == [0]
+      assert chat_result.generated_pieces == ["<unk>"]
+      assert chat_result.text == "<unk>"
     after
       File.rm(path)
     end
