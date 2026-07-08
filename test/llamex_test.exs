@@ -5548,6 +5548,8 @@ defmodule LlamexTest do
              "llama_header_markers"
            ]
 
+    assert surface["supported_chat_templates"] == Llamex.ChatTemplate.supported_families()
+
     assert surface["unsupported_feature_metadata"] == [
              "llama.attention.sliding_window",
              "llama.rope.scaling.type"
@@ -5685,6 +5687,7 @@ defmodule LlamexTest do
 
       assert Enum.map(diagnostics, & &1["path"]) == [first, second]
       assert Enum.map(diagnostics, & &1["chat_template"]) == ["none", "supported"]
+      assert Enum.map(diagnostics, & &1["chat_template_family"]) == ["none", "chatml"]
       assert Enum.map(diagnostics, & &1["chat_usable"]) == [false, false]
     after
       File.rm(first)
