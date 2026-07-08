@@ -5146,6 +5146,24 @@ defmodule LlamexTest do
     end
   end
 
+  test "exla info task reports rocm target availability" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Exla.Info.run(["--target", "rocm", "--json"])
+      end)
+
+    info = JSON.decode!(String.trim(output))
+
+    assert info["target"] == "rocm"
+    assert info["client"] == "rocm"
+
+    if Map.has_key?(info["supported_platforms"], "rocm") do
+      assert info["target_available?"]
+    else
+      refute info["target_available?"]
+    end
+  end
+
   test "nx_exla configure rejects unavailable cuda clients" do
     info = Llamex.Backend.NxEXLA.info(:cuda)
 
