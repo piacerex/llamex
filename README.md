@@ -593,6 +593,8 @@ surface and explicitly unsupported feature metadata before choosing a checkpoint
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `chat_template_issues: []` to confirm that the template is supported and all
 required marker tokens are present.
+`loadable: true` and `chat_usable: true` are separate checks: a model can be
+loadable for plain prompt generation while still lacking a usable chat template.
 Supported chat templates currently cover ChatML, `<|user|>`/`<|assistant|>`
 role markers, and Llama header markers using `<|start_header_id|>`,
 `<|end_header_id|>`, and `<|eot_id|>`, including templates that start with

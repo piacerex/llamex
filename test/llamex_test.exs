@@ -5324,6 +5324,10 @@ defmodule LlamexTest do
     assert diagnostic.tensor_shape_issues == []
     assert diagnostic.loadable? == true
     assert diagnostic.compatibility_issues == []
+    assert diagnostic.chat_template == "none"
+    assert diagnostic.chat_template_family == "none"
+    assert diagnostic.chat_usable == false
+    assert diagnostic.chat_template_issues == []
 
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
@@ -5340,6 +5344,9 @@ defmodule LlamexTest do
     assert formatted =~ "tensor shape issues: none"
     assert formatted =~ "loadable: true"
     assert formatted =~ "compatibility issues: none"
+    assert formatted =~ "chat template: none"
+    assert formatted =~ "chat usable: false"
+    assert formatted =~ "chat template issues: none"
   end
 
   test "diagnoses missing required gguf model metadata" do
