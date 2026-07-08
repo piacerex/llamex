@@ -33,6 +33,7 @@
 - 自然文入力から token id 列を作れるようにする。
 - SentencePiece、BPE、GGUF 内 tokenizer metadata の扱い方を決める。
 - special token、BOS / EOS、未知語、byte fallback の扱いを明確にする。
+- 日本語 prompt を encode / decode できる smoke test を追加する。
 
 ### 2. GGUF 読み込み
 
@@ -45,6 +46,7 @@
 - Llama 系の小規模 GGUF モデルを読み込み、自然文 prompt から logits / token 生成まで通す。
 - List / Nx / NxEXLA backend の結果差分を確認できるテストを追加する。
 - prepared model を標準的な推論経路に組み込む。
+- 日本語 prompt を使った end-to-end smoke test を追加する。
 
 ### 4. Sampler 強化
 

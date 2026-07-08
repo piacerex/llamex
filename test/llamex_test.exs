@@ -2889,6 +2889,62 @@ defmodule LlamexTest do
     assert result["issues"] == []
   end
 
+  test "natural smoke task accepts a Japanese prompt" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-natural-japanese-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 4, "embedding_size" => 3},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "vocab" => %{"<unk>" => 0, "こんにちは" => 1, "世界" => 2, "です" => 3}
+      },
+      "token_embeddings" => %{
+        "0" => [0.0, 0.0, 0.0],
+        "1" => [1.0, 0.0, 0.0],
+        "2" => [0.0, 1.0, 0.0],
+        "3" => [0.0, 0.0, 1.0]
+      },
+      "output" => %{
+        "weight" => [
+          [0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0],
+          [3.0, 0.0, 0.0],
+          [0.0, 3.0, 0.0]
+        ]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Natural.Smoke.run([
+            path,
+            "1",
+            "--json",
+            "--prompt",
+            "こんにちは"
+          ])
+        end)
+
+      [result] = JSON.decode!(String.trim(output))
+
+      assert result["prompt"] == "こんにちは"
+      assert result["text"] == "世界"
+      assert result["generated_tokens"] == [2]
+      assert result["ok"] == true
+      assert result["issues"] == []
+    after
+      File.rm(path)
+    end
+  end
+
   test "natural smoke task rejects invalid sampler seed option" do
     assert_raise Mix.Error, ~r/seed must be a non-negative integer/, fn ->
       Mix.Tasks.Llamex.Natural.Smoke.run([
