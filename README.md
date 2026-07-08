@@ -726,7 +726,9 @@ to see the exact metadata keys Llamex currently treats as unsupported for each
 known architecture.
 `Llamex.GGUF.ModelLoader.load/1` uses the same compatibility checks before
 loading tensor data, and load failures include the compact blocking issue group
-list alongside the flat compatibility issue message.
+list alongside the flat compatibility issue message. When an architecture is
+known but not loadable yet, the error also includes `architecture runtime
+blockers`.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 
