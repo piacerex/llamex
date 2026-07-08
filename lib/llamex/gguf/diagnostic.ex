@@ -47,6 +47,8 @@ defmodule Llamex.GGUF.Diagnostic do
     :eager_f32_bytes,
     :gguf_payload_bytes,
     :eager_f32_expansion_ratio,
+    :supported_tensor_types,
+    :unsupported_tensor_types,
     :tensor_payload_by_type,
     :top_tensor_payloads
   ]

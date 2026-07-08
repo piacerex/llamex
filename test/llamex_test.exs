@@ -5571,6 +5571,8 @@ defmodule LlamexTest do
              eager_f32_bytes: 16,
              gguf_payload_bytes: 16,
              eager_f32_expansion_ratio: 1.0,
+             supported_tensor_types: %{"F32" => 1},
+             unsupported_tensor_types: %{},
              tensor_payload_by_type: %{
                "F32" => %{
                  tensors: 1,
@@ -6116,6 +6118,9 @@ defmodule LlamexTest do
       assert output =~ "tensor schema mappings: none"
       assert output =~ "eager f32 lower bound: 16 B"
       assert output =~ "gguf payload bytes: 0 B"
+      assert output =~ "supported tensor types: none"
+      assert output =~ "unsupported tensor types: type_99=1"
+      assert output =~ "tensor payload by type: type_99=tensors:1, elements:4, gguf:0 B"
     after
       File.rm(path)
     end
@@ -6164,6 +6169,9 @@ defmodule LlamexTest do
       assert summary["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
       assert summary["eager_f32_bytes"] == 16
       assert summary["gguf_payload_bytes"] == 0
+      assert summary["supported_tensor_types"] == %{}
+      assert summary["unsupported_tensor_types"] == %{"type_99" => 1}
+      assert summary["tensor_payload_by_type"]["type_99"]["tensors"] == 1
     after
       File.rm(path)
     end

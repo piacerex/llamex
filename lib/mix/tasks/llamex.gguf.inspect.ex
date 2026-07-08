@@ -173,7 +173,10 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "tensor schema mappings: #{format_mappings(summary.tensor_schema_mappings)}",
       "tensor schema issues: #{format_list(summary.tensor_schema_issues)}",
       "eager f32 lower bound: #{format_bytes(summary.eager_f32_bytes)}",
-      "gguf payload bytes: #{format_bytes(summary.gguf_payload_bytes)}"
+      "gguf payload bytes: #{format_bytes(summary.gguf_payload_bytes)}",
+      "supported tensor types: #{format_type_counts(summary.supported_tensor_types)}",
+      "unsupported tensor types: #{format_type_counts(summary.unsupported_tensor_types)}",
+      "tensor payload by type: #{format_tensor_payload_by_type(summary.tensor_payload_by_type)}"
     ]
     |> Enum.join("\n")
   end
@@ -254,6 +257,26 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     |> Enum.join(", ")
   end
 
+  defp format_type_counts(counts) when map_size(counts) == 0, do: "none"
+
+  defp format_type_counts(counts) do
+    counts
+    |> Enum.sort()
+    |> Enum.map(fn {type, count} -> "#{type}=#{count}" end)
+    |> Enum.join(", ")
+  end
+
+  defp format_tensor_payload_by_type(payload) when map_size(payload) == 0, do: "none"
+
+  defp format_tensor_payload_by_type(payload) do
+    payload
+    |> Enum.sort()
+    |> Enum.map(fn {type_name, stats} ->
+      "#{type_name}=tensors:#{stats.tensors}, elements:#{stats.elements}, gguf:#{format_bytes(stats.gguf_payload_bytes)}, eager_f32:#{format_bytes(stats.eager_f32_bytes)}, ratio:#{format_ratio(stats.eager_f32_expansion_ratio)}"
+    end)
+    |> Enum.join("; ")
+  end
+
   defp format_atoms([]), do: "none"
 
   defp format_atoms(values) do
@@ -264,4 +287,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
 
   defp format_bytes(nil), do: "unknown"
   defp format_bytes(bytes), do: "#{bytes} B"
+
+  defp format_ratio(nil), do: "unknown"
+  defp format_ratio(ratio), do: "#{Float.round(ratio, 2)}x"
 end
