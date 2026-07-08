@@ -610,6 +610,8 @@ mix llamex.gguf.inspect --supported
 mix llamex.gguf.inspect --supported --json
 mix llamex.gguf.inspect model.gguf
 mix llamex.gguf.inspect model.gguf --json
+mix llamex.gguf.inspect model.gguf --config
+mix llamex.gguf.inspect first.gguf second.gguf --config --json
 mix llamex.gguf.inspect model.gguf --schema
 mix llamex.gguf.inspect first.gguf second.gguf --schema --json
 mix llamex.gguf.inspect first.gguf second.gguf --json
@@ -619,10 +621,12 @@ The tensor schema summary can also be checked from IEx without reading tensor
 payloads:
 
 ```elixir
+Llamex.GGUF.ModelLoader.model_config_summary_file("model.gguf")
 Llamex.GGUF.ModelLoader.tensor_schema_summary_file("model.gguf")
 ```
 
-`Llamex.GGUF.ModelLoader.tensor_schema_summary/1` accepts an already parsed
+`Llamex.GGUF.ModelLoader.model_config_summary/1` and
+`Llamex.GGUF.ModelLoader.tensor_schema_summary/1` accept an already parsed
 `Llamex.GGUF.Reader` when caller code wants to reuse metadata.
 
 The inspection output includes supported architecture/tokenizer/tensor type

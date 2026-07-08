@@ -7383,6 +7383,42 @@ defmodule LlamexTest do
     assert model_map["config"]["rope_theta"] == 10_000.0
   end
 
+  test "summarizes gemma3-prefixed model config from gguf file path" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-config-summary-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    gguf =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        context_size: 32,
+        tensors: [
+          {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+        ]
+      )
+
+    try do
+      File.write!(path, gguf)
+
+      assert Llamex.GGUF.ModelLoader.model_config_summary_file(path) == %{
+               "attention_head_count" => 2,
+               "attention_head_count_kv" => 1,
+               "block_count" => 0,
+               "context_size" => 32,
+               "embedding_size" => 2,
+               "epsilon" => 1.0e-6,
+               "feed_forward_size" => 8,
+               "rope_theta" => 10_000.0,
+               "vocab_size" => 2
+             }
+    after
+      File.rm(path)
+    end
+  end
+
   test "loads gguf tokenizer special tokens through model loader" do
     path =
       Path.join(

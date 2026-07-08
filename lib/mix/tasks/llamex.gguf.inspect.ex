@@ -4,6 +4,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
 
       mix llamex.gguf.inspect model.gguf
       mix llamex.gguf.inspect model.gguf --json
+      mix llamex.gguf.inspect model.gguf --config
+      mix llamex.gguf.inspect first.gguf second.gguf --config --json
       mix llamex.gguf.inspect model.gguf --schema
       mix llamex.gguf.inspect first.gguf second.gguf --schema --json
       mix llamex.gguf.inspect first.gguf second.gguf --json
@@ -18,13 +20,37 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
   @impl true
   def run(args) do
     {options, positional, invalid} =
-      OptionParser.parse(args, strict: [json: :boolean, schema: :boolean, supported: :boolean])
+      OptionParser.parse(args,
+        strict: [json: :boolean, config: :boolean, schema: :boolean, supported: :boolean]
+      )
 
     if invalid != [] do
       Mix.raise("invalid options: #{inspect(invalid)}")
     end
 
     run_inspect(positional, Map.new(options))
+  end
+
+  defp run_inspect(paths, %{config: true, json: true}) when length(paths) > 0 do
+    Mix.Task.run("app.start")
+
+    summaries =
+      Enum.map(paths, fn path ->
+        path
+        |> model_config_summary()
+        |> Map.put(:path, path)
+      end)
+
+    Mix.shell().info(JSON.encode!(summaries))
+  end
+
+  defp run_inspect([path], %{config: true}) do
+    Mix.Task.run("app.start")
+
+    path
+    |> model_config_summary()
+    |> format_model_config_summary()
+    |> Mix.shell().info()
   end
 
   defp run_inspect(paths, %{schema: true, json: true}) when length(paths) > 0 do
@@ -88,12 +114,23 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
 
   defp run_inspect(_args, _options) do
     Mix.raise(
-      "usage: mix llamex.gguf.inspect MODEL_GGUF [MODEL_GGUF ...] [--json] [--schema] | --supported [--json]"
+      "usage: mix llamex.gguf.inspect MODEL_GGUF [MODEL_GGUF ...] [--json] [--config] [--schema] | --supported [--json]"
     )
   end
 
   defp tensor_schema_summary(path) do
     Llamex.GGUF.ModelLoader.tensor_schema_summary_file(path)
+  end
+
+  defp model_config_summary(path) do
+    Llamex.GGUF.ModelLoader.model_config_summary_file(path)
+  end
+
+  defp format_model_config_summary(config) do
+    config
+    |> Enum.sort_by(fn {key, _value} -> key end)
+    |> Enum.map(fn {key, value} -> "#{key}: #{value}" end)
+    |> Enum.join("\n")
   end
 
   defp format_tensor_schema_summary(summary) do
