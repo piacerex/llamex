@@ -627,7 +627,8 @@ Llamex.GGUF.ModelLoader.tensor_schema_summary_file("model.gguf")
 ```
 
 `model_config_report_file/1` includes the selected metadata prefix, such as
-`llama` or `gemma3`, alongside the config map. `Llamex.GGUF.ModelLoader.model_config_summary/1` and
+`llama` or `gemma3`, alongside the config map and missing config metadata keys.
+`Llamex.GGUF.ModelLoader.model_config_summary/1` and
 `Llamex.GGUF.ModelLoader.tensor_schema_summary/1` accept an already parsed
 `Llamex.GGUF.Reader` when caller code wants to reuse metadata.
 

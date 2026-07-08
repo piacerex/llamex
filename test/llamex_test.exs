@@ -5995,6 +5995,9 @@ defmodule LlamexTest do
       assert output =~ "config: "
       assert output =~ "embedding_size: 2"
       assert output =~ "context_size: 16"
+      assert output =~ "missing metadata: "
+      assert output =~ "epsilon: llama.attention.layer_norm_rms_epsilon"
+      assert output =~ "rope_theta: llama.rope.freq_base"
     after
       File.rm(path)
     end
@@ -6021,6 +6024,16 @@ defmodule LlamexTest do
       assert report["metadata_prefix"] == "llama"
       assert report["config"]["embedding_size"] == 2
       assert report["config"]["context_size"] == 16
+
+      assert %{
+               "name" => "epsilon",
+               "metadata_key" => "llama.attention.layer_norm_rms_epsilon"
+             } in report["missing_metadata"]
+
+      assert %{
+               "name" => "rope_theta",
+               "metadata_key" => "llama.rope.freq_base"
+             } in report["missing_metadata"]
     after
       File.rm(path)
     end
@@ -7565,7 +7578,26 @@ defmodule LlamexTest do
 
       assert Llamex.GGUF.ModelLoader.model_config_report_file(path) == %{
                "metadata_prefix" => "gemma3",
-               "config" => Llamex.GGUF.ModelLoader.model_config_summary_file(path)
+               "config" => %{
+                 "attention_head_count" => 2,
+                 "attention_head_count_kv" => 1,
+                 "block_count" => 0,
+                 "context_size" => 32,
+                 "embedding_size" => 2,
+                 "feed_forward_size" => 8,
+                 "vocab_size" => 2
+               },
+               "missing_metadata" => [
+                 %{
+                   name: "epsilon",
+                   metadata_key: "gemma3.attention.layer_norm_rms_epsilon"
+                 },
+                 %{name: "rope_theta", metadata_key: "gemma3.rope.freq_base"},
+                 %{
+                   name: "rope_dimension_count",
+                   metadata_key: "gemma3.rope.dimension_count"
+                 }
+               ]
              }
     after
       File.rm(path)

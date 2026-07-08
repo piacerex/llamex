@@ -29,6 +29,14 @@ defmodule Llamex.GGUF.ModelConfig do
     end)
   end
 
+  def report(metadata) when is_map(metadata) do
+    %{
+      "metadata_prefix" => metadata_prefix(metadata),
+      "config" => partial_from_metadata(metadata),
+      "missing_metadata" => missing_metadata(metadata)
+    }
+  end
+
   def from_metadata(metadata) when is_map(metadata) do
     prefix = metadata_prefix(metadata)
 
@@ -91,6 +99,17 @@ defmodule Llamex.GGUF.ModelConfig do
       _other ->
         "llama"
     end
+  end
+
+  def missing_metadata(metadata) when is_map(metadata) do
+    prefix = metadata_prefix(metadata)
+
+    @fields
+    |> Enum.map(fn {name, suffix} -> {name, metadata_key(prefix, suffix)} end)
+    |> Enum.reject(fn {name, key} ->
+      Map.has_key?(metadata, key) or (name == "vocab_size" and token_count(metadata) != nil)
+    end)
+    |> Enum.map(fn {name, key} -> %{name: name, metadata_key: key} end)
   end
 
   defp token_count(metadata) do

@@ -129,7 +129,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
   defp format_model_config_report(report) do
     [
       "metadata prefix: #{report["metadata_prefix"]}",
-      "config: #{format_model_config_summary(report["config"])}"
+      "config: #{format_model_config_summary(report["config"])}",
+      "missing metadata: #{format_model_config_missing_metadata(report["missing_metadata"])}"
     ]
     |> Enum.join("\n")
   end
@@ -138,6 +139,14 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     config
     |> Enum.sort_by(fn {key, _value} -> key end)
     |> Enum.map(fn {key, value} -> "#{key}: #{value}" end)
+    |> Enum.join(", ")
+  end
+
+  defp format_model_config_missing_metadata([]), do: "none"
+
+  defp format_model_config_missing_metadata(missing) do
+    missing
+    |> Enum.map(fn item -> "#{item.name}: #{item.metadata_key}" end)
     |> Enum.join(", ")
   end
 

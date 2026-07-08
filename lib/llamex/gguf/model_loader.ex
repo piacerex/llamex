@@ -45,10 +45,7 @@ defmodule Llamex.GGUF.ModelLoader do
   end
 
   def model_config_report(%Llamex.GGUF.Reader{} = gguf) do
-    %{
-      "metadata_prefix" => Llamex.GGUF.ModelConfig.metadata_prefix(gguf.metadata),
-      "config" => model_config_summary(gguf)
-    }
+    Llamex.GGUF.ModelConfig.report(gguf.metadata)
   end
 
   def model_config_summary_file(path) when is_binary(path) do
