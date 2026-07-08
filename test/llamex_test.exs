@@ -5551,6 +5551,9 @@ defmodule LlamexTest do
              tokenizer_model_supported?: true,
              pre_tokenizer: nil,
              pre_tokenizer_supported?: true,
+             tokenizer_token_count: 2,
+             tokenizer_token_types: %{},
+             special_tokens: %{},
              chat_usable: false,
              chat_template: "none",
              chat_template_family: "none",
@@ -6121,6 +6124,9 @@ defmodule LlamexTest do
       assert output =~ "tokenizer model supported: true"
       assert output =~ "pre-tokenizer: unknown"
       assert output =~ "pre-tokenizer supported: true"
+      assert output =~ "tokenizer tokens: 2"
+      assert output =~ "tokenizer token types: none"
+      assert output =~ "special tokens: none"
       assert output =~ "model config metadata prefix: llama"
 
       assert output =~
@@ -6178,6 +6184,9 @@ defmodule LlamexTest do
       assert summary["tokenizer_model_supported?"] == true
       assert summary["pre_tokenizer"] == nil
       assert summary["pre_tokenizer_supported?"] == true
+      assert summary["tokenizer_token_count"] == 2
+      assert summary["tokenizer_token_types"] == %{}
+      assert summary["special_tokens"] == %{}
       assert summary["chat_template"] == "none"
       assert summary["missing_chat_template_tokens"] == []
       assert summary["unsupported_features"] == []
@@ -6799,6 +6808,12 @@ defmodule LlamexTest do
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "tokenizer token types: control=2, normal=1, unknown=1"
+
+    summary = Llamex.GGUF.Diagnostic.summary(diagnostic)
+
+    assert summary.special_tokens == diagnostic.special_tokens
+    assert summary.tokenizer_token_types == diagnostic.tokenizer_token_types
+    assert summary.tokenizer_token_count == 4
   end
 
   test "gguf inspect task prints special token flags in json diagnostics" do

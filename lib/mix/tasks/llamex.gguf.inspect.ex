@@ -161,6 +161,9 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "tokenizer model supported: #{summary.tokenizer_model_supported?}",
       "pre-tokenizer: #{summary.pre_tokenizer || "unknown"}",
       "pre-tokenizer supported: #{summary.pre_tokenizer_supported?}",
+      "tokenizer tokens: #{summary.tokenizer_token_count || "unknown"}",
+      "tokenizer token types: #{format_type_counts(summary.tokenizer_token_types)}",
+      "special tokens: #{format_special_tokens(summary.special_tokens)}",
       "model config metadata prefix: #{summary.model_config_metadata_prefix}",
       "missing model config metadata: #{format_model_config_missing_metadata(summary.missing_model_config_metadata)}",
       "chat usable: #{summary.chat_usable}",
@@ -275,6 +278,18 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     counts
     |> Enum.sort()
     |> Enum.map(fn {type, count} -> "#{type}=#{count}" end)
+    |> Enum.join(", ")
+  end
+
+  defp format_special_tokens(tokens) when map_size(tokens) == 0, do: "none"
+
+  defp format_special_tokens(tokens) do
+    tokens
+    |> Enum.sort()
+    |> Enum.map(fn
+      {name, %{} = token} -> "#{name}=#{token.id}:#{token.piece}"
+      {name, value} when is_boolean(value) -> "#{name}=#{value}"
+    end)
     |> Enum.join(", ")
   end
 
