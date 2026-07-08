@@ -204,12 +204,16 @@ defmodule Llamex.Profile do
   end
 
   defp timing_summary(timings, prefill_timings, eval_timings) do
+    components = component_summary(prefill_timings, eval_timings)
+
     %{
       total_milliseconds: sum_milliseconds(timings),
       prefill_milliseconds: sum_milliseconds(prefill_timings),
       step_milliseconds: timings |> Enum.reject(&(&1.label == "prefill")) |> sum_milliseconds(),
       eval_milliseconds: sum_eval_milliseconds(eval_timings),
-      components: component_summary(prefill_timings, eval_timings)
+      components: components,
+      top_components: top_timing_labels(components),
+      top_layers: top_timing_labels(components, &layer_timing_label?/1)
     }
   end
 
@@ -290,6 +294,14 @@ defmodule Llamex.Profile do
       %{label: label, milliseconds: Enum.sum(milliseconds)}
     end)
     |> Enum.sort_by(& &1.label)
+  end
+
+  defp top_timing_labels(components, predicate \\ fn _label -> true end) do
+    components
+    |> Enum.filter(fn {label, _milliseconds} -> predicate.(label) end)
+    |> Enum.map(fn {label, milliseconds} -> %{label: label, milliseconds: milliseconds} end)
+    |> Enum.sort_by(&{-&1.milliseconds, &1.label})
+    |> Enum.take(10)
   end
 
   defp layer_timing_label?(label), do: Regex.match?(~r/^eval\.layer_\d+$/, label)
