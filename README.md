@@ -166,24 +166,24 @@ Recognized transformer tensor names:
 - `output_norm.weight`
 - `output.weight`
 
-Gemma 3 diagnostics also recognize architecture-specific tensor names before
-runtime support is enabled. `blk.N.post_attention_norm.weight` is mapped to the
+Gemma 3 diagnostics also recognize architecture-specific tensor names.
+`blk.N.post_attention_norm.weight` is mapped to the
 internal `blk.N.ffn_norm.weight` schema for model-map inspection.
 `blk.N.attn_q_norm.weight` and `blk.N.attn_k_norm.weight` are applied inside
 attention projection, and `blk.N.post_ffw_norm.weight` is applied between SwiGLU
 activation and down projection. The loader preserves these optional extra norm
-tensors on layer maps for runtime implementation work. GGUF diagnostics also
-validate their vector length against the model embedding size.
+tensors on layer maps, and GGUF diagnostics validate their vector length against
+the model embedding size.
 GGUF-loaded `Llamex.Model` structs preserve the detected `architecture`,
 `runtime_capability`, and `tensor_schema` so runtime-specific execution paths can
 be checked without re-reading checkpoint metadata. `runtime_capability` also
 keeps `runtime_feature_status`, which separates implemented architecture
-features from blockers that still prevent loading, and
+features from feature blockers such as sliding-window attention or RoPE scaling, and
 `runtime_feature_blockers` / `blocked_runtime_features` for component-level
 implementation tasks and direct loadability checks.
 Architecture runtime support is intentionally distinct from metadata recognition:
-diagnostics can understand a known architecture before it is accepted by the
-runtime.
+diagnostics can understand blocked feature variants before they are accepted by
+the runtime.
 Models whose `runtime_capability.loadable?` is false are rejected by
 `prepare_model`, `prefill`, `generate`, and streaming entry points before backend
 execution starts. `Llamex.GGUF.ModelLoader.load/1` also reports blocked runtime
@@ -284,7 +284,7 @@ payload expansion, chat usability, and tokenizer metadata issue fields used by
 benchmark JSON. It splits prefill into `prompt_encode`,
 `backend_prepare`, and `prompt_eval` timings so backend setup cost is visible.
 `backend_profile.extra_norm_layers` reports preserved Gemma-style extra norm
-layer counts before runtime execution support is enabled. Each generated step includes
+layer counts. Each generated step includes
 `eval_timings` with per-layer `attention_norm`, `attention`, `mlp`,
 `output_norm`, and `logits` timings. For List backend top-k sampling, the
 profile labels the shortened output projection as `top_k_logits`. `mlp` is
