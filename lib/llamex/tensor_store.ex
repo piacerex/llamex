@@ -17,6 +17,35 @@ defmodule Llamex.TensorStore do
 
   def compact_tensor?(_tensor), do: false
 
+  def compact_tensor_info(%{"shape" => shape, "dtype" => dtype} = tensor)
+      when is_list(shape) and is_binary(dtype) do
+    unless compact_tensor?(tensor) do
+      raise ArgumentError, "tensor is not a compact GGUF payload"
+    end
+
+    %{
+      shape: shape,
+      dtype: dtype,
+      type: Map.get(tensor, "type"),
+      type_name: Map.get(tensor, "type_name"),
+      quantized?: Map.fetch!(tensor, "quantized?"),
+      payload_bytes: Map.get(tensor, "payload_bytes", byte_size(Map.fetch!(tensor, "payload")))
+    }
+  end
+
+  def compact_tensor_info(_tensor) do
+    raise ArgumentError, "tensor is not a compact GGUF payload"
+  end
+
+  def fetch_compact_tensor(tensors, name) when is_map(tensors) and is_binary(name) do
+    tensor = Map.fetch!(tensors, name)
+
+    %{
+      info: compact_tensor_info(tensor),
+      payload: Map.fetch!(tensor, "payload")
+    }
+  end
+
   def fetch_matrix(tensors, name) when is_map(tensors) and is_binary(name) do
     tensors
     |> Map.fetch!(name)

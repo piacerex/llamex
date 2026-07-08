@@ -5731,20 +5731,59 @@ defmodule LlamexTest do
   end
 
   test "identifies compact tensor payloads" do
-    assert Llamex.TensorStore.compact_tensor?(%{
-             "shape" => [32],
-             "dtype" => "quantized",
-             "type_name" => "Q4_0",
-             "quantized?" => true,
-             "payload" => <<0::144>>,
-             "payload_bytes" => 18
-           })
+    tensor = %{
+      "shape" => [32],
+      "dtype" => "quantized",
+      "type" => 2,
+      "type_name" => "Q4_0",
+      "quantized?" => true,
+      "payload" => <<0::144>>,
+      "payload_bytes" => 18
+    }
+
+    assert Llamex.TensorStore.compact_tensor?(tensor)
+
+    assert Llamex.TensorStore.compact_tensor_info(tensor) == %{
+             shape: [32],
+             dtype: "quantized",
+             type: 2,
+             type_name: "Q4_0",
+             quantized?: true,
+             payload_bytes: 18
+           }
 
     refute Llamex.TensorStore.compact_tensor?(%{
              "shape" => [2, 2],
              "dtype" => "f32",
              "data" => [1.0, 0.0, 0.0, 1.0]
            })
+
+    assert_raise ArgumentError, "tensor is not a compact GGUF payload", fn ->
+      Llamex.TensorStore.compact_tensor_info(%{
+        "shape" => [2, 2],
+        "dtype" => "f32",
+        "data" => [1.0, 0.0, 0.0, 1.0]
+      })
+    end
+  end
+
+  test "fetches compact tensor payloads from compact model maps" do
+    binary = tiny_gguf(:with_q4_0_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+    model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+
+    compact = Llamex.TensorStore.fetch_compact_tensor(model_map["tensors"], "token_embd.weight")
+
+    assert compact.info == %{
+             shape: [32],
+             dtype: "quantized",
+             type: 2,
+             type_name: "Q4_0",
+             quantized?: true,
+             payload_bytes: 18
+           }
+
+    assert byte_size(compact.payload) == 18
   end
 
   test "rejects compact tensor payloads in the dequantized model loader path" do
