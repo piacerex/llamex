@@ -1077,6 +1077,7 @@ defmodule Llamex.GGUF.Diagnostic do
     []
     |> add_token_embedding_shape_issue(architecture, embedding_length, tensors)
     |> add_extra_norm_shape_issues(architecture, embedding_length, tensors)
+    |> add_gemma3_transformer_shape_issues(metadata, architecture, embedding_length, tensors)
     |> Enum.reverse()
   end
 
@@ -1126,6 +1127,111 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp add_extra_norm_shape_issues(issues, _architecture, _embedding_length, _tensors), do: issues
+
+  defp add_gemma3_transformer_shape_issues(issues, metadata, "gemma3", embedding_length, tensors)
+       when is_integer(embedding_length) do
+    prefix = metadata_prefix(metadata)
+    vocab_size = model_vocab_size(metadata, prefix)
+    feed_forward_size = metadata_value(metadata, metadata_key(prefix, "feed_forward_length"))
+    head_count = metadata_value(metadata, metadata_key(prefix, "attention.head_count"))
+    kv_head_count = metadata_value(metadata, metadata_key(prefix, "attention.head_count_kv"))
+
+    kv_embedding_length =
+      kv_embedding_length(embedding_length, head_count, kv_head_count)
+
+    tensors
+    |> Enum.reduce(issues, fn tensor, issues ->
+      case gemma3_expected_tensor_shape(
+             tensor.name,
+             embedding_length,
+             vocab_size,
+             feed_forward_size,
+             kv_embedding_length
+           ) do
+        nil ->
+          issues
+
+        expected ->
+          add_tensor_shape_issue(issues, tensor, expected)
+      end
+    end)
+  end
+
+  defp add_gemma3_transformer_shape_issues(
+         issues,
+         _metadata,
+         _architecture,
+         _embedding_length,
+         _tensors
+       ),
+       do: issues
+
+  defp gemma3_expected_tensor_shape(
+         name,
+         embedding_length,
+         vocab_size,
+         feed_forward_size,
+         kv_embedding_length
+       ) do
+    cond do
+      name == "output_norm.weight" ->
+        [embedding_length]
+
+      name == "output.weight" and is_integer(vocab_size) ->
+        [vocab_size, embedding_length]
+
+      String.match?(
+        name,
+        ~r/^blk\.\d+\.(attn_norm|ffn_norm)\.weight$/
+      ) ->
+        [embedding_length]
+
+      String.match?(name, ~r/^blk\.\d+\.(attn_q|attn_output)\.weight$/) ->
+        [embedding_length, embedding_length]
+
+      String.match?(name, ~r/^blk\.\d+\.(attn_k|attn_v)\.weight$/) and
+          is_integer(kv_embedding_length) ->
+        [kv_embedding_length, embedding_length]
+
+      String.match?(name, ~r/^blk\.\d+\.(ffn_gate|ffn_up)\.weight$/) and
+          is_integer(feed_forward_size) ->
+        [feed_forward_size, embedding_length]
+
+      String.match?(name, ~r/^blk\.\d+\.ffn_down\.weight$/) and is_integer(feed_forward_size) ->
+        [embedding_length, feed_forward_size]
+
+      true ->
+        nil
+    end
+  end
+
+  defp add_tensor_shape_issue(issues, tensor, expected) do
+    shape = Llamex.GGUF.TensorSchema.schema_shape(tensor.dimensions)
+
+    if shape == expected do
+      issues
+    else
+      [
+        "tensor shape mismatch: #{tensor.name} schema #{inspect(shape)} expected #{inspect(expected)}"
+        | issues
+      ]
+    end
+  end
+
+  defp model_vocab_size(metadata, prefix) do
+    metadata_value(metadata, metadata_key(prefix, "vocab_size")) ||
+      tokenizer_token_count(metadata)
+  end
+
+  defp kv_embedding_length(embedding_length, head_count, kv_head_count)
+       when is_integer(embedding_length) and is_integer(head_count) and is_integer(kv_head_count) and
+              head_count > 0 do
+    if rem(embedding_length * kv_head_count, head_count) == 0 do
+      div(embedding_length * kv_head_count, head_count)
+    end
+  end
+
+  defp kv_embedding_length(_embedding_length, _head_count, _kv_head_count), do: nil
 
   defp eager_f32_bytes(tensors), do: tensor_element_count(tensors) * 4
 

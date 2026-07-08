@@ -148,7 +148,9 @@ Gemma turn marker template を tokenizer に保持できる。最小 fixture で
 `generate_chat/3` と `stream_chat/3` の 1 token 生成も通している。Gemma3
 prefix の model config は embedding、context、layer、head、KV head、
 feed-forward、RMSNorm epsilon、RoPE theta、RoPE dimension を `Model`
-config へ変換している。
+config へ変換している。Gemma3 tensor schema は post attention norm の
+内部名変換に加え、output、attention、FFN tensor の shape を config から
+診断できる。
 
 - 対象モデルを `unsloth/gemma-3-270m-it-GGUF` に固定する。
   - 最初は最小量子化 GGUF を使い、ロード可否と 1 token 生成を優先する。

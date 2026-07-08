@@ -7241,6 +7241,55 @@ defmodule LlamexTest do
     assert diagnostic.blocking_issue_groups == [:tensors]
   end
 
+  test "reports gemma3 transformer tensor shape mismatches" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
+
+    diagnostic =
+      parsed
+      |> put_in(
+        [Access.key!(:metadata), "general.architecture"],
+        %{type: :string, value: "gemma3"}
+      )
+      |> put_in([Access.key!(:metadata), "gemma3.embedding_length"], %{type: :uint32, value: 2})
+      |> put_in([Access.key!(:metadata), "gemma3.vocab_size"], %{type: :uint32, value: 2})
+      |> put_in([Access.key!(:metadata), "gemma3.attention.head_count"], %{
+        type: :uint32,
+        value: 2
+      })
+      |> put_in([Access.key!(:metadata), "gemma3.attention.head_count_kv"], %{
+        type: :uint32,
+        value: 1
+      })
+      |> put_in([Access.key!(:metadata), "gemma3.feed_forward_length"], %{type: :uint32, value: 8})
+      |> update_in([Access.key!(:tensors)], fn tensors ->
+        [
+          %{name: "token_embd.weight", dimensions: [2, 2], type: 0, offset: 0},
+          %{name: "output_norm.weight", dimensions: [2], type: 0, offset: 0},
+          %{name: "output.weight", dimensions: [2, 2], type: 0, offset: 0},
+          %{name: "blk.0.attn_norm.weight", dimensions: [2], type: 0, offset: 0},
+          %{name: "blk.0.attn_q.weight", dimensions: [2, 3], type: 0, offset: 0},
+          %{name: "blk.0.attn_k.weight", dimensions: [2, 2], type: 0, offset: 0},
+          %{name: "blk.0.attn_v.weight", dimensions: [2, 1], type: 0, offset: 0},
+          %{name: "blk.0.attn_output.weight", dimensions: [2, 2], type: 0, offset: 0},
+          %{name: "blk.0.post_attention_norm.weight", dimensions: [2], type: 0, offset: 0},
+          %{name: "blk.0.ffn_gate.weight", dimensions: [2, 9], type: 0, offset: 0},
+          %{name: "blk.0.ffn_up.weight", dimensions: [2, 8], type: 0, offset: 0},
+          %{name: "blk.0.ffn_down.weight", dimensions: [8, 2], type: 0, offset: 0}
+          | tensors
+        ]
+      end)
+      |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert diagnostic.tensor_shape_issues == [
+             "tensor shape mismatch: blk.0.attn_q.weight schema [3, 2] expected [2, 2]",
+             "tensor shape mismatch: blk.0.attn_k.weight schema [2, 2] expected [1, 2]",
+             "tensor shape mismatch: blk.0.ffn_gate.weight schema [9, 2] expected [8, 2]"
+           ]
+
+    assert diagnostic.compatibility_issue_groups.tensors == diagnostic.tensor_shape_issues
+    assert diagnostic.blocking_issue_groups == [:tensors]
+  end
+
   test "normalizes gemma3 tensor names for model maps" do
     assert Llamex.GGUF.TensorSchema.summary("gemma3", [
              "blk.0.post_attention_norm.weight",
