@@ -7590,6 +7590,57 @@ defmodule LlamexTest do
            ]
   end
 
+  test "builds a gemma3 tokenizer with special tokens and byte fallback metadata" do
+    tokens = [
+      "<unk>",
+      "<bos>",
+      "<eos>",
+      "hello",
+      "<0xE3>",
+      "<0x81>",
+      "<0x93>",
+      "<0x82>",
+      "<0xAB>",
+      "<0xA1>",
+      "<0xAF>"
+    ]
+
+    parsed =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        tokens: tokens,
+        extra_metadata: [
+          kv_u32("tokenizer.ggml.unknown_token_id", 0),
+          kv_u32("tokenizer.ggml.bos_token_id", 1),
+          kv_u32("tokenizer.ggml.eos_token_id", 2),
+          kv_bool("tokenizer.ggml.add_bos_token", true),
+          kv_bool("tokenizer.ggml.add_eos_token", false),
+          kv_array_u32("tokenizer.ggml.token_type", [2, 3, 3, 1] ++ List.duplicate(6, 7))
+        ],
+        tensors: [
+          {"token_embd.weight", [2, length(tokens)],
+           Enum.flat_map(1..length(tokens), fn _index -> [1.0, 0.0] end)}
+        ]
+      )
+      |> Llamex.GGUF.Reader.read_binary()
+
+    tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
+
+    assert tokenizer.special_tokens.unknown == %{id: 0, token: "<unk>"}
+    assert tokenizer.special_tokens.bos == %{id: 1, token: "<bos>"}
+    assert tokenizer.special_tokens.eos == %{id: 2, token: "<eos>"}
+    assert tokenizer.special_tokens.add_bos == true
+    assert tokenizer.special_tokens.add_eos == false
+
+    assert Llamex.Tokenizer.encode(tokenizer, "hello") == [1, 3]
+
+    assert Llamex.Tokenizer.decode(tokenizer, [4, 5, 6, 4, 7, 6, 4, 5, 8, 4, 5, 9, 4, 5, 10]) ==
+             "こんにちは"
+
+    assert Llamex.Tokenizer.decode(tokenizer, [1, 4, 5, 6, 2]) == "こ"
+  end
+
   test "diagnoses chat templates with missing marker tokens" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_chat_template_gguf())
 

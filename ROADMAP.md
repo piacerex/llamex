@@ -150,7 +150,8 @@ prefix の model config は embedding、context、layer、head、KV head、
 feed-forward、RMSNorm epsilon、RoPE theta、RoPE dimension を `Model`
 config へ変換している。Gemma3 tensor schema は post attention norm の
 内部名変換に加え、output、attention、FFN tensor の shape を config から
-診断できる。
+診断できる。Gemma3 tokenizer fixture では special token、BOS 付与、
+control token 除去、英語 encode、日本語 byte fallback decode を固定している。
 
 - 対象モデルを `unsloth/gemma-3-270m-it-GGUF` に固定する。
   - 最初は最小量子化 GGUF を使い、ロード可否と 1 token 生成を優先する。
