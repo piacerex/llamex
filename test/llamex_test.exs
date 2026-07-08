@@ -8294,6 +8294,10 @@ defmodule LlamexTest do
         architecture: "gemma3",
         block_count: 0,
         context_size: 32,
+        feed_forward_size: 16,
+        epsilon: 1.0e-5,
+        rope_theta: 1_000_000.0,
+        rope_dimension_count: 2,
         tokens: ["<unk>", "hello", "<start_of_turn>", "<end_of_turn>", "user", "model"],
         extra_metadata: [
           kv_string("tokenizer.ggml.chat_template", gemma_turn_template())
@@ -8316,6 +8320,12 @@ defmodule LlamexTest do
       assert model.runtime_capability.blocked_runtime_features == []
       assert model.config.block_count == 0
       assert model.config.context_size == 32
+      assert model.config.attention_head_count == 2
+      assert model.config.attention_head_count_kv == 1
+      assert model.config.feed_forward_size == 16
+      assert_in_delta model.config.epsilon, 1.0e-5, 1.0e-10
+      assert model.config.rope_theta == 1_000_000.0
+      assert model.config.rope_dimension_count == 2
 
       result =
         Llamex.generate(model, "hello", %{
@@ -9478,6 +9488,9 @@ defmodule LlamexTest do
     block_count = Keyword.fetch!(opts, :block_count)
     context_size = Keyword.get(opts, :context_size, 16)
     feed_forward_size = Keyword.get(opts, :feed_forward_size, 8)
+    epsilon = Keyword.get(opts, :epsilon)
+    rope_theta = Keyword.get(opts, :rope_theta)
+    rope_dimension_count = Keyword.get(opts, :rope_dimension_count)
     tokens = Keyword.get(opts, :tokens, ["<unk>", "hello"])
     extra_metadata = Keyword.get(opts, :extra_metadata, [])
 
@@ -9492,7 +9505,17 @@ defmodule LlamexTest do
         kv_u32("#{metadata_prefix}.attention.head_count_kv", 1),
         kv_u32("#{metadata_prefix}.feed_forward_length", feed_forward_size),
         kv_array_string("tokenizer.ggml.tokens", tokens)
-      ] ++ extra_metadata
+      ]
+      |> maybe_put_metadata(epsilon, fn value ->
+        kv_f32("#{metadata_prefix}.attention.layer_norm_rms_epsilon", value)
+      end)
+      |> maybe_put_metadata(rope_theta, fn value ->
+        kv_f32("#{metadata_prefix}.rope.freq_base", value)
+      end)
+      |> maybe_put_metadata(rope_dimension_count, fn value ->
+        kv_u32("#{metadata_prefix}.rope.dimension_count", value)
+      end)
+      |> Kernel.++(extra_metadata)
 
     header = [
       "GGUF",
@@ -9938,6 +9961,9 @@ defmodule LlamexTest do
   defp kv_u32(key, value), do: [gguf_string(key), u32(4), u32(value)]
   defp kv_f32(key, value), do: [gguf_string(key), u32(6), <<value::little-float-size(32)>>]
   defp kv_bool(key, value), do: [gguf_string(key), u32(7), if(value, do: <<1>>, else: <<0>>)]
+
+  defp maybe_put_metadata(metadata, nil, _fun), do: metadata
+  defp maybe_put_metadata(metadata, value, fun), do: metadata ++ [fun.(value)]
 
   defp kv_array_u32(key, values),
     do: [gguf_string(key), u32(9), u32(4), u64(length(values)), Enum.map(values, &u32/1)]
