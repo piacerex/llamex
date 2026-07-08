@@ -163,6 +163,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "missing model config metadata: #{format_model_config_missing_metadata(summary.missing_model_config_metadata)}",
       "chat usable: #{summary.chat_usable}",
       "chat template family: #{summary.chat_template_family}",
+      "chat template missing tokens: #{format_list(summary.missing_chat_template_tokens)}",
       "tokenizer metadata issues: #{format_list(summary.tokenizer_metadata_issues)}",
       "unsupported tensor features: #{format_list(summary.unsupported_tensor_features)}",
       "tensor schema mappings: #{format_mappings(summary.tensor_schema_mappings)}",

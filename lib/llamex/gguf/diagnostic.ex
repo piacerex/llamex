@@ -32,6 +32,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :pre_tokenizer_supported?,
     :chat_usable,
     :chat_template_family,
+    :missing_chat_template_tokens,
     :chat_template_issues,
     :tokenizer_metadata_issues,
     :model_config_metadata_prefix,
