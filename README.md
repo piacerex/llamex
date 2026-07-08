@@ -648,6 +648,9 @@ unsupported attention/RoPE feature metadata, plus representative raw GGUF
 dimensions and normalized schema shapes for key tensors. This is the fastest way
 to decide whether `--chat` is safe for a checkpoint and whether tensor layout
 looks plausible.
+`model_combination` records the detected architecture/runtime/tokenizer/tensor
+type mix for the inspected checkpoint, which makes it easier to compare a real
+GGUF file with `known_combinations` and `supported_combinations`.
 Per-model diagnostics include the tokenizer metadata surface selected for that
 checkpoint's architecture, so unsupported tokenizer model or pre-tokenizer
 values can be compared with the accepted values directly.
@@ -702,6 +705,9 @@ feature, tensor-feature, and tensor blockers while keeping
 `compatibility_issues` as the ordered flat list.
 Use `blocking_issue_groups` as the compact first-pass list of non-empty blocker
 categories.
+The text `--summary` output also includes `compatibility issue groups`, tensor
+type counts, payload by tensor type, and top tensor payloads so candidate GGUF
+files can be triaged without switching to full JSON output.
 When `unsupported_features` is non-empty, inspect
 `unsupported_feature_metadata_values` to see the exact GGUF metadata values such
 as sliding-window size or RoPE scaling settings that caused the rejection. These
@@ -745,6 +751,8 @@ architecture: llama
 supported architectures: llama
 supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+BF16/F16/F32/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K
 architecture supported: true
+architecture runtime status: supported
+model combination: architecture=llama, runtime=supported, tokenizer=whitespace, model=unknown, pre=default, tensor_types=F32/Q2_K/Q3_K/Q6_K
 supported tokenizers: whitespace, bpe
 tokenizer supported: true
 supported tokenizer models: llama, gpt2
@@ -754,6 +762,7 @@ pre-tokenizer supported: true
 model config: ...
 loadable: true
 compatibility issues: none
+compatibility issue groups: features=none, metadata=none, runtime=none, tensor_features=none, tensors=none, tokenizer=none
 tokenizer model: unknown
 pre-tokenizer: unknown
 tokenizer kind: whitespace
