@@ -22,6 +22,7 @@ defmodule Llamex.GGUF.Diagnostic do
   @summary_keys [
     :architecture,
     :architecture_runtime_status,
+    :model_combination,
     :loadable?,
     :compatibility_issues,
     :compatibility_issue_groups,
@@ -216,6 +217,7 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_known?: architecture_known?(gguf.metadata),
       architecture_supported?: architecture_supported?(gguf.metadata),
       architecture_runtime_status: architecture_runtime_status(gguf.metadata),
+      model_combination: model_combination(gguf.metadata, gguf.tensors),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_metadata: tokenizer_metadata_for(gguf.metadata),
       tokenizer_model: tokenizer_model(gguf.metadata),
@@ -291,6 +293,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture known: #{diagnostic.architecture_known?}",
       "architecture supported: #{diagnostic.architecture_supported?}",
       "architecture runtime status: #{diagnostic.architecture_runtime_status}",
+      "model combination: #{format_model_combination(diagnostic.model_combination)}",
       "supported tokenizers: #{Enum.join(diagnostic.supported_tokenizers, ", ")}",
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
       "supported tokenizer models: #{Enum.join(diagnostic.supported_tokenizer_models, ", ")}",
@@ -356,6 +359,24 @@ defmodule Llamex.GGUF.Diagnostic do
     tensors
     |> Enum.reject(&supported_tensor_type?/1)
     |> type_counts()
+  end
+
+  defp model_combination(metadata, tensors) do
+    %{
+      architecture: metadata_value(metadata, "general.architecture") || "unknown",
+      runtime_status: architecture_runtime_status(metadata),
+      tokenizer_kind: tokenizer_kind(metadata),
+      tokenizer_model: tokenizer_model(metadata) || "unknown",
+      pre_tokenizer: pre_tokenizer(metadata) || "default",
+      tensor_types: tensor_type_names(tensors)
+    }
+  end
+
+  defp tensor_type_names(tensors) do
+    tensors
+    |> Enum.map(&tensor_type_name(&1.type))
+    |> Enum.uniq()
+    |> Enum.sort()
   end
 
   defp supported_tensors(tensors) do
@@ -1052,6 +1073,24 @@ defmodule Llamex.GGUF.Diagnostic do
       "#{combination.architecture}+#{tokenizers}+#{tokenizer_models}+#{pre_tokenizers}+#{tensor_types}#{runtime_status}"
     end)
     |> Enum.join("; ")
+  end
+
+  defp format_model_combination(combination) do
+    tensor_types =
+      case combination.tensor_types do
+        [] -> "none"
+        types -> Enum.join(types, "/")
+      end
+
+    [
+      "architecture=#{combination.architecture}",
+      "runtime=#{combination.runtime_status}",
+      "tokenizer=#{combination.tokenizer_kind}",
+      "model=#{combination.tokenizer_model}",
+      "pre=#{combination.pre_tokenizer}",
+      "tensor_types=#{tensor_types}"
+    ]
+    |> Enum.join(", ")
   end
 
   defp format_supported_tensor_type_ids(ids) do

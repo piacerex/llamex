@@ -152,6 +152,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     [
       "architecture: #{summary.architecture || "unknown"}",
       "architecture runtime status: #{summary.architecture_runtime_status}",
+      "model combination: #{format_model_combination(summary.model_combination)}",
       "loadable: #{summary.loadable?}",
       "blocking issue groups: #{format_atoms(summary.blocking_issue_groups)}",
       "compatibility issues: #{format_list(summary.compatibility_issues)}",
@@ -222,6 +223,20 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
   defp format_mappings(mappings) do
     mappings
     |> Enum.map(fn mapping -> "#{mapping.name}->#{mapping.schema_name}" end)
+    |> Enum.join(", ")
+  end
+
+  defp format_model_combination(combination) do
+    tensor_types = format_list(combination.tensor_types)
+
+    [
+      "architecture=#{combination.architecture}",
+      "runtime=#{combination.runtime_status}",
+      "tokenizer=#{combination.tokenizer_kind}",
+      "model=#{combination.tokenizer_model}",
+      "pre=#{combination.pre_tokenizer}",
+      "tensor_types=#{tensor_types}"
+    ]
     |> Enum.join(", ")
   end
 

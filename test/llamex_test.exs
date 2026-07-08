@@ -5377,6 +5377,16 @@ defmodule LlamexTest do
     assert diagnostic.architecture_supported? == true
     assert diagnostic.architecture_known? == true
     assert diagnostic.architecture_runtime_status == "supported"
+
+    assert diagnostic.model_combination == %{
+             architecture: "llama",
+             runtime_status: "supported",
+             tokenizer_kind: "whitespace",
+             tokenizer_model: "llama",
+             pre_tokenizer: "default",
+             tensor_types: ["type_99"]
+           }
+
     assert diagnostic.tokenizer_supported? == true
 
     assert diagnostic.tokenizer_metadata == %{
@@ -5518,6 +5528,14 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.summary(diagnostic) == %{
              architecture: "llama",
              architecture_runtime_status: "supported",
+             model_combination: %{
+               architecture: "llama",
+               runtime_status: "supported",
+               tokenizer_kind: "whitespace",
+               tokenizer_model: "llama",
+               pre_tokenizer: "default",
+               tensor_types: ["F32"]
+             },
              loadable?: true,
              compatibility_issues: [],
              compatibility_issue_groups: %{
@@ -5949,6 +5967,16 @@ defmodule LlamexTest do
 
       assert diagnostic["tokenizer_supported?"] == true
       assert diagnostic["architecture_runtime_status"] == "supported"
+
+      assert diagnostic["model_combination"] == %{
+               "architecture" => "llama",
+               "runtime_status" => "supported",
+               "tokenizer_kind" => "whitespace",
+               "tokenizer_model" => "llama",
+               "pre_tokenizer" => "default",
+               "tensor_types" => ["type_99"]
+             }
+
       assert diagnostic["tokenizer_metadata"]["tokenizer_models"] == ["llama", "gpt2"]
 
       assert diagnostic["tokenizer_metadata"]["pre_tokenizers"] == [
@@ -6050,6 +6078,10 @@ defmodule LlamexTest do
       assert output =~ "loadable: false"
       assert output =~ "architecture: llama"
       assert output =~ "architecture runtime status: supported"
+
+      assert output =~
+               "model combination: architecture=llama, runtime=supported, tokenizer=whitespace, model=llama, pre=default, tensor_types=type_99"
+
       assert output =~ "blocking issue groups: tensors"
       assert output =~ "compatibility issues: unsupported tensor type: type_99 (1)"
       assert output =~ "tokenizer model: llama"
@@ -6091,6 +6123,16 @@ defmodule LlamexTest do
       assert summary["path"] == path
       assert summary["architecture"] == "llama"
       assert summary["architecture_runtime_status"] == "supported"
+
+      assert summary["model_combination"] == %{
+               "architecture" => "llama",
+               "runtime_status" => "supported",
+               "tokenizer_kind" => "whitespace",
+               "tokenizer_model" => "llama",
+               "pre_tokenizer" => "default",
+               "tensor_types" => ["type_99"]
+             }
+
       assert summary["tokenizer_model"] == "llama"
       assert summary["tokenizer_model_supported?"] == true
       assert summary["pre_tokenizer"] == nil
