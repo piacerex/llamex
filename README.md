@@ -431,9 +431,9 @@ result.text
 #### Token Streaming
 
 Use `stream/3` to receive token chunks as they are generated. Each chunk
-includes `:token`, `:text`, `:generated_tokens`, `:generated_pieces`,
-`:sampler`, `:prepared?`, `:context`, and `:finish_reason`; the final
-length-limited chunk has `token: nil`.
+includes `:token`, `:text`, `:prompt_tokens`, `:prompt_pieces`,
+`:generated_tokens`, `:generated_pieces`, `:sampler`, `:prepared?`, `:context`,
+and `:finish_reason`; the final length-limited chunk has `token: nil`.
 
 ```elixir
 prepared
@@ -493,9 +493,9 @@ IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
 result.text
 ```
 
-Generation results also include `prompt_pieces` and `generated_pieces` so token
-IDs can be matched back to tokenizer text fragments without running a separate
-profile command.
+Generation and stream results include `prompt_pieces` and `generated_pieces` so
+token IDs can be matched back to tokenizer text fragments without running a
+separate profile command.
 
 #### Prepared Chat Generation
 
