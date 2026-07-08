@@ -270,6 +270,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "runtime=#{capability.runtime_status}",
       "runtime_blockers=#{format_list(capability.runtime_blockers)}",
       "runtime_blocker_details=#{format_blocker_details(capability.runtime_blocker_details)}",
+      "feature_status=#{format_runtime_feature_status(capability.runtime_feature_status)}",
+      "blocked_features=#{format_atoms(blocked_runtime_features(capability))}",
       "blocking_groups=#{format_atoms(capability.blocking_issue_groups)}",
       "attention=#{format_variant(capability.attention_variant)}",
       "rope=#{format_variant(capability.rope_variant)}"
@@ -295,6 +297,13 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     statuses
     |> Enum.sort()
     |> Enum.map_join(", ", fn {feature, status} -> "#{feature}=#{status}" end)
+  end
+
+  defp blocked_runtime_features(capability) do
+    capability.runtime_feature_status
+    |> Enum.filter(fn {_feature, status} -> status == "blocked" end)
+    |> Enum.map(fn {feature, _status} -> feature end)
+    |> Enum.sort()
   end
 
   defp format_extra_norm_tensor_layers([]), do: "none"

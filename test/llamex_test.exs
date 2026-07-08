@@ -6407,7 +6407,7 @@ defmodule LlamexTest do
                "model combination: architecture=llama, runtime=supported, tokenizer=whitespace, model=llama, pre=default, tensor_types=type_99"
 
       assert output =~
-               "runtime capability: loadable=false, runtime=supported, runtime_blockers=none, runtime_blocker_details=none, blocking_groups=tensors"
+               "runtime capability: loadable=false, runtime=supported, runtime_blockers=none, runtime_blocker_details=none, feature_status=architecture_runtime=supported, attention_variant=supported, rope_variant=supported, blocked_features=none, blocking_groups=tensors"
 
       assert output =~ "attention variant: type=full"
       assert output =~ "RoPE variant: type=default"
