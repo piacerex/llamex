@@ -5921,6 +5921,7 @@ defmodule LlamexTest do
 
       assert diagnostic["supported_tensors"] == []
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
+      assert diagnostic["unsupported_tensor_features"] == []
       assert diagnostic["missing_required_tensors"] == []
       assert diagnostic["tensor_schema_mappings"] == []
       assert diagnostic["tensor_schema_issues"] == []
