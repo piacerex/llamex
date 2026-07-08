@@ -5430,6 +5430,7 @@ defmodule LlamexTest do
       assert diagnostic["path"] == path
       assert diagnostic["version"] == 3
       assert diagnostic["chat_template"] == "none"
+      assert diagnostic["chat_template_family"] == "none"
       assert diagnostic["chat_usable"] == false
       assert diagnostic["chat_template_issues"] == []
       assert diagnostic["unsupported_features"] == []
@@ -5704,6 +5705,7 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_chat_template_gguf())
 
     assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_template_family == "chatml"
     assert diagnostic.chat_usable == false
     assert diagnostic.missing_chat_template_tokens == ["<|im_start|>", "<|im_end|>"]
 
@@ -5712,6 +5714,7 @@ defmodule LlamexTest do
            ]
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template: supported"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template family: chatml"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: false"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
@@ -5725,6 +5728,7 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_usable_chat_template_gguf())
 
     assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_template_family == "chatml"
     assert diagnostic.chat_usable == true
     assert diagnostic.missing_chat_template_tokens == []
     assert diagnostic.chat_template_issues == []
@@ -5737,6 +5741,7 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_system_role_chat_template_gguf())
 
     assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_template_family == "role_markers"
     assert diagnostic.chat_usable == true
     assert diagnostic.missing_chat_template_tokens == []
     assert diagnostic.chat_template_issues == []
@@ -5754,6 +5759,7 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_llama_header_chat_template_gguf())
 
     assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_template_family == "llama_header_markers"
     assert diagnostic.chat_usable == true
     assert diagnostic.missing_chat_template_tokens == []
     assert diagnostic.chat_template_issues == []
@@ -5767,6 +5773,7 @@ defmodule LlamexTest do
       Llamex.GGUF.Diagnostic.inspect_binary(tiny_llama_header_begin_chat_template_gguf())
 
     assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_template_family == "llama_header_markers"
     assert diagnostic.chat_usable == true
     assert diagnostic.missing_chat_template_tokens == []
     assert diagnostic.chat_template_issues == []
@@ -5779,6 +5786,7 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_unsupported_chat_template_gguf())
 
     assert diagnostic.chat_template == "unsupported"
+    assert diagnostic.chat_template_family == "unsupported"
     assert diagnostic.chat_usable == false
     assert diagnostic.chat_template_issues == ["unsupported chat template"]
 

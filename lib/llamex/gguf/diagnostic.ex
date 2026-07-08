@@ -107,6 +107,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def inspect_reader(%Llamex.GGUF.Reader{} = gguf) do
     chat_template = chat_template_status(gguf.metadata)
+    chat_template_family = chat_template_family(gguf.metadata)
     missing_chat_template_tokens = missing_chat_template_tokens(gguf.metadata)
 
     %{
@@ -134,6 +135,7 @@ defmodule Llamex.GGUF.Diagnostic do
       special_tokens: special_tokens(gguf.metadata),
       unsupported_features: unsupported_features(gguf.metadata),
       chat_template: chat_template,
+      chat_template_family: chat_template_family,
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
       missing_chat_template_tokens: missing_chat_template_tokens,
       chat_template_issues: chat_template_issues(chat_template, missing_chat_template_tokens),
@@ -188,6 +190,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "special tokens: #{format_special_tokens(diagnostic.special_tokens)}",
       "unsupported features: #{format_unsupported_features(diagnostic.unsupported_features)}",
       "chat template: #{diagnostic.chat_template}",
+      "chat template family: #{diagnostic.chat_template_family}",
       "chat usable: #{diagnostic.chat_usable}",
       format_missing_chat_template_tokens(diagnostic.missing_chat_template_tokens),
       "chat template issues: #{format_chat_template_issues(diagnostic.chat_template_issues)}",
@@ -481,6 +484,35 @@ defmodule Llamex.GGUF.Diagnostic do
 
       template ->
         if Llamex.ChatTemplate.supported?(template), do: "supported", else: "unsupported"
+    end
+  end
+
+  defp chat_template_family(metadata) do
+    case metadata_value(metadata, "tokenizer.chat_template") do
+      nil ->
+        "none"
+
+      template ->
+        cond do
+          not Llamex.ChatTemplate.supported?(template) ->
+            "unsupported"
+
+          String.contains?(template, "<|im_start|>") and
+              String.contains?(template, "<|im_end|>") ->
+            "chatml"
+
+          String.contains?(template, "<|start_header_id|>") and
+            String.contains?(template, "<|end_header_id|>") and
+              String.contains?(template, "<|eot_id|>") ->
+            "llama_header_markers"
+
+          String.contains?(template, "<|user|>") and
+              String.contains?(template, "<|assistant|>") ->
+            "role_markers"
+
+          true ->
+            "supported"
+        end
     end
   end
 
