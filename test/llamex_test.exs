@@ -6977,6 +6977,31 @@ defmodule LlamexTest do
     end
   end
 
+  test "converts gemma3-prefixed gguf metadata into model config map" do
+    gguf =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        context_size: 32,
+        tensors: [
+          {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+        ]
+      )
+
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+    model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, gguf)
+
+    assert model_map["config"]["vocab_size"] == 2
+    assert model_map["config"]["embedding_size"] == 2
+    assert model_map["config"]["context_size"] == 32
+    assert model_map["config"]["block_count"] == 0
+    assert model_map["config"]["attention_head_count"] == 2
+    assert model_map["config"]["attention_head_count_kv"] == 1
+    assert model_map["config"]["feed_forward_size"] == 8
+    assert model_map["config"]["epsilon"] == 1.0e-6
+    assert model_map["config"]["rope_theta"] == 10_000.0
+  end
+
   test "loads gguf tokenizer special tokens through model loader" do
     path =
       Path.join(
@@ -7755,21 +7780,24 @@ defmodule LlamexTest do
 
   defp tiny_multi_tensor_gguf(opts) do
     tensors = Keyword.fetch!(opts, :tensors)
+    architecture = Keyword.get(opts, :architecture, "llama")
+    metadata_prefix = Keyword.get(opts, :metadata_prefix, architecture)
     block_count = Keyword.fetch!(opts, :block_count)
+    context_size = Keyword.get(opts, :context_size, 16)
     feed_forward_size = Keyword.get(opts, :feed_forward_size, 8)
     tokens = Keyword.get(opts, :tokens, ["<unk>", "hello"])
     extra_metadata = Keyword.get(opts, :extra_metadata, [])
 
     metadata =
       [
-        kv_string("general.architecture", "llama"),
+        kv_string("general.architecture", architecture),
         kv_u32("general.alignment", 32),
-        kv_u32("llama.embedding_length", 2),
-        kv_u32("llama.context_length", 16),
-        kv_u32("llama.block_count", block_count),
-        kv_u32("llama.attention.head_count", 2),
-        kv_u32("llama.attention.head_count_kv", 1),
-        kv_u32("llama.feed_forward_length", feed_forward_size),
+        kv_u32("#{metadata_prefix}.embedding_length", 2),
+        kv_u32("#{metadata_prefix}.context_length", context_size),
+        kv_u32("#{metadata_prefix}.block_count", block_count),
+        kv_u32("#{metadata_prefix}.attention.head_count", 2),
+        kv_u32("#{metadata_prefix}.attention.head_count_kv", 1),
+        kv_u32("#{metadata_prefix}.feed_forward_length", feed_forward_size),
         kv_array_string("tokenizer.ggml.tokens", tokens)
       ] ++ extra_metadata
 
