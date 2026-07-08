@@ -190,7 +190,8 @@ Use `Llamex.RuntimeCapability.loadable?/1`, `blocker_ids/1`, and
 runtime capability map. `feature_status/1` and `blocked_features/1` expose the
 same feature-level status used in diagnostics, `feature_blockers/1` and
 `feature_blockers_by_component/1` expose component-level implementation gaps,
-and `mix llamex.gguf.inspect --summary` / guard errors show the same status.
+and `mix llamex.gguf.inspect --summary` / guard errors show the same status and
+blocker components.
 
 Supported tokenizer types:
 

@@ -78,6 +78,7 @@ defmodule Llamex.RuntimeCapability do
       "blocking_groups=#{format_atoms(Map.get(capability, :blocking_issue_groups, []))}",
       "runtime_blockers=#{format_list(Map.get(capability, :runtime_blockers, []))}",
       "blocked_features=#{format_atoms(blocked_features(capability))}",
+      "feature_blockers=#{format_feature_blockers(feature_blockers(capability))}",
       "runtime_blocker_details=#{format_blocker_details(Map.get(capability, :runtime_blocker_details, []))}"
     ]
     |> Enum.join("; ")
@@ -110,6 +111,16 @@ defmodule Llamex.RuntimeCapability do
   defp format_blocker_details(details) do
     details
     |> Enum.map(fn detail -> "#{detail.id}:#{detail.component}:#{detail.reason}" end)
+    |> Enum.join("/")
+  end
+
+  defp format_feature_blockers([]), do: "none"
+
+  defp format_feature_blockers(blockers) do
+    blockers
+    |> Enum.map(fn blocker ->
+      "#{blocker.feature}:#{blocker.component}:#{blocker.reason}"
+    end)
     |> Enum.join("/")
   end
 end

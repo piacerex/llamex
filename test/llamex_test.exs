@@ -159,6 +159,12 @@ defmodule LlamexTest do
                    Llamex.prepare_model(model, Llamex.Backend.List)
                  end
 
+    assert_raise ArgumentError,
+                 ~r/feature_blockers=architecture_runtime:engine:architecture runtime not implemented/,
+                 fn ->
+                   Llamex.prepare_model(model, Llamex.Backend.List)
+                 end
+
     assert_raise ArgumentError, ~r/blocking_groups=runtime/, fn ->
       Llamex.generate(model, "hello", %{
         backend: Llamex.Backend.List,
