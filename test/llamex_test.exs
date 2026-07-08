@@ -4007,6 +4007,39 @@ defmodule LlamexTest do
     end
   end
 
+  test "generate task rejects stop pieces without a tokenizer" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-no-tokenizer-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 2, "embedding_size" => 1},
+      "token_embeddings" => %{
+        "0" => [0.0],
+        "1" => [1.0]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      assert_raise Mix.Error, ~r/--stop-piece requires a model tokenizer/, fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          path,
+          "hello",
+          "1",
+          "--profile",
+          "--stop-piece",
+          "hello"
+        ])
+      end
+    after
+      File.rm(path)
+    end
+  end
+
   test "exla info task prints target info as json" do
     output =
       capture_io(fn ->
