@@ -5360,6 +5360,19 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template issues: none"
   end
 
+  test "diagnoses llama header chat templates with begin of text as usable" do
+    diagnostic =
+      Llamex.GGUF.Diagnostic.inspect_binary(tiny_llama_header_begin_chat_template_gguf())
+
+    assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_usable == true
+    assert diagnostic.missing_chat_template_tokens == []
+    assert diagnostic.chat_template_issues == []
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat template issues: none"
+  end
+
   test "diagnoses unsupported chat templates" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_unsupported_chat_template_gguf())
 
@@ -5413,6 +5426,22 @@ defmodule LlamexTest do
              tokenizer
            ) ==
              "<|start_header_id|>system<|end_header_id|>\n\nBe concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nHello<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+  end
+
+  test "builds a tokenizer with gguf llama header begin chat template metadata" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_llama_header_begin_chat_template_gguf())
+
+    tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
+
+    assert Llamex.ChatTemplate.apply(
+             tokenizer.chat_template,
+             [
+               %{role: "system", content: "Be concise."},
+               %{role: "user", content: "Hello"}
+             ],
+             tokenizer
+           ) ==
+             "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nBe concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nHello<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
   end
 
   test "decodes gguf byte tokens" do
@@ -6991,6 +7020,32 @@ defmodule LlamexTest do
         "Hello"
       ]),
       kv_string("tokenizer.chat_template", llama_header_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_llama_header_begin_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_array_string("tokenizer.ggml.tokens", [
+        "<unk>",
+        "<|begin_of_text|>",
+        "<|start_header_id|>",
+        "<|end_header_id|>",
+        "<|eot_id|>",
+        "Be",
+        "concise.",
+        "Hello"
+      ]),
+      kv_string("tokenizer.chat_template", llama_header_with_begin_template())
     ]
 
     header = [
