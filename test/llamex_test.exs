@@ -4915,6 +4915,10 @@ defmodule LlamexTest do
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
+
+    assert output =~
+             "unsupported feature metadata: llama.attention.sliding_window, llama.rope.scaling.type"
+
     assert output =~ "supported tensor type names:"
 
     assert output =~
@@ -4933,6 +4937,12 @@ defmodule LlamexTest do
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
     assert surface["supported_tokenizer_models"] == ["llama", "gpt2"]
     assert surface["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]
+
+    assert surface["unsupported_feature_metadata"] == [
+             "llama.attention.sliding_window",
+             "llama.rope.scaling.type"
+           ]
+
     assert "Q8_0" in surface["supported_tensor_type_names"]
     assert surface["supported_tensor_type_ids"]["8"] == "Q8_0"
 

@@ -585,7 +585,7 @@ GGUF dimensions and normalized schema shapes for key tensors. This is the fastes
 way to decide whether `--chat` is safe for a checkpoint and whether tensor
 layout looks plausible.
 Use `--supported` without a model path to print the current supported GGUF
-surface before choosing a checkpoint.
+surface and explicitly unsupported feature metadata before choosing a checkpoint.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `chat_template_issues: []` to confirm that the template is supported and all
 required marker tokens are present.
