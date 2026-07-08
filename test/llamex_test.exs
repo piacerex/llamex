@@ -3364,6 +3364,60 @@ defmodule LlamexTest do
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
   end
 
+  test "generate task profile prints adjacent special token prompt pieces" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-generate-special-profile-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 5, "embedding_size" => 1},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "special_tokens" => %{
+          "bos" => %{"id" => 1, "token" => "<s>"},
+          "eos" => %{"id" => 2, "token" => "</s>"}
+        },
+        "vocab" => %{"<unk>" => 0, "<s>" => 1, "</s>" => 2, "hello" => 3, "world" => 4}
+      },
+      "token_embeddings" => %{
+        "0" => [0.0],
+        "1" => [0.0],
+        "2" => [1.0],
+        "3" => [0.5],
+        "4" => [0.0]
+      },
+      "output" => %{"weight" => [[0.0], [0.0], [0.0], [0.0], [2.0]]}
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Generate.run([
+            path,
+            "<s>hello</s>",
+            "1",
+            "--profile",
+            "--backend",
+            "list"
+          ])
+        end)
+
+      profile = JSON.decode!(String.trim(output))
+
+      assert profile["prompt_token_ids"] == [1, 3, 2]
+      assert profile["prompt_pieces"] == ["<s>", "hello", "</s>"]
+      assert profile["generated_tokens"] == [4]
+      assert profile["generated_pieces"] == ["world"]
+    after
+      File.rm(path)
+    end
+  end
+
   test "benchmark task can print JSON results for multiple token counts" do
     output =
       capture_io(fn ->
