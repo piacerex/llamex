@@ -27,7 +27,15 @@ defmodule Llamex.ModelLoader do
     |> put_output_norm(attrs, tensors)
     |> put_output(attrs, tensors)
     |> put_tokenizer(attrs)
+    |> put_model_metadata(attrs)
     |> integer_key_embeddings()
+  end
+
+  defp put_model_metadata(attrs, source) do
+    source
+    |> Map.take(["architecture", "runtime_capability", "tensor_schema"])
+    |> atomize_keys()
+    |> then(&Map.merge(attrs, &1))
   end
 
   defp put_tokenizer(attrs, %{"tokenizer" => tokenizer}) when is_map(tokenizer) do

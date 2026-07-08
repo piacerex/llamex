@@ -11,7 +11,17 @@ defmodule Llamex.Model do
   alias Llamex.Config
 
   @enforce_keys [:config, :token_embeddings]
-  defstruct [:config, :token_embeddings, :tokenizer, :layers, :output_norm, :output]
+  defstruct [
+    :config,
+    :token_embeddings,
+    :tokenizer,
+    :layers,
+    :output_norm,
+    :output,
+    :architecture,
+    :runtime_capability,
+    :tensor_schema
+  ]
 
   @type t :: %__MODULE__{
           config: Config.t(),
@@ -19,7 +29,10 @@ defmodule Llamex.Model do
           tokenizer: Llamex.Tokenizer.t() | nil,
           layers: list(map()) | nil,
           output_norm: list(number()) | nil,
-          output: map() | nil
+          output: map() | nil,
+          architecture: String.t() | nil,
+          runtime_capability: map() | nil,
+          tensor_schema: map() | nil
         }
 
   def new(%Config{} = config, token_embeddings) when is_map(token_embeddings) do
@@ -47,7 +60,10 @@ defmodule Llamex.Model do
       tokenizer: Map.get(attrs, :tokenizer),
       layers: Map.get(attrs, :layers, []),
       output_norm: Map.get(attrs, :output_norm),
-      output: Map.get(attrs, :output)
+      output: Map.get(attrs, :output),
+      architecture: Map.get(attrs, :architecture),
+      runtime_capability: Map.get(attrs, :runtime_capability),
+      tensor_schema: Map.get(attrs, :tensor_schema)
     }
   end
 end

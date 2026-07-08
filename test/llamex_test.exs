@@ -6879,6 +6879,20 @@ defmodule LlamexTest do
 
     model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
 
+    assert model_map["architecture"] == "gemma3"
+
+    assert model_map["runtime_capability"] == %{
+             loadable?: false,
+             runtime_status: "known_unsupported",
+             runtime_blockers: [
+               "architecture runtime not implemented",
+               "extra norm tensor execution not implemented"
+             ],
+             blocking_issue_groups: [:runtime, :tensors],
+             attention_variant: %{type: "full"},
+             rope_variant: %{type: "default"}
+           }
+
     assert model_map["tensor_schema"] == %{
              "architecture" => "gemma3",
              "issues" => [],
@@ -6890,6 +6904,19 @@ defmodule LlamexTest do
 
     assert model_map["tensors"]["blk.0.ffn_norm.weight"]["data"] == [1.0, 0.0, 0.0, 1.0]
     refute Map.has_key?(model_map["tensors"], "blk.0.post_attention_norm.weight")
+  end
+
+  test "preserves gguf runtime metadata in model structs" do
+    binary = tiny_gguf(:with_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+    model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
+    model = Llamex.ModelLoader.from_map(model_map)
+
+    assert model.architecture == "llama"
+    assert model.runtime_capability.loadable? == true
+    assert model.runtime_capability.runtime_status == "supported"
+    assert model.runtime_capability.blocking_issue_groups == []
+    assert model.tensor_schema.architecture == "llama"
   end
 
   test "summarizes tensor schema from gguf file path" do

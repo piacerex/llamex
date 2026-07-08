@@ -21,6 +21,8 @@ defmodule Llamex.GGUF.ModelLoader do
 
     %{
       "config" => config_from_metadata(gguf.metadata),
+      "architecture" => architecture,
+      "runtime_capability" => runtime_capability_summary(gguf),
       "tokenizer" => tokenizer_from_metadata(gguf.metadata),
       "tensor_schema" => tensor_schema_summary(gguf),
       "tensors" => tensors

@@ -172,6 +172,9 @@ internal `blk.N.ffn_norm.weight` schema for model-map inspection, while
 `blk.N.attn_q_norm.weight`, `blk.N.attn_k_norm.weight`, and
 `blk.N.post_ffw_norm.weight` are reported as unsupported tensor features until
 the runtime implements those extra norms.
+GGUF-loaded `Llamex.Model` structs preserve the detected `architecture`,
+`runtime_capability`, and `tensor_schema` so runtime-specific execution paths can
+be checked without re-reading checkpoint metadata.
 
 Supported tokenizer types:
 
