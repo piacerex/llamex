@@ -5538,6 +5538,17 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 2"
   end
 
+  test "builds a bpe tokenizer with gguf special token metadata" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_bpe_special_token_gguf())
+
+    tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
+
+    assert tokenizer.special_tokens.add_bos == true
+    assert tokenizer.special_tokens.add_eos == false
+    assert Llamex.Tokenizer.encode(tokenizer, "low") == [1, 7]
+    assert Llamex.Tokenizer.encode(tokenizer, "<s>low</s>") == [1, 7, 2]
+  end
+
   test "reads gguf metadata from a file path" do
     path = Path.join(System.tmp_dir!(), "llamex-#{System.unique_integer([:positive])}.gguf")
 
@@ -6965,6 +6976,38 @@ defmodule LlamexTest do
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "l", "o", "w", "lo", "low"]),
       kv_array_string("tokenizer.ggml.merges", ["l o", "lo w"]),
       kv_u32("tokenizer.ggml.unknown_token_id", 0)
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_bpe_special_token_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_string("tokenizer.ggml.model", "gpt2"),
+      kv_array_string("tokenizer.ggml.tokens", [
+        "<unk>",
+        "<s>",
+        "</s>",
+        "l",
+        "o",
+        "w",
+        "lo",
+        "low"
+      ]),
+      kv_array_string("tokenizer.ggml.merges", ["l o", "lo w"]),
+      kv_u32("tokenizer.ggml.unknown_token_id", 0),
+      kv_u32("tokenizer.ggml.bos_token_id", 1),
+      kv_u32("tokenizer.ggml.eos_token_id", 2),
+      kv_bool("tokenizer.ggml.add_bos_token", true),
+      kv_bool("tokenizer.ggml.add_eos_token", false)
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
     ]
 
     IO.iodata_to_binary([header, metadata])
