@@ -395,7 +395,7 @@ defmodule Llamex.GGUF.Diagnostic do
   defp tokenizer_model_supported?(metadata) do
     case tokenizer_model(metadata) do
       nil -> true
-      model -> model in @supported_tokenizer_models
+      model -> model in tokenizer_models_for(metadata)
     end
   end
 
@@ -404,8 +404,30 @@ defmodule Llamex.GGUF.Diagnostic do
   defp pre_tokenizer_supported?(metadata) do
     case pre_tokenizer(metadata) do
       nil -> true
-      pre_tokenizer -> pre_tokenizer in @supported_pre_tokenizers
+      pre_tokenizer -> pre_tokenizer in pre_tokenizers_for(metadata)
     end
+  end
+
+  defp tokenizer_models_for(metadata) do
+    metadata
+    |> tokenizer_metadata_for()
+    |> Map.fetch!(:tokenizer_models)
+  end
+
+  defp pre_tokenizers_for(metadata) do
+    metadata
+    |> tokenizer_metadata_for()
+    |> Map.fetch!(:pre_tokenizers)
+  end
+
+  defp tokenizer_metadata_for(metadata) do
+    architecture = metadata_value(metadata, "general.architecture")
+
+    tokenizer_metadata_surface()
+    |> Map.get(architecture, %{
+      tokenizer_models: supported_tokenizer_models(),
+      pre_tokenizers: supported_pre_tokenizers()
+    })
   end
 
   defp missing_required_metadata(metadata) do

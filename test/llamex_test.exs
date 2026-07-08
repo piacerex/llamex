@@ -6293,12 +6293,20 @@ defmodule LlamexTest do
         value: 1
       })
       |> put_in([Access.key!(:metadata), "gemma3.feed_forward_length"], %{type: :uint32, value: 8})
+      |> put_in([Access.key!(:metadata), "tokenizer.ggml.pre"], %{
+        type: :string,
+        value: "llama-bpe"
+      })
       |> Llamex.GGUF.Diagnostic.inspect_reader()
 
     assert diagnostic.architecture == "gemma3"
     assert diagnostic.architecture_known? == true
     assert diagnostic.architecture_supported? == false
     assert diagnostic.architecture_runtime_status == "known_unsupported"
+    assert diagnostic.tokenizer_model == "llama"
+    assert diagnostic.tokenizer_model_supported? == true
+    assert diagnostic.pre_tokenizer == "llama-bpe"
+    assert diagnostic.pre_tokenizer_supported? == true
     assert diagnostic.missing_required_metadata == []
     assert diagnostic.tensor_shape_issues == []
     assert diagnostic.model_config.vocab_size == 2
