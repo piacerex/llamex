@@ -721,6 +721,9 @@ Compare `gguf_payload_bytes` with `eager_f32_bytes` or
 `eager_f32_expansion_ratio` to estimate the memory cost of the current eager F32
 expansion path before moving a checkpoint to a more compact quantized
 representation.
+Use `compact_weight_estimate` for the same comparison as one compact map with
+current eager F32 bytes, compact GGUF payload bytes, possible savings, and the
+expansion ratio.
 Use `tensor_payload_by_type` to find which tensor types contribute most to that
 expansion before choosing the next compact in-memory representation.
 Use `top_tensor_payloads` to identify the largest individual tensors on the

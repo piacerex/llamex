@@ -74,6 +74,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :eager_f32_bytes,
     :gguf_payload_bytes,
     :eager_f32_expansion_ratio,
+    :compact_weight_estimate,
     :supported_tensor_types,
     :unsupported_tensor_types,
     :tensor_payload_by_type,
@@ -348,6 +349,7 @@ defmodule Llamex.GGUF.Diagnostic do
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
       gguf_payload_bytes: gguf_payload_bytes(gguf.tensors),
       eager_f32_expansion_ratio: eager_f32_expansion_ratio(gguf.tensors),
+      compact_weight_estimate: compact_weight_estimate(gguf.tensors),
       tensor_payload_by_type: tensor_payload_by_type(gguf.tensors),
       top_tensor_payloads: top_tensor_payloads(gguf.tensors),
       missing_required_tensors: missing_required_tensors(gguf.metadata, gguf.tensors),
@@ -438,6 +440,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
       "gguf payload bytes: #{format_bytes(diagnostic.gguf_payload_bytes)}",
       "eager f32 expansion ratio: #{format_ratio(diagnostic.eager_f32_expansion_ratio)}",
+      "compact weight estimate: #{format_compact_weight_estimate(diagnostic.compact_weight_estimate)}",
       "tensor payload by type: #{format_tensor_payload_by_type(diagnostic.tensor_payload_by_type)}",
       format_top_tensor_payloads(diagnostic.top_tensor_payloads),
       "missing required tensors: #{format_missing_required_tensors(diagnostic.missing_required_tensors)}",
@@ -1251,6 +1254,23 @@ defmodule Llamex.GGUF.Diagnostic do
     end
   end
 
+  defp compact_weight_estimate(tensors) do
+    eager_f32_bytes = eager_f32_bytes(tensors)
+    gguf_payload_bytes = gguf_payload_bytes(tensors)
+
+    %{
+      current_eager_f32_bytes: eager_f32_bytes,
+      compact_payload_bytes: gguf_payload_bytes,
+      possible_savings_bytes: possible_savings_bytes(eager_f32_bytes, gguf_payload_bytes),
+      eager_f32_expansion_ratio: expansion_ratio(eager_f32_bytes, gguf_payload_bytes)
+    }
+  end
+
+  defp possible_savings_bytes(_eager_f32_bytes, 0), do: nil
+
+  defp possible_savings_bytes(eager_f32_bytes, gguf_payload_bytes),
+    do: eager_f32_bytes - gguf_payload_bytes
+
   defp tensor_payload_by_type(tensors) do
     tensors
     |> Enum.group_by(&tensor_type_name(&1.type))
@@ -1830,6 +1850,19 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp format_ratio(nil), do: "unknown"
   defp format_ratio(ratio), do: "#{Float.round(ratio, 2)}x"
+
+  defp format_compact_weight_estimate(estimate) do
+    [
+      "current_eager_f32=#{format_bytes(estimate.current_eager_f32_bytes)}",
+      "compact_payload=#{format_bytes(estimate.compact_payload_bytes)}",
+      "possible_savings=#{format_optional_bytes(estimate.possible_savings_bytes)}",
+      "ratio=#{format_ratio(estimate.eager_f32_expansion_ratio)}"
+    ]
+    |> Enum.join(", ")
+  end
+
+  defp format_optional_bytes(nil), do: "unknown"
+  defp format_optional_bytes(bytes), do: format_bytes(bytes)
 
   defp format_tensor_payload_by_type(payload) when map_size(payload) == 0, do: "none"
 

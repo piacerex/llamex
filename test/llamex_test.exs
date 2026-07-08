@@ -6047,6 +6047,12 @@ defmodule LlamexTest do
              eager_f32_bytes: 16,
              gguf_payload_bytes: 16,
              eager_f32_expansion_ratio: 1.0,
+             compact_weight_estimate: %{
+               current_eager_f32_bytes: 16,
+               compact_payload_bytes: 16,
+               possible_savings_bytes: 0,
+               eager_f32_expansion_ratio: 1.0
+             },
              supported_tensor_types: %{"F32" => 1},
              unsupported_tensor_types: %{},
              tensor_payload_by_type: %{
@@ -6588,6 +6594,13 @@ defmodule LlamexTest do
       assert diagnostic["special_tokens"] == %{}
       assert diagnostic["gguf_payload_bytes"] == 0
       assert diagnostic["eager_f32_expansion_ratio"] == nil
+
+      assert diagnostic["compact_weight_estimate"] == %{
+               "current_eager_f32_bytes" => 16,
+               "compact_payload_bytes" => 0,
+               "possible_savings_bytes" => nil,
+               "eager_f32_expansion_ratio" => nil
+             }
 
       assert diagnostic["tensor_payload_by_type"]["type_99"] == %{
                "tensors" => 1,

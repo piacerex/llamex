@@ -143,6 +143,8 @@ GGUF モデル読み込み
 - `mix llamex.natural.smoke --json` は GGUF モデルでは `model_diagnostic` を含み、
   eager F32 expansion ratio や tensor payload summary を smoke 結果から確認できる。
   README でも natural smoke の GGUF diagnostic 出力を明示している。
+- `compact_weight_estimate` で現在の eager F32 bytes、GGUF payload bytes、
+  possible savings、expansion ratio をまとめて確認できる。
 
 ## gemma3対応
 
