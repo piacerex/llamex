@@ -5632,6 +5632,26 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects gguf models with sliding window attention before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-incompatible-sliding-window-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_sliding_window_tensor_data))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: unsupported attention variant: sliding_window",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "rejects gguf models with missing required metadata before loading tensor data" do
     path =
       Path.join(
@@ -5828,6 +5848,9 @@ defmodule LlamexTest do
         :with_unsupported_rope_scaling_tensor_data ->
           [kv_string("llama.rope.scaling.type", "linear")]
 
+        :with_sliding_window_tensor_data ->
+          [kv_u32("llama.attention.sliding_window", 128)]
+
         _other ->
           []
       end
@@ -5904,6 +5927,9 @@ defmodule LlamexTest do
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_unsupported_rope_scaling_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_sliding_window_tensor_data ->
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_missing_embedding_length_tensor_data ->
