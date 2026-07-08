@@ -4765,6 +4765,49 @@ defmodule LlamexTest do
     assert Llamex.decode(model, [5]) == "low"
   end
 
+  test "loads a bpe tokenizer with special tokens from json" do
+    path = Path.join(System.tmp_dir!(), "llamex-bpe-#{System.unique_integer([:positive])}.json")
+
+    model = %{
+      "config" => %{"vocab_size" => 8, "embedding_size" => 1},
+      "tokenizer" => %{
+        "type" => "bpe",
+        "unknown_token" => "<unk>",
+        "special_tokens" => %{
+          "bos" => %{"id" => 1, "token" => "<s>"},
+          "eos" => %{"id" => 2, "token" => "</s>"},
+          "add_bos" => true,
+          "add_eos" => false
+        },
+        "vocab" => %{
+          "<unk>" => 0,
+          "<s>" => 1,
+          "</s>" => 2,
+          "l" => 3,
+          "o" => 4,
+          "w" => 5,
+          "lo" => 6,
+          "low" => 7
+        },
+        "merges" => [["l", "o"], ["lo", "w"]]
+      },
+      "token_embeddings" => Map.new(0..7, &{Integer.to_string(&1), [&1 * 1.0]})
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      loaded = Llamex.ModelLoader.load_json(path)
+
+      assert loaded.tokenizer.special_tokens.add_bos == true
+      assert loaded.tokenizer.special_tokens.add_eos == false
+      assert Llamex.encode(loaded, "low") == [1, 7]
+      assert Llamex.encode(loaded, "<s>low</s>") == [1, 7, 2]
+    after
+      File.rm(path)
+    end
+  end
+
   test "loads a tokenizer.json bpe tokenizer" do
     tokenizer = Llamex.Tokenizer.Loader.load_tokenizer_json("priv/tokenizers/tiny_tokenizer.json")
 
