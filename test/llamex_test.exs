@@ -4383,6 +4383,45 @@ defmodule LlamexTest do
     end
   end
 
+  test "natural smoke task can include Japanese in the default prompt suite" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Natural.Smoke.run([
+          "priv/models/tiny.json",
+          "1",
+          "--json",
+          "--include-japanese"
+        ])
+      end)
+
+    results = JSON.decode!(String.trim(output))
+
+    assert Enum.map(results, & &1["prompt"]) == [
+             "Elixir is",
+             "Once upon a time",
+             "The quick brown fox",
+             "こんにちは"
+           ]
+  end
+
+  test "natural smoke task keeps explicit prompts unchanged when including Japanese" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Natural.Smoke.run([
+          "priv/models/tiny.json",
+          "1",
+          "--json",
+          "--prompt",
+          "hello",
+          "--include-japanese"
+        ])
+      end)
+
+    [result] = JSON.decode!(String.trim(output))
+
+    assert result["prompt"] == "hello"
+  end
+
   test "natural smoke task rejects invalid sampler seed option" do
     assert_raise Mix.Error, ~r/seed must be a non-negative integer/, fn ->
       Mix.Tasks.Llamex.Natural.Smoke.run([

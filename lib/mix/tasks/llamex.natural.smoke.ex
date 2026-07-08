@@ -9,6 +9,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       mix llamex.natural.smoke model.gguf 8 --json --reject-open-ending
       mix llamex.natural.smoke model.gguf 8 --json --complete-open-ending 4
       mix llamex.natural.smoke model.gguf 8 --json --trim-to-sentence
+      mix llamex.natural.smoke model.gguf 3 --json --include-japanese
       mix llamex.natural.smoke model.gguf 3 --prompt "Elixir is"
   """
 
@@ -17,6 +18,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
   @shortdoc "Runs natural generation smoke prompts"
 
   @default_prompts ["Elixir is", "Once upon a time", "The quick brown fox"]
+  @japanese_prompts ["こんにちは"]
 
   @impl true
   def run(args) do
@@ -30,6 +32,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           reject_open_ending: :boolean,
           complete_open_ending: :integer,
           trim_to_sentence: :boolean,
+          include_japanese: :boolean,
           prompt: :keep,
           min_words: :integer,
           max_new_tokens: :integer,
@@ -154,6 +157,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
   defp prompts(%{prompt: prompts}) when is_list(prompts), do: prompts
   defp prompts(%{prompt: prompt}) when is_binary(prompt), do: [prompt]
+  defp prompts(%{include_japanese: true}), do: @default_prompts ++ @japanese_prompts
   defp prompts(_options), do: @default_prompts
 
   defp min_words(%{min_words: min_words}) when is_integer(min_words) and min_words > 0,
