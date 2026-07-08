@@ -4969,6 +4969,26 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects gguf models with unsupported pre-tokenizers before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-incompatible-pre-tokenizer-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_unsupported_pre_tokenizer_tensor_data))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: unsupported pre-tokenizer: qwen2",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "loads gguf output norm and output tensors" do
     path =
       Path.join(
@@ -5097,25 +5117,32 @@ defmodule LlamexTest do
   end
 
   defp tiny_gguf(mode) do
+    extra_metadata =
+      case mode do
+        :with_unsupported_pre_tokenizer_tensor_data -> [kv_string("tokenizer.ggml.pre", "qwen2")]
+        _other -> []
+      end
+
     header = [
       "GGUF",
       u32(3),
       u64(1),
-      u64(10)
+      u64(10 + length(extra_metadata))
     ]
 
-    metadata = [
-      kv_string("general.architecture", "llama"),
-      kv_string("tokenizer.ggml.model", "llama"),
-      kv_u32("general.alignment", 32),
-      kv_u32("llama.embedding_length", 2),
-      kv_u32("llama.context_length", 16),
-      kv_u32("llama.block_count", 1),
-      kv_u32("llama.attention.head_count", 2),
-      kv_u32("llama.attention.head_count_kv", 1),
-      kv_u32("llama.feed_forward_length", 8),
-      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
-    ]
+    metadata =
+      [
+        kv_string("general.architecture", "llama"),
+        kv_string("tokenizer.ggml.model", "llama"),
+        kv_u32("general.alignment", 32),
+        kv_u32("llama.embedding_length", 2),
+        kv_u32("llama.context_length", 16),
+        kv_u32("llama.block_count", 1),
+        kv_u32("llama.attention.head_count", 2),
+        kv_u32("llama.attention.head_count_kv", 1),
+        kv_u32("llama.feed_forward_length", 8),
+        kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
+      ] ++ extra_metadata
 
     {dimensions, tensor_type, values} =
       case mode do
@@ -5155,36 +5182,98 @@ defmodule LlamexTest do
     without_data = IO.iodata_to_binary([header, metadata, tensor_infos])
 
     case mode do
-      :without_tensor_data -> without_data
-      :with_tensor_data -> with_aligned_f32_tensor_data(without_data, values)
-      :with_rectangular_tensor_data -> with_aligned_f32_tensor_data(without_data, values)
-      :with_f16_tensor_data -> with_aligned_f16_tensor_data(without_data, values)
-      :with_bf16_tensor_data -> with_aligned_bf16_tensor_data(without_data, values)
-      :with_q4_0_tensor_data -> with_aligned_q4_0_tensor_data(without_data, values)
-      :with_unaligned_q4_0_tensor_data -> with_aligned_q4_0_tensor_data(without_data, values)
-      :with_q4_1_tensor_data -> with_aligned_q4_1_tensor_data(without_data, values)
-      :with_unaligned_q4_1_tensor_data -> with_aligned_q4_1_tensor_data(without_data, values)
-      :with_q5_0_tensor_data -> with_aligned_q5_0_tensor_data(without_data, values)
-      :with_unaligned_q5_0_tensor_data -> with_aligned_q5_0_tensor_data(without_data, values)
-      :with_q5_1_tensor_data -> with_aligned_q5_1_tensor_data(without_data, values)
-      :with_unaligned_q5_1_tensor_data -> with_aligned_q5_1_tensor_data(without_data, values)
-      :with_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
-      :with_unaligned_q8_0_tensor_data -> with_aligned_q8_0_tensor_data(without_data, values)
-      :with_q8_1_tensor_data -> with_aligned_q8_1_tensor_data(without_data, values)
-      :with_unaligned_q8_1_tensor_data -> with_aligned_q8_1_tensor_data(without_data, values)
-      :with_q2_k_tensor_data -> with_aligned_q2_k_tensor_data(without_data, values)
-      :with_unaligned_q2_k_tensor_data -> with_aligned_q2_k_tensor_data(without_data, values)
-      :with_q3_k_tensor_data -> with_aligned_q3_k_tensor_data(without_data, values)
-      :with_unaligned_q3_k_tensor_data -> with_aligned_q3_k_tensor_data(without_data, values)
-      :with_q4_k_tensor_data -> with_aligned_q4_k_tensor_data(without_data, values)
-      :with_unaligned_q4_k_tensor_data -> with_aligned_q4_k_tensor_data(without_data, values)
-      :with_q5_k_tensor_data -> with_aligned_q5_k_tensor_data(without_data, values)
-      :with_unaligned_q5_k_tensor_data -> with_aligned_q5_k_tensor_data(without_data, values)
-      :with_q6_k_tensor_data -> with_aligned_q6_k_tensor_data(without_data, values)
-      :with_unaligned_q6_k_tensor_data -> with_aligned_q6_k_tensor_data(without_data, values)
-      :with_q8_k_tensor_data -> with_aligned_q8_k_tensor_data(without_data, values)
-      :with_unaligned_q8_k_tensor_data -> with_aligned_q8_k_tensor_data(without_data, values)
-      :with_unsupported_tensor_type -> without_data
+      :without_tensor_data ->
+        without_data
+
+      :with_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_unsupported_pre_tokenizer_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_rectangular_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_f16_tensor_data ->
+        with_aligned_f16_tensor_data(without_data, values)
+
+      :with_bf16_tensor_data ->
+        with_aligned_bf16_tensor_data(without_data, values)
+
+      :with_q4_0_tensor_data ->
+        with_aligned_q4_0_tensor_data(without_data, values)
+
+      :with_unaligned_q4_0_tensor_data ->
+        with_aligned_q4_0_tensor_data(without_data, values)
+
+      :with_q4_1_tensor_data ->
+        with_aligned_q4_1_tensor_data(without_data, values)
+
+      :with_unaligned_q4_1_tensor_data ->
+        with_aligned_q4_1_tensor_data(without_data, values)
+
+      :with_q5_0_tensor_data ->
+        with_aligned_q5_0_tensor_data(without_data, values)
+
+      :with_unaligned_q5_0_tensor_data ->
+        with_aligned_q5_0_tensor_data(without_data, values)
+
+      :with_q5_1_tensor_data ->
+        with_aligned_q5_1_tensor_data(without_data, values)
+
+      :with_unaligned_q5_1_tensor_data ->
+        with_aligned_q5_1_tensor_data(without_data, values)
+
+      :with_q8_0_tensor_data ->
+        with_aligned_q8_0_tensor_data(without_data, values)
+
+      :with_unaligned_q8_0_tensor_data ->
+        with_aligned_q8_0_tensor_data(without_data, values)
+
+      :with_q8_1_tensor_data ->
+        with_aligned_q8_1_tensor_data(without_data, values)
+
+      :with_unaligned_q8_1_tensor_data ->
+        with_aligned_q8_1_tensor_data(without_data, values)
+
+      :with_q2_k_tensor_data ->
+        with_aligned_q2_k_tensor_data(without_data, values)
+
+      :with_unaligned_q2_k_tensor_data ->
+        with_aligned_q2_k_tensor_data(without_data, values)
+
+      :with_q3_k_tensor_data ->
+        with_aligned_q3_k_tensor_data(without_data, values)
+
+      :with_unaligned_q3_k_tensor_data ->
+        with_aligned_q3_k_tensor_data(without_data, values)
+
+      :with_q4_k_tensor_data ->
+        with_aligned_q4_k_tensor_data(without_data, values)
+
+      :with_unaligned_q4_k_tensor_data ->
+        with_aligned_q4_k_tensor_data(without_data, values)
+
+      :with_q5_k_tensor_data ->
+        with_aligned_q5_k_tensor_data(without_data, values)
+
+      :with_unaligned_q5_k_tensor_data ->
+        with_aligned_q5_k_tensor_data(without_data, values)
+
+      :with_q6_k_tensor_data ->
+        with_aligned_q6_k_tensor_data(without_data, values)
+
+      :with_unaligned_q6_k_tensor_data ->
+        with_aligned_q6_k_tensor_data(without_data, values)
+
+      :with_q8_k_tensor_data ->
+        with_aligned_q8_k_tensor_data(without_data, values)
+
+      :with_unaligned_q8_k_tensor_data ->
+        with_aligned_q8_k_tensor_data(without_data, values)
+
+      :with_unsupported_tensor_type ->
+        without_data
     end
   end
 
