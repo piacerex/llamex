@@ -172,6 +172,8 @@ GGUF モデル読み込み
   model loader 経路では明示拒否するため、compact backend 境界が曖昧にならない。
 - `Llamex.TensorStore.fetch_compact_tensor/2` で compact tensor の metadata と
   payload を raw model-map shape から分離して取得できる。
+- `Llamex.TensorStore.dequantize_compact_tensor/1` で compact Q4_0 payload を
+  必要時に F32 data へ展開でき、eager dequantized reader 経路と一致する。
 - chat template は ChatML / role marker / Llama header / Gemma turn marker に加え、
   Mistral・Llama2 系の `[INST]...[/INST]` marker を診断・適用できる。
 - `Llamex.Backend.FPGA.capabilities/0` で FPGA backend の fallback 状態、

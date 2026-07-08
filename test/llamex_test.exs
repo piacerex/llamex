@@ -5786,6 +5786,36 @@ defmodule LlamexTest do
     assert byte_size(compact.payload) == 18
   end
 
+  test "dequantizes compact q4_0 tensor payloads" do
+    binary = tiny_gguf(:with_q4_0_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+    compact_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+    dequantized_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
+
+    compact = Llamex.TensorStore.fetch_compact_tensor(compact_map["tensors"], "token_embd.weight")
+    tensor = Llamex.TensorStore.dequantize_compact_tensor(compact)
+
+    assert tensor.shape == [32]
+    assert tensor.dtype == "f32"
+    assert tensor.data == dequantized_map["tensors"]["token_embd.weight"]["data"]
+  end
+
+  test "rejects compact tensor dequantization for unsupported compact types" do
+    assert_raise ArgumentError, "compact tensor type Q8_0 cannot be dequantized yet", fn ->
+      Llamex.TensorStore.dequantize_compact_tensor(%{
+        info: %{
+          shape: [32],
+          dtype: "quantized",
+          type: 8,
+          type_name: "Q8_0",
+          quantized?: true,
+          payload_bytes: 34
+        },
+        payload: <<0::272>>
+      })
+    end
+  end
+
   test "rejects compact tensor payloads in the dequantized model loader path" do
     attrs = %{
       "config" => %{

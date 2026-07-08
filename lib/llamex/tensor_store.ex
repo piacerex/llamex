@@ -4,6 +4,7 @@ defmodule Llamex.TensorStore do
   """
 
   @supported_dtypes MapSet.new(["f32", "f16"])
+  @q4_0_block_size 32
 
   def decode(tensors) when is_map(tensors) do
     Map.new(tensors, fn {name, tensor} ->
@@ -44,6 +45,29 @@ defmodule Llamex.TensorStore do
       info: compact_tensor_info(tensor),
       payload: Map.fetch!(tensor, "payload")
     }
+  end
+
+  def dequantize_compact_tensor(%{info: %{type_name: "Q4_0", shape: shape}, payload: payload})
+      when is_list(shape) and is_binary(payload) do
+    count = Enum.product(shape)
+
+    if rem(count, @q4_0_block_size) != 0 do
+      raise ArgumentError, "Q4_0 tensor element count must be divisible by #{@q4_0_block_size}"
+    end
+
+    %{
+      shape: shape,
+      dtype: "f32",
+      data: read_q4_0_blocks(payload, [])
+    }
+  end
+
+  def dequantize_compact_tensor(%{info: %{type_name: type_name}}) do
+    raise ArgumentError, "compact tensor type #{type_name} cannot be dequantized yet"
+  end
+
+  def dequantize_compact_tensor(_tensor) do
+    raise ArgumentError, "tensor is not a compact GGUF payload"
   end
 
   def fetch_matrix(tensors, name) when is_map(tensors) and is_binary(name) do
@@ -131,5 +155,48 @@ defmodule Llamex.TensorStore do
 
   defp to_value(_shape, _data) do
     raise ArgumentError, "only rank-1 and rank-2 tensors are supported"
+  end
+
+  defp read_q4_0_blocks(<<>>, values), do: values |> Enum.reverse() |> List.flatten()
+
+  defp read_q4_0_blocks(
+         <<scale_bits::little-unsigned-integer-size(16),
+           quantized::binary-size(div(@q4_0_block_size, 2)), rest::binary>>,
+         values
+       ) do
+    scale = f16_to_float(scale_bits)
+    block = quantized |> :binary.bin_to_list() |> Enum.flat_map(&q4_0_values(&1, scale))
+
+    read_q4_0_blocks(rest, [block | values])
+  end
+
+  defp q4_0_values(byte, scale) do
+    low = Bitwise.band(byte, 0x0F)
+    high = byte |> Bitwise.bsr(4) |> Bitwise.band(0x0F)
+
+    [(low - 8) * scale, (high - 8) * scale]
+  end
+
+  defp f16_to_float(bits) do
+    sign = if Bitwise.band(bits, 0x8000) == 0, do: 1.0, else: -1.0
+    exponent = bits |> Bitwise.bsr(10) |> Bitwise.band(0x1F)
+    fraction = Bitwise.band(bits, 0x03FF)
+
+    cond do
+      exponent == 0 and fraction == 0 ->
+        sign * 0.0
+
+      exponent == 0 ->
+        sign * :math.pow(2, -14) * (fraction / 1024)
+
+      exponent == 31 and fraction == 0 ->
+        if sign > 0.0, do: :positive_infinity, else: :negative_infinity
+
+      exponent == 31 ->
+        :nan
+
+      true ->
+        sign * :math.pow(2, exponent - 15) * (1 + fraction / 1024)
+    end
   end
 end
