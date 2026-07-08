@@ -311,6 +311,34 @@ defmodule LlamexTest do
              "<|system|>\nBe concise.</s><|user|>\nHello</s><|assistant|>\nHi.</s><|assistant|>"
   end
 
+  test "applies llama header marker chat templates" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "<|start_header_id|>" => 1,
+          "<|end_header_id|>" => 2,
+          "<|eot_id|>" => 3
+        },
+        "<unk>"
+      )
+
+    messages = [
+      %{role: "system", content: "Be concise."},
+      %{role: "user", content: "Hello"}
+    ]
+
+    assert Llamex.ChatTemplate.supported?(llama_header_template())
+
+    assert Llamex.ChatTemplate.missing_tokens(
+             llama_header_template(),
+             tokenizer.token_to_id
+           ) == []
+
+    assert Llamex.ChatTemplate.apply(llama_header_template(), messages, tokenizer) ==
+             "<|start_header_id|>system<|end_header_id|>\n\nBe concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nHello<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+  end
+
   test "rejects unsupported chat roles" do
     assert Llamex.ChatTemplate.supported_roles() == ["system", "user", "assistant"]
 
@@ -400,6 +428,35 @@ defmodule LlamexTest do
 
     assert Llamex.chat_prompt(prepared, "Hello", %{system: "Be concise."}) ==
              "<|system|>\nBe concise.</s><|user|>\nHello</s><|assistant|>"
+  end
+
+  test "public chat prompt API applies llama header marker templates" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "<|start_header_id|>" => 1,
+          "<|end_header_id|>" => 2,
+          "<|eot_id|>" => 3,
+          "Be" => 4,
+          "concise." => 5,
+          "Hello" => 6
+        },
+        "<unk>",
+        chat_template: llama_header_template()
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 7, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: Map.new(0..6, &{&1, [&1 * 1.0]})
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    assert Llamex.chat_prompt(prepared, "Hello", %{system: "Be concise."}) ==
+             "<|start_header_id|>system<|end_header_id|>\n\nBe concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nHello<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
   end
 
   test "public chat prompt API points to gguf inspect for missing template tokens" do
@@ -6866,6 +6923,10 @@ defmodule LlamexTest do
 
   defp system_role_marker_template do
     "{% for message in messages %}{% if message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}{% elif message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}{% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n' + message['content'] + eos_token }}{% endif %}{% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}{% endif %}{% endfor %}"
+  end
+
+  defp llama_header_template do
+    "{% for message in messages %}{{ '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n' + message['content'] + '<|eot_id|>' }}{% endfor %}{% if add_generation_prompt %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}{% endif %}"
   end
 
   defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]

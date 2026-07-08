@@ -590,6 +590,9 @@ surface and explicitly unsupported feature metadata before choosing a checkpoint
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `chat_template_issues: []` to confirm that the template is supported and all
 required marker tokens are present.
+Supported chat templates currently cover ChatML, `<|user|>`/`<|assistant|>`
+role markers, and Llama header markers using `<|start_header_id|>`,
+`<|end_header_id|>`, and `<|eot_id|>`.
 Use `loadable: true` as the quick check that architecture, tokenizer metadata,
 tokenizer model metadata when present, required model metadata, required tensors,
 required tensor shapes, and tensor types are inside Llamex's current supported

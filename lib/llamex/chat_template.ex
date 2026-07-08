@@ -12,7 +12,10 @@ defmodule Llamex.ChatTemplate do
 
   def supported?(nil), do: true
   def supported?(@chatml_template), do: true
-  def supported?(template) when is_binary(template), do: role_marker_template?(template)
+
+  def supported?(template) when is_binary(template) do
+    role_marker_template?(template) or header_marker_template?(template)
+  end
 
   def markers(nil), do: []
 
@@ -47,11 +50,17 @@ defmodule Llamex.ChatTemplate do
   end
 
   def apply(template, prompt) when is_binary(template) and is_binary(prompt) do
-    raise ArgumentError, "unsupported chat template"
+    apply(template, [%{role: "user", content: prompt}])
   end
 
   def apply(template, messages) when is_binary(template) and is_list(messages) do
-    raise ArgumentError, "unsupported chat template"
+    validate_messages!(messages)
+
+    if header_marker_template?(template) do
+      apply_header_marker_template(messages)
+    else
+      raise ArgumentError, "unsupported chat template"
+    end
   end
 
   def apply(template, prompt, tokenizer) when is_binary(template) and is_binary(prompt) do
@@ -68,6 +77,9 @@ defmodule Llamex.ChatTemplate do
       role_marker_template?(template) ->
         apply_role_marker_template(template, messages, tokenizer)
 
+      header_marker_template?(template) ->
+        apply_header_marker_template(messages)
+
       true ->
         raise ArgumentError, "unsupported chat template"
     end
@@ -77,6 +89,12 @@ defmodule Llamex.ChatTemplate do
     String.contains?(template, "<|user|>") and
       String.contains?(template, "<|assistant|>") and
       String.contains?(template, "eos_token")
+  end
+
+  defp header_marker_template?(template) do
+    String.contains?(template, "<|start_header_id|>") and
+      String.contains?(template, "<|end_header_id|>") and
+      String.contains?(template, "<|eot_id|>")
   end
 
   defp apply_role_marker_template(template, messages, tokenizer) do
@@ -102,6 +120,14 @@ defmodule Llamex.ChatTemplate do
     else
       "<|user|>\n" <> content <> eos_token
     end
+  end
+
+  defp apply_header_marker_template(messages) do
+    Enum.map_join(messages, "", fn message ->
+      "<|start_header_id|>" <>
+        message_role(message) <>
+        "<|end_header_id|>\n\n" <> message_content(message) <> "<|eot_id|>"
+    end) <> "<|start_header_id|>assistant<|end_header_id|>\n\n"
   end
 
   defp validate_messages!(messages) do
