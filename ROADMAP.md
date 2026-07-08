@@ -132,11 +132,17 @@ GGUF モデル読み込み
 
 ## 性能・互換性・メモリ効率の最適化
 
-- profile / benchmark の `top_components` と `top_layers` を見て NxEXLA の次のボトルネックを選ぶ。
-- GGUF 診断で未対応 architecture、tokenizer model、pre-tokenizer、RoPE variant、attention variant を明示し、対応範囲を広げる。
-- 量子化 tensor は既存の F32 展開読み込みを基準に、メモリ効率の良い保持形式へ進める。
-- chat template は実モデルの metadata 差分を smoke で確認しながら対応パターンを増やす。
-- AtomVM / FPGA 向け backend は NxEXLA とは別の `Backend` 実装として、演算境界を保ったまま検証する。
+この段階では、次の観測・互換性・境界整備を完了済みの足場として扱う。
+
+- [x] profile / benchmark の `top_components` と `top_layers` で次のボトルネック候補を確認できる。
+- [x] GGUF 診断で未対応 architecture、tokenizer model、pre-tokenizer、RoPE variant、attention variant を明示できる。
+- [x] 量子化 tensor は既存の F32 展開読み込みを保ったまま、compact payload schema として保持形式を選択できる。
+- [x] chat template は実モデルの metadata 差分を fixture で確認しながら対応パターンを増やせる。
+- [x] AtomVM / FPGA 向け backend は NxEXLA とは別の `Backend` 実装として、演算境界と fallback 状態を確認できる。
+
+次段階では、これらの足場を使って実モデルごとの対応範囲を広げる。
+特に compact tensor backend、既知未対応 architecture の runtime 実装、
+実機 FPGA runtime への delegation は別フェーズの実装項目として扱う。
 
 現在の観測基盤:
 
