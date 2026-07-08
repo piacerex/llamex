@@ -76,6 +76,7 @@ defmodule LlamexTest do
     prepared = Llamex.prepare_model(model, Llamex.Backend.List)
 
     assert Llamex.Natural.control_stop_tokens(prepared) == [1]
+    assert Llamex.Natural.suppressed_token_ids(prepared) == [0, 1]
     assert Llamex.Natural.sampler(prepared).suppress_tokens == [0, 1]
   end
 

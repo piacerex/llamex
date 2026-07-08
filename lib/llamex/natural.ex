@@ -22,6 +22,33 @@ defmodule Llamex.Natural do
     |> put_suppressed_tokens(model)
   end
 
+  def suppressed_token_ids(%Llamex.PreparedModel{} = prepared_model) do
+    suppressed_token_ids(prepared_model.model)
+  end
+
+  def suppressed_token_ids(%{tokenizer: nil}), do: []
+  def suppressed_token_ids(model) when not is_map_key(model, :tokenizer), do: []
+
+  def suppressed_token_ids(model) do
+    type_ids =
+      model.tokenizer.token_types
+      |> Enum.filter(&natural_suppressed_token?/1)
+      |> Enum.map(& &1.id)
+
+    special_ids =
+      [:unknown]
+      |> Enum.map(&get_in(model.tokenizer.special_tokens, [&1, :id]))
+      |> Enum.reject(&is_nil/1)
+
+    control_ids =
+      model.tokenizer.token_types
+      |> Enum.filter(&(&1.type == :control))
+      |> Enum.map(& &1.id)
+      |> Enum.reject(&(&1 == get_in(model.tokenizer.special_tokens, [:eos, :id])))
+
+    Enum.uniq(type_ids ++ special_ids ++ control_ids)
+  end
+
   def control_stop_tokens(%Llamex.PreparedModel{} = prepared_model) do
     control_stop_tokens(prepared_model.model)
   end
@@ -64,36 +91,13 @@ defmodule Llamex.Natural do
   end
 
   defp put_suppressed_tokens(sampler, model) do
-    suppress_tokens = natural_suppressed_token_ids(model)
+    suppress_tokens = suppressed_token_ids(model)
 
     if suppress_tokens == [] do
       sampler
     else
       Map.update(sampler, :suppress_tokens, suppress_tokens, &Enum.uniq(&1 ++ suppress_tokens))
     end
-  end
-
-  defp natural_suppressed_token_ids(%{tokenizer: nil}), do: []
-  defp natural_suppressed_token_ids(model) when not is_map_key(model, :tokenizer), do: []
-
-  defp natural_suppressed_token_ids(model) do
-    type_ids =
-      model.tokenizer.token_types
-      |> Enum.filter(&natural_suppressed_token?/1)
-      |> Enum.map(& &1.id)
-
-    special_ids =
-      [:unknown]
-      |> Enum.map(&get_in(model.tokenizer.special_tokens, [&1, :id]))
-      |> Enum.reject(&is_nil/1)
-
-    control_ids =
-      model.tokenizer.token_types
-      |> Enum.filter(&(&1.type == :control))
-      |> Enum.map(& &1.id)
-      |> Enum.reject(&(&1 == get_in(model.tokenizer.special_tokens, [:eos, :id])))
-
-    Enum.uniq(type_ids ++ special_ids ++ control_ids)
   end
 
   defp natural_suppressed_token?(%{type: type})
@@ -137,7 +141,7 @@ defmodule Llamex.Natural do
   defp token_issues(model, _generated_tokens) when not is_map_key(model, :tokenizer), do: []
 
   defp token_issues(model, generated_tokens) do
-    suppressed = MapSet.new(natural_suppressed_token_ids(model))
+    suppressed = MapSet.new(suppressed_token_ids(model))
     token_types = Map.new(model.tokenizer.token_types, &{&1.id, &1})
 
     generated_tokens
