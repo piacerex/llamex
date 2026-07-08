@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     summaries =
       Enum.map(paths, fn path ->
         path
-        |> model_config_summary()
+        |> model_config_report()
         |> Map.put(:path, path)
       end)
 
@@ -48,8 +48,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     Mix.Task.run("app.start")
 
     path
-    |> model_config_summary()
-    |> format_model_config_summary()
+    |> model_config_report()
+    |> format_model_config_report()
     |> Mix.shell().info()
   end
 
@@ -122,15 +122,23 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     Llamex.GGUF.ModelLoader.tensor_schema_summary_file(path)
   end
 
-  defp model_config_summary(path) do
-    Llamex.GGUF.ModelLoader.model_config_summary_file(path)
+  defp model_config_report(path) do
+    Llamex.GGUF.ModelLoader.model_config_report_file(path)
+  end
+
+  defp format_model_config_report(report) do
+    [
+      "metadata prefix: #{report["metadata_prefix"]}",
+      "config: #{format_model_config_summary(report["config"])}"
+    ]
+    |> Enum.join("\n")
   end
 
   defp format_model_config_summary(config) do
     config
     |> Enum.sort_by(fn {key, _value} -> key end)
     |> Enum.map(fn {key, value} -> "#{key}: #{value}" end)
-    |> Enum.join("\n")
+    |> Enum.join(", ")
   end
 
   defp format_tensor_schema_summary(summary) do

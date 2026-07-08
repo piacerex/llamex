@@ -44,10 +44,23 @@ defmodule Llamex.GGUF.ModelLoader do
     config_from_metadata(gguf.metadata)
   end
 
+  def model_config_report(%Llamex.GGUF.Reader{} = gguf) do
+    %{
+      "metadata_prefix" => Llamex.GGUF.ModelConfig.metadata_prefix(gguf.metadata),
+      "config" => model_config_summary(gguf)
+    }
+  end
+
   def model_config_summary_file(path) when is_binary(path) do
     path
     |> Llamex.GGUF.Reader.read_metadata()
     |> model_config_summary()
+  end
+
+  def model_config_report_file(path) when is_binary(path) do
+    path
+    |> Llamex.GGUF.Reader.read_metadata()
+    |> model_config_report()
   end
 
   defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary, architecture) do

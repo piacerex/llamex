@@ -5979,6 +5979,53 @@ defmodule LlamexTest do
     end
   end
 
+  test "gguf inspect task can print model config report" do
+    path =
+      Path.join(System.tmp_dir!(), "llamex-config-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_gguf(:without_tensor_data))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--config"])
+        end)
+
+      assert output =~ "metadata prefix: llama"
+      assert output =~ "config: "
+      assert output =~ "embedding_size: 2"
+      assert output =~ "context_size: 16"
+    after
+      File.rm(path)
+    end
+  end
+
+  test "gguf inspect task can print model config reports as json" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-config-json-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:without_tensor_data))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--config", "--json"])
+        end)
+
+      [report] = JSON.decode!(String.trim(output))
+
+      assert report["path"] == path
+      assert report["metadata_prefix"] == "llama"
+      assert report["config"]["embedding_size"] == 2
+      assert report["config"]["context_size"] == 16
+    after
+      File.rm(path)
+    end
+  end
+
   test "gguf inspect task can print supported surface without a model file" do
     output =
       capture_io(fn ->
@@ -7490,6 +7537,35 @@ defmodule LlamexTest do
                "feed_forward_size" => 8,
                "rope_theta" => 10_000.0,
                "vocab_size" => 2
+             }
+    after
+      File.rm(path)
+    end
+  end
+
+  test "reports gemma3-prefixed model config metadata source from gguf file path" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-config-report-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    gguf =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        context_size: 32,
+        tensors: [
+          {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+        ]
+      )
+
+    try do
+      File.write!(path, gguf)
+
+      assert Llamex.GGUF.ModelLoader.model_config_report_file(path) == %{
+               "metadata_prefix" => "gemma3",
+               "config" => Llamex.GGUF.ModelLoader.model_config_summary_file(path)
              }
     after
       File.rm(path)
