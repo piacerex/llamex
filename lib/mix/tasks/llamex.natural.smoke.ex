@@ -63,6 +63,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     configure_exla(options)
 
     model = load_model(model_path)
+    model_diagnostic = model_diagnostic(model_path)
     max_new_tokens = Map.get(options, :max_new_tokens, String.to_integer(max_new_tokens))
     prompts = prompts(options)
     backend = backend(options)
@@ -74,6 +75,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       smoke_results!(
         model,
         model_path,
+        model_diagnostic,
         prompts,
         max_new_tokens,
         stop_tokens,
@@ -107,6 +109,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
   defp smoke_results!(
          model,
          model_path,
+         model_diagnostic,
          prompts,
          max_new_tokens,
          stop_tokens,
@@ -147,6 +150,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
       %{
         model_path: model_path,
+        model_diagnostic: model_diagnostic,
         prompt: prompt,
         settings: settings,
         text: result.text,
@@ -389,6 +393,12 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       Llamex.GGUF.ModelLoader.load(model_path)
     else
       Llamex.ModelLoader.load_json(model_path)
+    end
+  end
+
+  defp model_diagnostic(model_path) do
+    if Path.extname(model_path) == ".gguf" do
+      Llamex.GGUF.Diagnostic.inspect_summary_file(model_path)
     end
   end
 

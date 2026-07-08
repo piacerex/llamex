@@ -4356,6 +4356,7 @@ defmodule LlamexTest do
     [result] = JSON.decode!(String.trim(output))
 
     assert result["model_path"] == "priv/models/tiny.json"
+    assert result["model_diagnostic"] == nil
     assert result["prompt"] == "hello"
     assert result["text"] == "world"
     assert result["prompt_tokens"] == [1]
@@ -4511,6 +4512,9 @@ defmodule LlamexTest do
       results = JSON.decode!(String.trim(output))
 
       assert Enum.map(results, & &1["prompt"]) == ["hello", "こんにちは"]
+      assert Enum.all?(results, &(&1["model_diagnostic"]["architecture"] == "gemma3"))
+      assert Enum.all?(results, &(&1["model_diagnostic"]["loadable?"] == true))
+      assert Enum.all?(results, &(&1["model_diagnostic"]["eager_f32_expansion_ratio"] == 1.0))
       assert Enum.map(results, & &1["text"]) == ["world", "です"]
       assert Enum.map(results, & &1["ok"]) == [true, true]
       assert Enum.map(results, & &1["issues"]) == [[], []]

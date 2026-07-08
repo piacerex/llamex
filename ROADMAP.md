@@ -138,6 +138,11 @@ GGUF モデル読み込み
 - chat template は実モデルの metadata 差分を smoke で確認しながら対応パターンを増やす。
 - AtomVM / FPGA 向け backend は NxEXLA とは別の `Backend` 実装として、演算境界を保ったまま検証する。
 
+現在の観測基盤:
+
+- `mix llamex.natural.smoke --json` は GGUF モデルでは `model_diagnostic` を含み、
+  eager F32 expansion ratio や tensor payload summary を smoke 結果から確認できる。
+
 ## gemma3対応
 
 現時点では、Gemma 3 の text-only / full attention / default RoPE 経路を
