@@ -5378,6 +5378,12 @@ defmodule LlamexTest do
     assert diagnostic.architecture_known? == true
     assert diagnostic.architecture_runtime_status == "supported"
     assert diagnostic.tokenizer_supported? == true
+
+    assert diagnostic.tokenizer_metadata == %{
+             tokenizer_models: ["llama", "gpt2"],
+             pre_tokenizers: ["default", "gpt2", "llama-bpe"]
+           }
+
     assert diagnostic.tokenizer_model == "llama"
     assert diagnostic.tokenizer_model_supported? == true
     assert diagnostic.pre_tokenizer == nil
@@ -5468,6 +5474,10 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required tensors: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor shape issues: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: llama"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "tokenizer metadata surface: models:llama/gpt2, pre:default/gpt2/llama-bpe"
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: whitespace"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 0"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer scores: 0"
@@ -5887,6 +5897,14 @@ defmodule LlamexTest do
 
       assert diagnostic["tokenizer_supported?"] == true
       assert diagnostic["architecture_runtime_status"] == "supported"
+      assert diagnostic["tokenizer_metadata"]["tokenizer_models"] == ["llama", "gpt2"]
+
+      assert diagnostic["tokenizer_metadata"]["pre_tokenizers"] == [
+               "default",
+               "gpt2",
+               "llama-bpe"
+             ]
+
       assert diagnostic["tokenizer_model"] == "llama"
       assert diagnostic["tokenizer_model_supported?"] == true
       assert diagnostic["pre_tokenizer"] == nil
@@ -6307,6 +6325,12 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_model_supported? == true
     assert diagnostic.pre_tokenizer == "llama-bpe"
     assert diagnostic.pre_tokenizer_supported? == true
+
+    assert diagnostic.tokenizer_metadata == %{
+             tokenizer_models: ["llama", "gpt2"],
+             pre_tokenizers: ["default", "gpt2", "llama-bpe"]
+           }
+
     assert diagnostic.missing_required_metadata == []
     assert diagnostic.tensor_shape_issues == []
     assert diagnostic.model_config.vocab_size == 2

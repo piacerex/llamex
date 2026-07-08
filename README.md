@@ -641,6 +641,9 @@ unsupported attention/RoPE feature metadata, plus representative raw GGUF
 dimensions and normalized schema shapes for key tensors. This is the fastest way
 to decide whether `--chat` is safe for a checkpoint and whether tensor layout
 looks plausible.
+Per-model diagnostics include the tokenizer metadata surface selected for that
+checkpoint's architecture, so unsupported tokenizer model or pre-tokenizer
+values can be compared with the accepted values directly.
 Use `--supported` without a model path to print the current supported GGUF
 surface, architecture runtime status, model config metadata mapping, supported
 tokenizer metadata mapping, tensor type ID/name pairs, and explicitly

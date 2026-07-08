@@ -207,6 +207,7 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_supported?: architecture_supported?(gguf.metadata),
       architecture_runtime_status: architecture_runtime_status(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
+      tokenizer_metadata: tokenizer_metadata_for(gguf.metadata),
       tokenizer_model: tokenizer_model(gguf.metadata),
       tokenizer_model_supported?: tokenizer_model_supported?(gguf.metadata),
       pre_tokenizer: pre_tokenizer(gguf.metadata),
@@ -291,6 +292,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer model: #{diagnostic.tokenizer_model || "unknown"}",
       "pre-tokenizer: #{diagnostic.pre_tokenizer || "unknown"}",
+      "tokenizer metadata surface: #{format_tokenizer_metadata(diagnostic.tokenizer_metadata)}",
       "tokenizer kind: #{diagnostic.tokenizer_kind}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
       "tokenizer merges: #{diagnostic.tokenizer_merge_count}",
@@ -1042,6 +1044,13 @@ defmodule Llamex.GGUF.Diagnostic do
       "#{architecture}=models:#{models}, pre:#{pre_tokenizers}"
     end)
     |> Enum.join("; ")
+  end
+
+  defp format_tokenizer_metadata(tokenizer) do
+    models = Enum.join(tokenizer.tokenizer_models, "/")
+    pre_tokenizers = Enum.join(tokenizer.pre_tokenizers, "/")
+
+    "models:#{models}, pre:#{pre_tokenizers}"
   end
 
   defp format_model_config_surface(surface) do
