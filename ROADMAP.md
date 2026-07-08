@@ -130,12 +130,58 @@ GGUF モデル読み込み
 
 この状態は、`mix test` の全テスト成功と、README に記載した既存 GGUF smoke / baseline / benchmark の手順で検証する。
 
-## 次フェーズ
-
-以降は「機能を通す」段階ではなく、実モデル上の性能・互換性・メモリ効率を伸ばす段階とする。
+## 性能・互換性・メモリ効率の最適化
 
 - profile / benchmark の `top_components` と `top_layers` を見て NxEXLA の次のボトルネックを選ぶ。
 - GGUF 診断で未対応 architecture、tokenizer model、pre-tokenizer、RoPE variant、attention variant を明示し、対応範囲を広げる。
 - 量子化 tensor は既存の F32 展開読み込みを基準に、メモリ効率の良い保持形式へ進める。
 - chat template は実モデルの metadata 差分を smoke で確認しながら対応パターンを増やす。
 - AtomVM / FPGA 向け backend は NxEXLA とは別の `Backend` 実装として、演算境界を保ったまま検証する。
+
+## gemma3対応
+
+現時点では、Gemma 3 の text-only / full attention / default RoPE 経路を
+supported architecture として扱い、最小 GGUF fixture でロードと 1 token
+生成までをテストで固定している。
+
+- 対象モデルを `unsloth/gemma-3-270m-it-GGUF` に固定する。
+  - 最初は最小量子化 GGUF を使い、ロード可否と 1 token 生成を優先する。
+  - vision なしの text-only 経路だけを対象にする。
+- `mix llamex.gguf.inspect MODEL --json` で実モデルの差分を記録する。
+  - `general.architecture`、tokenizer model、pre-tokenizer、chat template を確認する。
+  - Gemma 3 の metadata key、tensor 名、tensor type、RoPE / attention variant を洗い出す。
+  - 診断結果を fixture またはテストデータとして固定する。
+- GGUF 診断に Gemma 3 の supported surface を追加する。
+  - `gemma3` architecture を Llama とは別の対応組み合わせとして扱う。
+  - Gemma 3 用の tokenizer model / pre-tokenizer / tensor type を明示する。
+  - 未対応 feature は `compatibility_issues` に具体名で出す。
+- Gemma 3 metadata を `Model` config へ変換する。
+  - embedding size、context size、layer count、head count、KV head count を読む。
+  - feed-forward size、RMSNorm epsilon、RoPE theta、RoPE dimension を読む。
+  - Llama 固定の `llama.*` key 参照を architecture ごとの mapping に分離する。
+- Gemma 3 tensor 名を内部 schema へ対応させる。
+  - token embedding、attention q/k/v/o、norm、FFN gate/up/down、output を対応させる。
+  - shape 検証を Gemma 3 config に合わせて追加する。
+  - 既存 Llama tensor mapping を壊さない回帰テストを追加する。
+- Gemma 3 tokenizer を encode / decode できるようにする。
+  - special token、BOS / EOS、byte fallback、SentencePiece / BPE 差分を確認する。
+  - 日本語と英語 prompt の encode / decode smoke を追加する。
+- Gemma 3 の attention / RoPE 差分を実装する。
+  - 既存 Backend 境界で表現できる差分と、新規演算が必要な差分を分ける。
+  - sliding / local attention や RoPE scaling が必要な場合は、List backend から先に実装する。
+  - Nx / NxEXLA は List backend の結果一致テスト後に対応する。
+- Gemma 3 chat template を追加する。
+  - `system` / `user` / `assistant` role と special token の対応を固定する。
+  - `generate_chat/3` と `stream_chat/3` の smoke test を追加する。
+- end-to-end smoke を追加する。
+  - `Llamex.GGUF.ModelLoader.load/1` で対象モデルを loadable にする。
+  - `prefill` から 1 token 生成まで通す。
+  - `mix llamex.natural.smoke` で英語 prompt と日本語 prompt を確認する。
+- backend 検証を追加する。
+  - List backend を基準に Nx / NxEXLA の logits または token 選択の差分を確認する。
+  - CUDA は `mix llamex.exla.info --target cuda` が available の環境で smoke する。
+  - CUDA 非搭載環境では CPU EXLA までを必須検証とする。
+- ドキュメントを更新する。
+  - README の supported GGUF surface に Gemma 3 の対応範囲を追加する。
+  - 未対応の Gemma 3 variant、量子化形式、attention / RoPE 差分を明示する。
+  - known-good コマンドとして inspect、load、1 token generate、natural smoke を記載する。

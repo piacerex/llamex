@@ -8299,6 +8299,17 @@ defmodule LlamexTest do
       assert model.runtime_capability.blocked_runtime_features == []
       assert model.config.block_count == 0
       assert model.config.context_size == 32
+
+      result =
+        Llamex.generate(model, "hello", %{
+          backend: Llamex.Backend.List,
+          max_new_tokens: 1,
+          sampler: :greedy
+        })
+
+      assert result.generated_tokens == [1]
+      assert result.generated_pieces == ["hello"]
+      assert result.text == "hello"
     after
       File.rm(path)
     end
