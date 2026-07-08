@@ -5478,6 +5478,7 @@ defmodule LlamexTest do
              chat_template_family: "none",
              chat_template_issues: [],
              tokenizer_metadata_issues: [],
+             tensor_schema_mappings: [],
              eager_f32_bytes: 16,
              gguf_payload_bytes: 16,
              eager_f32_expansion_ratio: 1.0,
@@ -6122,6 +6123,16 @@ defmodule LlamexTest do
              "blk.0.post_attention_norm.weight",
              "token_embd.weight"
            ]
+
+    assert diagnostic.tensor_schema_mappings == [
+             %{
+               name: "blk.0.post_attention_norm.weight",
+               schema_name: "blk.0.ffn_norm.weight"
+             }
+           ]
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "tensor schema mappings: blk.0.post_attention_norm.weight->blk.0.ffn_norm.weight"
 
     assert diagnostic.missing_required_tensors == []
     assert diagnostic.tensor_shape_issues == []

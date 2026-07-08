@@ -46,6 +46,13 @@ defmodule Llamex.GGUF.TensorSchema do
     Map.new(tensors, fn {name, tensor} -> {normalize_name(architecture, name), tensor} end)
   end
 
+  def mappings(architecture, tensor_names) when is_list(tensor_names) do
+    tensor_names
+    |> Enum.map(fn name -> {name, normalize_name(architecture, name)} end)
+    |> Enum.reject(fn {name, schema_name} -> name == schema_name end)
+    |> Enum.map(fn {name, schema_name} -> %{name: name, schema_name: schema_name} end)
+  end
+
   def normalize_name("gemma3", "blk." <> rest = name) do
     case String.split(rest, ".", parts: 3) do
       [index, "post_attention_norm", suffix] -> "blk.#{index}.ffn_norm.#{suffix}"

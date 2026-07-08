@@ -26,6 +26,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :chat_template_family,
     :chat_template_issues,
     :tokenizer_metadata_issues,
+    :tensor_schema_mappings,
     :eager_f32_bytes,
     :gguf_payload_bytes,
     :eager_f32_expansion_ratio,
@@ -174,6 +175,7 @@ defmodule Llamex.GGUF.Diagnostic do
       missing_chat_template_tokens: missing_chat_template_tokens,
       chat_template_issues: chat_template_issues(chat_template, missing_chat_template_tokens),
       tensor_element_count: tensor_element_count(gguf.tensors),
+      tensor_schema_mappings: tensor_schema_mappings(gguf.metadata, gguf.tensors),
       tensor_shapes: tensor_shapes(gguf.metadata, gguf.tensors),
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
       gguf_payload_bytes: gguf_payload_bytes(gguf.tensors),
@@ -241,6 +243,7 @@ defmodule Llamex.GGUF.Diagnostic do
       format_missing_chat_template_tokens(diagnostic.missing_chat_template_tokens),
       "chat template issues: #{format_chat_template_issues(diagnostic.chat_template_issues)}",
       "tensor elements: #{diagnostic.tensor_element_count}",
+      "tensor schema mappings: #{format_tensor_schema_mappings(diagnostic.tensor_schema_mappings)}",
       "tensor shapes: #{format_tensor_shapes(diagnostic.tensor_shapes)}",
       "eager f32 lower bound: #{format_bytes(diagnostic.eager_f32_bytes)}",
       "gguf payload bytes: #{format_bytes(diagnostic.gguf_payload_bytes)}",
@@ -565,6 +568,12 @@ defmodule Llamex.GGUF.Diagnostic do
     tensors
     |> Enum.map(fn tensor -> Enum.product(tensor.dimensions) end)
     |> Enum.sum()
+  end
+
+  defp tensor_schema_mappings(metadata, tensors) do
+    architecture = metadata_value(metadata, "general.architecture")
+
+    Llamex.GGUF.TensorSchema.mappings(architecture, Enum.map(tensors, & &1.name))
   end
 
   defp missing_required_tensors(metadata, tensors) do
@@ -922,6 +931,14 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_tensor_shape_issues([]), do: "none"
 
   defp format_tensor_shape_issues(issues), do: Enum.join(issues, "; ")
+
+  defp format_tensor_schema_mappings([]), do: "none"
+
+  defp format_tensor_schema_mappings(mappings) do
+    mappings
+    |> Enum.map(fn mapping -> "#{mapping.name}->#{mapping.schema_name}" end)
+    |> Enum.join(", ")
+  end
 
   defp format_chat_template_issues([]), do: "none"
 
