@@ -250,6 +250,38 @@ defmodule LlamexTest do
              "<|user|>\nBe concise.</s><|user|>\nHello</s><|assistant|>"
   end
 
+  test "applies role marker chat templates with a system marker" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "</s>" => 1,
+          "<|system|>" => 2,
+          "<|user|>" => 3,
+          "<|assistant|>" => 4
+        },
+        "<unk>",
+        special_tokens: %{eos: %{id: 1, token: "</s>"}}
+      )
+
+    messages = [
+      %{role: :system, content: "Be concise."},
+      %{role: :user, content: "Hello"},
+      %{role: :assistant, content: "Hi."}
+    ]
+
+    assert Llamex.ChatTemplate.supported?(system_role_marker_template())
+
+    assert Llamex.ChatTemplate.missing_tokens(
+             system_role_marker_template(),
+             tokenizer.token_to_id
+           ) ==
+             []
+
+    assert Llamex.ChatTemplate.apply(system_role_marker_template(), messages, tokenizer) ==
+             "<|system|>\nBe concise.</s><|user|>\nHello</s><|assistant|>\nHi.</s><|assistant|>"
+  end
+
   test "rejects unsupported chat roles" do
     assert Llamex.ChatTemplate.supported_roles() == ["system", "user", "assistant"]
 
@@ -5664,6 +5696,10 @@ defmodule LlamexTest do
 
   defp role_marker_template do
     "{% for message in messages %}{% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}{% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n' + message['content'] + eos_token }}{% endif %}{% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}{% endif %}{% endfor %}"
+  end
+
+  defp system_role_marker_template do
+    "{% for message in messages %}{% if message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}{% elif message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}{% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n' + message['content'] + eos_token }}{% endif %}{% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}{% endif %}{% endfor %}"
   end
 
   defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]

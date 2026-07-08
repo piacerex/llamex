@@ -66,7 +66,7 @@ defmodule Llamex.ChatTemplate do
         apply(template, messages)
 
       role_marker_template?(template) ->
-        apply_role_marker_template(messages, tokenizer)
+        apply_role_marker_template(template, messages, tokenizer)
 
       true ->
         raise ArgumentError, "unsupported chat template"
@@ -79,7 +79,7 @@ defmodule Llamex.ChatTemplate do
       String.contains?(template, "eos_token")
   end
 
-  defp apply_role_marker_template(messages, tokenizer) do
+  defp apply_role_marker_template(template, messages, tokenizer) do
     eos_token = eos_token(tokenizer)
 
     Enum.map_join(messages, "", fn message ->
@@ -91,9 +91,17 @@ defmodule Llamex.ChatTemplate do
           "<|assistant|>\n" <> message_content(message) <> eos_token
 
         "system" ->
-          "<|user|>\n" <> message_content(message) <> eos_token
+          system_marker(template, message_content(message), eos_token)
       end
     end) <> "<|assistant|>"
+  end
+
+  defp system_marker(template, content, eos_token) do
+    if String.contains?(template, "<|system|>") do
+      "<|system|>\n" <> content <> eos_token
+    else
+      "<|user|>\n" <> content <> eos_token
+    end
   end
 
   defp validate_messages!(messages) do
