@@ -94,18 +94,15 @@ defmodule Llamex.GGUF.ModelLoader do
   defp put_merges(attrs, _tokenizer), do: attrs
 
   defp validate_loadable!(gguf) do
-    if Llamex.GGUF.Diagnostic.loadable?(gguf) do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_reader(gguf)
+
+    if diagnostic.loadable? do
       :ok
     else
-      issues =
-        gguf
-        |> Llamex.GGUF.Diagnostic.compatibility_issues()
-        |> Enum.join("; ")
+      issues = Enum.join(diagnostic.compatibility_issues, "; ")
 
       blocking_groups =
-        gguf
-        |> Llamex.GGUF.Diagnostic.inspect_reader()
-        |> Map.fetch!(:blocking_issue_groups)
+        diagnostic.blocking_issue_groups
         |> Enum.map(&Atom.to_string/1)
         |> Enum.join(", ")
 
