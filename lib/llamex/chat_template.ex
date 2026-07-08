@@ -57,7 +57,7 @@ defmodule Llamex.ChatTemplate do
     validate_messages!(messages)
 
     if header_marker_template?(template) do
-      apply_header_marker_template(messages)
+      apply_header_marker_template(template, messages)
     else
       raise ArgumentError, "unsupported chat template"
     end
@@ -78,7 +78,7 @@ defmodule Llamex.ChatTemplate do
         apply_role_marker_template(template, messages, tokenizer)
 
       header_marker_template?(template) ->
-        apply_header_marker_template(messages)
+        apply_header_marker_template(template, messages)
 
       true ->
         raise ArgumentError, "unsupported chat template"
@@ -122,12 +122,18 @@ defmodule Llamex.ChatTemplate do
     end
   end
 
-  defp apply_header_marker_template(messages) do
-    Enum.map_join(messages, "", fn message ->
-      "<|start_header_id|>" <>
-        message_role(message) <>
-        "<|end_header_id|>\n\n" <> message_content(message) <> "<|eot_id|>"
-    end) <> "<|start_header_id|>assistant<|end_header_id|>\n\n"
+  defp apply_header_marker_template(template, messages) do
+    prefix =
+      if String.contains?(template, "<|begin_of_text|>"),
+        do: "<|begin_of_text|>",
+        else: ""
+
+    prefix <>
+      Enum.map_join(messages, "", fn message ->
+        "<|start_header_id|>" <>
+          message_role(message) <>
+          "<|end_header_id|>\n\n" <> message_content(message) <> "<|eot_id|>"
+      end) <> "<|start_header_id|>assistant<|end_header_id|>\n\n"
   end
 
   defp validate_messages!(messages) do
