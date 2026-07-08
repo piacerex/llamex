@@ -620,9 +620,10 @@ mix llamex.gguf.inspect first.gguf second.gguf --json
 ```
 
 Use `--summary` for fast checkpoint comparison: it reports architecture,
-runtime status, loadability, blocking issue groups, tokenizer metadata, chat
-template state, schema mappings/issues, and memory estimates without printing
-the full tensor directory.
+runtime status, loadability, blocking issue groups, tokenizer metadata, token
+counts, token type counts, special tokens, chat template state, schema
+mappings/issues, and memory estimates without printing the full tensor
+directory.
 
 The tensor schema summary can also be checked from IEx without reading tensor
 payloads:
