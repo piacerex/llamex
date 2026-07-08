@@ -26,6 +26,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :chat_template_family,
     :chat_template_issues,
     :tokenizer_metadata_issues,
+    :unsupported_tensor_features,
     :tensor_schema_mappings,
     :tensor_schema_issues,
     :eager_f32_bytes,
@@ -170,6 +171,7 @@ defmodule Llamex.GGUF.Diagnostic do
       special_tokens: special_tokens(gguf.metadata),
       unsupported_features: unsupported_features(gguf.metadata),
       unsupported_feature_metadata_values: unsupported_feature_metadata_values(gguf.metadata),
+      unsupported_tensor_features: unsupported_tensor_features(gguf.metadata, gguf.tensors),
       chat_template: chat_template,
       chat_template_family: chat_template_family,
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
@@ -239,6 +241,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "special tokens: #{format_special_tokens(diagnostic.special_tokens)}",
       "unsupported features: #{format_unsupported_features(diagnostic.unsupported_features)}",
       "unsupported feature metadata values: #{format_metadata_values(diagnostic.unsupported_feature_metadata_values)}",
+      "unsupported tensor features: #{format_unsupported_features(diagnostic.unsupported_tensor_features)}",
       "chat template: #{diagnostic.chat_template}",
       "chat template family: #{diagnostic.chat_template_family}",
       "chat usable: #{diagnostic.chat_usable}",
@@ -459,6 +462,7 @@ defmodule Llamex.GGUF.Diagnostic do
       tokenizer_model_supported?(metadata) and pre_tokenizer_supported?(metadata) and
       missing_required_metadata(metadata) == [] and
       unsupported_features(metadata) == [] and
+      unsupported_tensor_features(metadata, tensors) == [] and
       missing_required_tensors(metadata, tensors) == [] and
       tensor_schema_issues(metadata, tensors) == [] and
       tensor_shape_issues(metadata, tensors) == [] and
@@ -473,6 +477,7 @@ defmodule Llamex.GGUF.Diagnostic do
     |> add_pre_tokenizer_issue(metadata)
     |> add_required_metadata_issues(metadata)
     |> add_unsupported_feature_issues(metadata)
+    |> add_unsupported_tensor_feature_issues(metadata, tensors)
     |> add_required_tensor_issues(metadata, tensors)
     |> add_tensor_schema_issues(metadata, tensors)
     |> add_tensor_shape_issues(metadata, tensors)
@@ -544,6 +549,12 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.reduce(issues, fn issue, issues -> [issue | issues] end)
   end
 
+  defp add_unsupported_tensor_feature_issues(issues, metadata, tensors) do
+    metadata
+    |> unsupported_tensor_features(tensors)
+    |> Enum.reduce(issues, fn issue, issues -> [issue | issues] end)
+  end
+
   defp add_required_tensor_issues(issues, metadata, tensors) do
     tensors
     |> then(&missing_required_tensors(metadata, &1))
@@ -595,6 +606,14 @@ defmodule Llamex.GGUF.Diagnostic do
     architecture
     |> Llamex.GGUF.TensorSchema.unmapped_names(Enum.map(tensors, & &1.name))
     |> Enum.map(&"unmapped tensor schema: #{&1}")
+  end
+
+  defp unsupported_tensor_features(metadata, tensors) do
+    architecture = metadata_value(metadata, "general.architecture")
+
+    architecture
+    |> Llamex.GGUF.TensorSchema.unsupported_feature_names(Enum.map(tensors, & &1.name))
+    |> Enum.map(&"unsupported tensor feature: extra_norm #{&1}")
   end
 
   defp missing_required_tensors(metadata, tensors) do

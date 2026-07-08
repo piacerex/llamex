@@ -5478,6 +5478,7 @@ defmodule LlamexTest do
              chat_template_family: "none",
              chat_template_issues: [],
              tokenizer_metadata_issues: [],
+             unsupported_tensor_features: [],
              tensor_schema_mappings: [],
              tensor_schema_issues: [],
              eager_f32_bytes: 16,
@@ -6149,7 +6150,7 @@ defmodule LlamexTest do
     assert diagnostic.compatibility_issues == ["unsupported architecture runtime: gemma3"]
   end
 
-  test "reports unmapped gemma3 tensor schema names" do
+  test "reports unsupported gemma3 tensor features" do
     assert "blk.0.attn_q_norm.weight" in Llamex.GGUF.TensorSchema.interesting_tensor_names(
              "gemma3"
            )
@@ -6176,22 +6177,24 @@ defmodule LlamexTest do
              tensor.name == "blk.0.post_ffw_norm.weight" and tensor.schema_shape == [2]
            end)
 
-    assert diagnostic.tensor_schema_issues == [
-             "unmapped tensor schema: blk.0.post_ffw_norm.weight"
+    assert diagnostic.tensor_schema_issues == []
+
+    assert diagnostic.unsupported_tensor_features == [
+             "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
            ]
 
     assert diagnostic.loadable? == false
 
     assert diagnostic.compatibility_issues == [
              "unsupported architecture runtime: gemma3",
-             "unmapped tensor schema: blk.0.post_ffw_norm.weight"
+             "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
            ]
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
-             "tensor schema issues: unmapped tensor schema: blk.0.post_ffw_norm.weight"
+             "unsupported tensor features: unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
-             "compatibility issues: unsupported architecture runtime: gemma3; unmapped tensor schema: blk.0.post_ffw_norm.weight"
+             "compatibility issues: unsupported architecture runtime: gemma3; unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
   end
 
   test "normalizes gemma3 tensor names for model maps" do

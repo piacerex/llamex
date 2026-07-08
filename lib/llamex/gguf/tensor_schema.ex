@@ -61,6 +61,11 @@ defmodule Llamex.GGUF.TensorSchema do
     |> Enum.reject(fn name -> recognized_name?(architecture, name) end)
   end
 
+  def unsupported_feature_names(architecture, tensor_names) when is_list(tensor_names) do
+    tensor_names
+    |> Enum.filter(fn name -> unsupported_feature_name?(architecture, name) end)
+  end
+
   def normalize_name("gemma3", "blk." <> rest = name) do
     case String.split(rest, ".", parts: 3) do
       [index, "post_attention_norm", suffix] -> "blk.#{index}.ffn_norm.#{suffix}"
@@ -71,10 +76,18 @@ defmodule Llamex.GGUF.TensorSchema do
   def normalize_name(_architecture, name), do: name
 
   def recognized_name?(architecture, name) when is_binary(name) do
-    architecture
-    |> normalize_name(name)
-    |> internal_name?()
+    internal_name?(normalize_name(architecture, name)) or
+      unsupported_feature_name?(architecture, name)
   end
+
+  def unsupported_feature_name?("gemma3", "blk." <> rest) do
+    case String.split(rest, ".", parts: 3) do
+      [_index, part, "weight"] -> part in ["attn_q_norm", "attn_k_norm", "post_ffw_norm"]
+      _other -> false
+    end
+  end
+
+  def unsupported_feature_name?(_architecture, _name), do: false
 
   def schema_shape([columns, rows]), do: [rows, columns]
   def schema_shape(dimensions), do: dimensions
