@@ -263,7 +263,7 @@ defmodule Llamex.Generation do
       effective_max_new_tokens: effective_max_new_tokens,
       generated_tokens: generated_tokens,
       generated_pieces: token_pieces(model, generated_tokens),
-      sampler: sampler,
+      sampler: display_sampler(sampler),
       finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
       context: context
     }
@@ -352,7 +352,7 @@ defmodule Llamex.Generation do
       effective_max_new_tokens: effective_max_new_tokens,
       generated_tokens: generated_tokens,
       generated_pieces: token_pieces(model, generated_tokens),
-      sampler: sampler,
+      sampler: display_sampler(sampler),
       finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
       context: context
     }
@@ -442,7 +442,7 @@ defmodule Llamex.Generation do
       finish_reason: finish_reason,
       generated_tokens: Enum.reverse(state.generated_tokens),
       generated_pieces: token_pieces(state.context.model, Enum.reverse(state.generated_tokens)),
-      sampler: state.sampler,
+      sampler: display_sampler(state.sampler),
       prepared?: state.prepared?,
       context: state.context
     }
@@ -514,6 +514,15 @@ defmodule Llamex.Generation do
   end
 
   defp token_pieces(_model, token_ids), do: Enum.map(token_ids, &Integer.to_string/1)
+
+  defp display_sampler(%{suppress_tokens: suppress_tokens} = sampler)
+       when is_list(suppress_tokens) do
+    sampler
+    |> Map.delete(:suppress_tokens)
+    |> Map.put(:suppressed_token_count, length(suppress_tokens))
+  end
+
+  defp display_sampler(sampler), do: sampler
 
   defp stop_sequence?(_text, []), do: false
 

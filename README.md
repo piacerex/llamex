@@ -241,8 +241,8 @@ profile labels the shortened output projection as `top_k_logits`. `mlp` is
 further split into `feed_forward_norm`, `w_gate_up`, `silu_multiply`, `w_down`,
 and `residual` on the List backend. Add `--candidates N` with `--profile` to
 inspect the top sampled candidate token pieces and probabilities for each
-generated step. Natural-mode profiles report `suppressed_token_count` instead
-of printing the full internal suppression list. Use
+generated step. Natural-mode profile, generation, and stream results report
+`suppressed_token_count` instead of printing the full internal suppression list. Use
 `Llamex.Natural.suppressed_token_ids(model)` in IEx to inspect the exact token
 IDs suppressed by the natural preset.
 Use `--stream` to write generated token text as chunks are produced.

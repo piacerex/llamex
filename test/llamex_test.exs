@@ -81,6 +81,23 @@ defmodule LlamexTest do
     assert Llamex.Natural.suppressed_token_ids(prepared) == [0, 1]
     assert Llamex.Natural.sampler(prepared).suppress_tokens == [0, 1]
 
+    result =
+      Llamex.generate(prepared, "hello", %{
+        max_new_tokens: 1,
+        sampler: Llamex.Natural.sampler(prepared)
+      })
+
+    assert result.sampler.suppressed_token_count == 2
+    refute Map.has_key?(result.sampler, :suppress_tokens)
+
+    [chunk | _rest] =
+      prepared
+      |> Llamex.stream("hello", %{max_new_tokens: 1, sampler: Llamex.Natural.sampler(prepared)})
+      |> Enum.to_list()
+
+    assert chunk.sampler.suppressed_token_count == 2
+    refute Map.has_key?(chunk.sampler, :suppress_tokens)
+
     model_without_tokenizer =
       Llamex.new_model(%{
         config: %{vocab_size: 1, embedding_size: 1},
