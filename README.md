@@ -613,6 +613,14 @@ mix llamex.gguf.inspect model.gguf --json
 mix llamex.gguf.inspect first.gguf second.gguf --json
 ```
 
+The tensor schema summary can also be checked from IEx without reading tensor
+payloads:
+
+```elixir
+gguf = Llamex.GGUF.Reader.read_metadata("model.gguf")
+Llamex.GGUF.ModelLoader.tensor_schema_summary(gguf)
+```
+
 The inspection output includes supported architecture/tokenizer/tensor type
 combinations, special tokens, tokenizer `add_bos` / `add_eos` flags, chat
 template support/family, missing marker tokens, tokenizer model
