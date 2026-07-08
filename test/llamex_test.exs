@@ -4417,6 +4417,7 @@ defmodule LlamexTest do
       assert diagnostic["supported_tokenizer_models"] == ["llama", "gpt2"]
       assert diagnostic["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]
       assert diagnostic["tokenizer_merge_count"] == 0
+      assert diagnostic["tokenizer_token_types"] == %{}
       assert diagnostic["loadable?"] == false
       assert diagnostic["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
       assert "Q8_0" in diagnostic["supported_tensor_type_names"]
@@ -4537,8 +4538,17 @@ defmodule LlamexTest do
              eos: %{id: 2, piece: "</s>"}
            }
 
+    assert diagnostic.tokenizer_token_types == %{
+             "control" => 2,
+             "normal" => 1,
+             "unknown" => 1
+           }
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "special tokens: bos=1:<s>, eos=2:</s>, unknown=0:<unk>"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "tokenizer token types: control=2, normal=1, unknown=1"
   end
 
   test "gguf inspect task can print json diagnostics for multiple files" do
@@ -6010,7 +6020,8 @@ defmodule LlamexTest do
     metadata =
       [
         kv_string("general.architecture", "llama"),
-        kv_array_string("tokenizer.ggml.tokens", ["<unk>", "<s>", "</s>", "hello"])
+        kv_array_string("tokenizer.ggml.tokens", ["<unk>", "<s>", "</s>", "hello"]),
+        kv_array_u32("tokenizer.ggml.token_type", [2, 3, 3, 1])
       ] ++ special_token_metadata()
 
     header = [

@@ -116,6 +116,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_pre_tokenizers: supported_pre_tokenizers(),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
       tokenizer_merge_count: tokenizer_merge_count(gguf.metadata),
+      tokenizer_token_types: tokenizer_token_types(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
       chat_template: chat_template,
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
@@ -167,6 +168,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tokenizer kind: #{diagnostic.tokenizer_kind}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
       "tokenizer merges: #{diagnostic.tokenizer_merge_count}",
+      "tokenizer token types: #{format_type_counts(diagnostic.tokenizer_token_types)}",
       "special tokens: #{format_special_tokens(diagnostic.special_tokens)}",
       "chat template: #{diagnostic.chat_template}",
       "chat usable: #{diagnostic.chat_usable}",
@@ -473,6 +475,27 @@ defmodule Llamex.GGUF.Diagnostic do
       _other -> nil
     end
   end
+
+  defp tokenizer_token_types(metadata) do
+    metadata
+    |> metadata_array("tokenizer.ggml.token_type", [])
+    |> Enum.frequencies_by(&token_type_name/1)
+  end
+
+  defp metadata_array(metadata, key, default) do
+    case metadata_value(metadata, key) do
+      %{values: values} -> values
+      nil -> default
+    end
+  end
+
+  defp token_type_name(1), do: "normal"
+  defp token_type_name(2), do: "unknown"
+  defp token_type_name(3), do: "control"
+  defp token_type_name(4), do: "user_defined"
+  defp token_type_name(5), do: "unused"
+  defp token_type_name(6), do: "byte"
+  defp token_type_name(_type_id), do: "undefined"
 
   defp special_tokens(metadata) do
     tokens =
