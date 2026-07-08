@@ -3647,7 +3647,9 @@ defmodule LlamexTest do
 
       assert result["text"] == "world."
       assert result["generated_tokens"] == [1, 2]
+      assert result["generated_pieces"] == ["world", "."]
       assert result["completion_tokens"] == [2]
+      assert result["completion_pieces"] == ["."]
       assert result["ok"] == true
     after
       File.rm(path)
@@ -3702,6 +3704,7 @@ defmodule LlamexTest do
 
       assert result["text"] == ", world"
       assert result["completion_tokens"] == [2]
+      assert result["completion_pieces"] == ["world"]
     after
       File.rm(path)
     end
