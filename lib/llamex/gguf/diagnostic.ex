@@ -30,6 +30,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :architecture_runtime_status,
     :architecture_runtime_blockers,
     :model_combination,
+    :runtime_capability,
     :attention_variant,
     :rope_variant,
     :loadable?,
@@ -274,6 +275,7 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_runtime_status: architecture_runtime_status(gguf.metadata),
       architecture_runtime_blockers: architecture_runtime_blockers(gguf.metadata),
       model_combination: model_combination(gguf.metadata, gguf.tensors),
+      runtime_capability: runtime_capability(gguf.metadata, gguf.tensors),
       attention_variant: attention_variant(gguf.metadata),
       rope_variant: rope_variant(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
@@ -353,6 +355,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture runtime status: #{diagnostic.architecture_runtime_status}",
       "architecture runtime blockers: #{format_list(diagnostic.architecture_runtime_blockers)}",
       "model combination: #{format_model_combination(diagnostic.model_combination)}",
+      "runtime capability: #{format_runtime_capability(diagnostic.runtime_capability)}",
       "attention variant: #{format_variant(diagnostic.attention_variant)}",
       "RoPE variant: #{format_variant(diagnostic.rope_variant)}",
       "supported tokenizers: #{Enum.join(diagnostic.supported_tokenizers, ", ")}",
@@ -430,6 +433,19 @@ defmodule Llamex.GGUF.Diagnostic do
       tokenizer_model: tokenizer_model(metadata) || "unknown",
       pre_tokenizer: pre_tokenizer(metadata) || "default",
       tensor_types: tensor_type_names(tensors)
+    }
+  end
+
+  defp runtime_capability(metadata, tensors) do
+    groups = compatibility_issue_groups(metadata, tensors)
+
+    %{
+      loadable?: loadable?(metadata, tensors),
+      runtime_status: architecture_runtime_status(metadata),
+      runtime_blockers: architecture_runtime_blockers(metadata),
+      blocking_issue_groups: blocking_issue_groups(groups),
+      attention_variant: attention_variant(metadata),
+      rope_variant: rope_variant(metadata)
     }
   end
 
@@ -1187,6 +1203,18 @@ defmodule Llamex.GGUF.Diagnostic do
       "model=#{combination.tokenizer_model}",
       "pre=#{combination.pre_tokenizer}",
       "tensor_types=#{tensor_types}"
+    ]
+    |> Enum.join(", ")
+  end
+
+  defp format_runtime_capability(capability) do
+    [
+      "loadable=#{capability.loadable?}",
+      "runtime=#{capability.runtime_status}",
+      "runtime_blockers=#{format_list(capability.runtime_blockers)}",
+      "blocking_groups=#{format_blocking_issue_groups(capability.blocking_issue_groups)}",
+      "attention=#{format_variant(capability.attention_variant)}",
+      "rope=#{format_variant(capability.rope_variant)}"
     ]
     |> Enum.join(", ")
   end

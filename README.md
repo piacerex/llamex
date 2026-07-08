@@ -622,9 +622,9 @@ mix llamex.gguf.inspect first.gguf second.gguf --json
 Use `--summary` for fast checkpoint comparison: it reports architecture,
 runtime status/blockers, loadability, blocking issue groups, tokenizer metadata,
 token counts, merge/score counts, token type counts, special tokens, chat
-template state, model config, attention/RoPE variants, missing metadata/tensors,
-schema mappings/issues, tensor shape issues, and memory estimates without
-printing the full tensor directory.
+template state, model config, runtime capability, attention/RoPE variants,
+missing metadata/tensors, schema mappings/issues, tensor shape issues, and
+memory estimates without printing the full tensor directory.
 
 The tensor schema summary can also be checked from IEx without reading tensor
 payloads:
@@ -657,6 +657,9 @@ checkpoint and whether tensor layout looks plausible.
 `model_combination` records the detected architecture/runtime/tokenizer/tensor
 type mix for the inspected checkpoint, which makes it easier to compare a real
 GGUF file with `known_combinations` and `supported_combinations`.
+`runtime_capability` summarizes the loadable flag, runtime blockers, blocking
+issue groups, and attention/RoPE variants in one compact map for fixture and
+checkpoint comparisons.
 Per-model diagnostics include the tokenizer metadata surface selected for that
 checkpoint's architecture, so unsupported tokenizer model or pre-tokenizer
 values can be compared with the accepted values directly.

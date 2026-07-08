@@ -5539,6 +5539,14 @@ defmodule LlamexTest do
                pre_tokenizer: "default",
                tensor_types: ["F32"]
              },
+             runtime_capability: %{
+               loadable?: true,
+               runtime_status: "supported",
+               runtime_blockers: [],
+               blocking_issue_groups: [],
+               attention_variant: %{type: "full"},
+               rope_variant: %{type: "default"}
+             },
              attention_variant: %{type: "full"},
              rope_variant: %{type: "default"},
              loadable?: true,
@@ -6158,6 +6166,9 @@ defmodule LlamexTest do
       assert output =~
                "model combination: architecture=llama, runtime=supported, tokenizer=whitespace, model=llama, pre=default, tensor_types=type_99"
 
+      assert output =~
+               "runtime capability: loadable=false, runtime=supported, runtime_blockers=none, blocking_groups=tensors"
+
       assert output =~ "attention variant: type=full"
       assert output =~ "RoPE variant: type=default"
       assert output =~ "blocking issue groups: tensors"
@@ -6234,6 +6245,15 @@ defmodule LlamexTest do
                "tokenizer_model" => "llama",
                "pre_tokenizer" => "default",
                "tensor_types" => ["type_99"]
+             }
+
+      assert summary["runtime_capability"] == %{
+               "loadable?" => false,
+               "runtime_status" => "supported",
+               "runtime_blockers" => [],
+               "blocking_issue_groups" => ["tensors"],
+               "attention_variant" => %{"type" => "full"},
+               "rope_variant" => %{"type" => "default"}
              }
 
       assert summary["attention_variant"] == %{"type" => "full"}
@@ -6654,6 +6674,18 @@ defmodule LlamexTest do
              "extra norm tensor execution not implemented"
            ]
 
+    assert diagnostic.runtime_capability == %{
+             loadable?: false,
+             runtime_status: "known_unsupported",
+             runtime_blockers: [
+               "architecture runtime not implemented",
+               "extra norm tensor execution not implemented"
+             ],
+             blocking_issue_groups: [:runtime],
+             attention_variant: %{type: "full"},
+             rope_variant: %{type: "default"}
+           }
+
     assert diagnostic.attention_variant == %{type: "full"}
     assert diagnostic.rope_variant == %{type: "default"}
 
@@ -6699,6 +6731,9 @@ defmodule LlamexTest do
 
     assert formatted =~
              "architecture runtime blockers: architecture runtime not implemented; extra norm tensor execution not implemented"
+
+    assert formatted =~
+             "runtime capability: loadable=false, runtime=known_unsupported"
 
     assert formatted =~ "attention variant: type=full"
     assert formatted =~ "RoPE variant: type=default"

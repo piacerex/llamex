@@ -154,6 +154,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "architecture runtime status: #{summary.architecture_runtime_status}",
       "architecture runtime blockers: #{format_list(summary.architecture_runtime_blockers)}",
       "model combination: #{format_model_combination(summary.model_combination)}",
+      "runtime capability: #{format_runtime_capability(summary.runtime_capability)}",
       "attention variant: #{format_variant(summary.attention_variant)}",
       "RoPE variant: #{format_variant(summary.rope_variant)}",
       "loadable: #{summary.loadable?}",
@@ -256,6 +257,18 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "model=#{combination.tokenizer_model}",
       "pre=#{combination.pre_tokenizer}",
       "tensor_types=#{tensor_types}"
+    ]
+    |> Enum.join(", ")
+  end
+
+  defp format_runtime_capability(capability) do
+    [
+      "loadable=#{capability.loadable?}",
+      "runtime=#{capability.runtime_status}",
+      "runtime_blockers=#{format_list(capability.runtime_blockers)}",
+      "blocking_groups=#{format_atoms(capability.blocking_issue_groups)}",
+      "attention=#{format_variant(capability.attention_variant)}",
+      "rope=#{format_variant(capability.rope_variant)}"
     ]
     |> Enum.join(", ")
   end
