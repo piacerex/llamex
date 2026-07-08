@@ -2498,6 +2498,8 @@ defmodule LlamexTest do
     profile = Llamex.Profile.generation_step(model, "hello", %{backend: Llamex.Backend.List})
 
     assert profile.prompt_tokens == 1
+    assert profile.prompt_token_ids == [1]
+    assert profile.prompt_pieces == ["hello"]
     assert profile.token == 2
     assert profile.text == "world"
     assert profile.eval_timings.layers == []

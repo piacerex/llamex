@@ -679,6 +679,8 @@ The same loaded model can be profiled for one prefill and generation step:
 Llamex.Profile.generation_step(model, "hello", %{backend: Llamex.Backend.List})
 ```
 
+The result includes prompt token IDs/pieces, the sampled token/text, prefill
+timings, and step timings.
 Profile JSON includes `timing_summary.top_components` and
 `timing_summary.top_layers` sorted by elapsed milliseconds. Use those fields to
 pick the next backend optimization target from the measured run instead of

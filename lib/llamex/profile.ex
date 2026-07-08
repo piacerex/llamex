@@ -35,6 +35,8 @@ defmodule Llamex.Profile do
       exla: exla_info(step.context.backend),
       backend_profile: backend_profile(state.context),
       prompt_tokens: length(state.prompt_tokens),
+      prompt_token_ids: state.prompt_tokens,
+      prompt_pieces: token_pieces(display_model, state.prompt_tokens),
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
       prompt_truncated?: state.prompt_truncated?,
