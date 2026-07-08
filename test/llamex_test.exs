@@ -5529,6 +5529,10 @@ defmodule LlamexTest do
                tensors: []
              },
              blocking_issue_groups: [],
+             tokenizer_model: "llama",
+             tokenizer_model_supported?: true,
+             pre_tokenizer: nil,
+             pre_tokenizer_supported?: true,
              chat_usable: false,
              chat_template_family: "none",
              chat_template_issues: [],
@@ -6046,6 +6050,10 @@ defmodule LlamexTest do
       assert output =~ "architecture runtime status: supported"
       assert output =~ "blocking issue groups: tensors"
       assert output =~ "compatibility issues: unsupported tensor type: type_99 (1)"
+      assert output =~ "tokenizer model: llama"
+      assert output =~ "tokenizer model supported: true"
+      assert output =~ "pre-tokenizer: unknown"
+      assert output =~ "pre-tokenizer supported: true"
       assert output =~ "model config metadata prefix: llama"
 
       assert output =~
@@ -6079,6 +6087,10 @@ defmodule LlamexTest do
       assert summary["path"] == path
       assert summary["architecture"] == "llama"
       assert summary["architecture_runtime_status"] == "supported"
+      assert summary["tokenizer_model"] == "llama"
+      assert summary["tokenizer_model_supported?"] == true
+      assert summary["pre_tokenizer"] == nil
+      assert summary["pre_tokenizer_supported?"] == true
       assert summary["loadable?"] == false
       assert summary["blocking_issue_groups"] == ["tensors"]
       assert summary["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
