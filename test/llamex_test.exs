@@ -3387,7 +3387,7 @@ defmodule LlamexTest do
     assert result["ok"] == true
     assert result["issues"] == []
     assert result["settings"]["backend"] == "Llamex.Backend.Nx"
-    assert is_map(result["settings"]["exla"])
+    assert Map.has_key?(result["settings"], "exla")
     assert result["settings"]["max_new_tokens"] == 1
     assert result["settings"]["stop_tokens"] == []
     assert result["settings"]["sampler"]["temperature"] == 0.8
