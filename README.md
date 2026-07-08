@@ -530,6 +530,7 @@ Llamex.generate(prepared, prompt, %{
 Empty stop sequences are ignored; non-string stop sequences raise
 `ArgumentError` so generation settings fail fast.
 Stop tokens must be non-negative integer token IDs for the same reason.
+`max_new_tokens` must also be a non-negative integer.
 
 Use `stream_chat/3` with a supported chat template when streaming chat prompts.
 

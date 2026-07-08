@@ -98,7 +98,7 @@ defmodule Llamex.Profile do
     display_model = profile_model(model)
     reset_profile_caches(backend)
     sampler = Map.get(opts, :sampler, :greedy)
-    max_new_tokens = Map.get(opts, :max_new_tokens, 1)
+    max_new_tokens = Llamex.MaxNewTokens.get(opts, 1)
     stop_tokens = stop_tokens(opts)
     stop_sequences = stop_sequences(opts)
     candidate_count = Map.get(opts, :candidate_count, 0)

@@ -216,14 +216,10 @@ defmodule Llamex.Generation do
 
   def generate(%Model{} = model, prompt, opts)
       when is_binary(prompt) and is_map(opts) do
-    max_new_tokens = Map.fetch!(opts, :max_new_tokens)
+    max_new_tokens = Llamex.MaxNewTokens.fetch!(opts)
     stop_tokens = stop_tokens(opts)
     stop_sequences = stop_sequences(opts)
     sampler = Map.get(opts, :sampler, :greedy)
-
-    if max_new_tokens < 0 do
-      raise ArgumentError, "max_new_tokens must be zero or positive"
-    end
 
     state = prefill(model, prompt, Map.take(opts, [:backend, :context_window]))
     %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} = state
@@ -269,12 +265,7 @@ defmodule Llamex.Generation do
   end
 
   def stream(model_or_prepared, prompt, opts) when is_binary(prompt) and is_map(opts) do
-    max_new_tokens = Map.fetch!(opts, :max_new_tokens)
-
-    if max_new_tokens < 0 do
-      raise ArgumentError, "max_new_tokens must be zero or positive"
-    end
-
+    max_new_tokens = Llamex.MaxNewTokens.fetch!(opts)
     stop_tokens = stop_tokens(opts)
     stop_sequences = stop_sequences(opts)
     sampler = Map.get(opts, :sampler, :greedy)
@@ -312,14 +303,10 @@ defmodule Llamex.Generation do
 
   defp generate_prepared(%PreparedModel{} = prepared_model, prompt, opts) do
     model = prepared_model.model
-    max_new_tokens = Map.fetch!(opts, :max_new_tokens)
+    max_new_tokens = Llamex.MaxNewTokens.fetch!(opts)
     stop_tokens = stop_tokens(opts)
     stop_sequences = stop_sequences(opts)
     sampler = Map.get(opts, :sampler, :greedy)
-
-    if max_new_tokens < 0 do
-      raise ArgumentError, "max_new_tokens must be zero or positive"
-    end
 
     state = prefill(prepared_model, prompt, Map.take(opts, [:context_window]))
     %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} = state

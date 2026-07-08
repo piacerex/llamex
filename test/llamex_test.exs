@@ -1600,6 +1600,64 @@ defmodule LlamexTest do
     assert result.finish_reason == :stop
   end
 
+  test "generation rejects invalid max_new_tokens" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "max_new_tokens must be a non-negative integer, got: -1", fn ->
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: -1
+      })
+    end
+
+    assert_raise ArgumentError,
+                 "max_new_tokens must be a non-negative integer, got: \"1\"",
+                 fn ->
+                   Llamex.generate(model, "hello", %{
+                     backend: Llamex.Backend.List,
+                     max_new_tokens: "1"
+                   })
+                 end
+  end
+
+  test "stream and prepared generation reject invalid max_new_tokens" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "max_new_tokens must be a non-negative integer, got: -1", fn ->
+      model
+      |> Llamex.stream("hello", %{backend: Llamex.Backend.List, max_new_tokens: -1})
+      |> Enum.to_list()
+    end
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    assert_raise ArgumentError, "max_new_tokens must be a non-negative integer, got: :one", fn ->
+      Llamex.generate(prepared, "hello", %{max_new_tokens: :one})
+    end
+  end
+
   test "generation rejects invalid sampler seeds" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -2358,6 +2416,28 @@ defmodule LlamexTest do
         backend: Llamex.Backend.List,
         max_new_tokens: 1,
         stop_sequences: [:world]
+      })
+    end
+  end
+
+  test "generation profile rejects invalid max_new_tokens" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "max_new_tokens must be a non-negative integer, got: -1", fn ->
+      Llamex.Profile.generation_steps(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: -1
       })
     end
   end
