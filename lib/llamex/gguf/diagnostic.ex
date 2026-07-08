@@ -110,6 +110,7 @@ defmodule Llamex.GGUF.Diagnostic do
       pre_tokenizer: pre_tokenizer(gguf.metadata),
       pre_tokenizer_supported?: pre_tokenizer_supported?(gguf.metadata),
       missing_required_metadata: missing_required_metadata(gguf.metadata),
+      model_config: model_config(gguf.metadata),
       tokenizer_kind: tokenizer_kind(gguf.metadata),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
@@ -159,6 +160,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "supported pre-tokenizers: #{Enum.join(diagnostic.supported_pre_tokenizers, ", ")}",
       "pre-tokenizer supported: #{diagnostic.pre_tokenizer_supported?}",
       "missing required metadata: #{format_missing_required_metadata(diagnostic.missing_required_metadata)}",
+      "model config: #{format_model_config(diagnostic.model_config)}",
       "loadable: #{diagnostic.loadable?}",
       "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
       "metadata: #{diagnostic.metadata_count}",
@@ -244,6 +246,23 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp missing_required_metadata(metadata) do
     Enum.reject(@required_metadata_keys, &Map.has_key?(metadata, &1))
+  end
+
+  defp model_config(metadata) do
+    %{
+      vocab_size: metadata_value(metadata, "llama.vocab_size"),
+      embedding_size: metadata_value(metadata, "llama.embedding_length"),
+      context_size: metadata_value(metadata, "llama.context_length"),
+      block_count: metadata_value(metadata, "llama.block_count"),
+      attention_head_count: metadata_value(metadata, "llama.attention.head_count"),
+      attention_head_count_kv: metadata_value(metadata, "llama.attention.head_count_kv"),
+      feed_forward_size: metadata_value(metadata, "llama.feed_forward_length"),
+      rope_theta: metadata_value(metadata, "llama.rope.freq_base"),
+      rope_dimension_count: metadata_value(metadata, "llama.rope.dimension_count"),
+      epsilon: metadata_value(metadata, "llama.attention.layer_norm_rms_epsilon")
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
   end
 
   defp tokenizer_kind(metadata) do
@@ -563,6 +582,15 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_missing_required_metadata([]), do: "none"
 
   defp format_missing_required_metadata(keys), do: Enum.join(keys, ", ")
+
+  defp format_model_config(config) when map_size(config) == 0, do: "none"
+
+  defp format_model_config(config) do
+    config
+    |> Enum.sort()
+    |> Enum.map(fn {key, value} -> "#{key}=#{value}" end)
+    |> Enum.join(", ")
+  end
 
   defp format_missing_required_tensors([]), do: "none"
 

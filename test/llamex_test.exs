@@ -4546,6 +4546,7 @@ defmodule LlamexTest do
     assert diagnostic.pre_tokenizer == nil
     assert diagnostic.pre_tokenizer_supported? == true
     assert diagnostic.missing_required_metadata == []
+    assert diagnostic.model_config.embedding_size == 2
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.supported_tokenizers == ["whitespace", "bpe"]
     assert diagnostic.supported_tokenizer_models == ["llama", "gpt2"]
@@ -4603,6 +4604,8 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer: unknown"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required metadata: none"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "model config:"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "embedding_size=2"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required tensors: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor shape issues: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: llama"
@@ -4631,6 +4634,7 @@ defmodule LlamexTest do
     assert diagnostic.pre_tokenizer == nil
     assert diagnostic.pre_tokenizer_supported? == true
     assert diagnostic.missing_required_metadata == []
+    assert diagnostic.model_config.embedding_size == 2
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.unsupported_tensor_types == %{}
@@ -4648,6 +4652,8 @@ defmodule LlamexTest do
     assert formatted =~ "tokenizer kind: whitespace"
     assert formatted =~ "tokenizer merges: 0"
     assert formatted =~ "missing required metadata: none"
+    assert formatted =~ "model config:"
+    assert formatted =~ "embedding_size=2"
     assert formatted =~ "missing required tensors: none"
     assert formatted =~ "tensor shape issues: none"
     assert formatted =~ "loadable: true"
@@ -4748,6 +4754,12 @@ defmodule LlamexTest do
       assert diagnostic["pre_tokenizer"] == nil
       assert diagnostic["pre_tokenizer_supported?"] == true
       assert diagnostic["missing_required_metadata"] == []
+      assert diagnostic["model_config"]["embedding_size"] == 2
+      assert diagnostic["model_config"]["context_size"] == 16
+      assert diagnostic["model_config"]["block_count"] == 1
+      assert diagnostic["model_config"]["attention_head_count"] == 2
+      assert diagnostic["model_config"]["attention_head_count_kv"] == 1
+      assert diagnostic["model_config"]["feed_forward_size"] == 8
       assert diagnostic["tokenizer_kind"] == "whitespace"
       assert diagnostic["supported_tokenizers"] == ["whitespace", "bpe"]
       assert diagnostic["supported_tokenizer_models"] == ["llama", "gpt2"]
