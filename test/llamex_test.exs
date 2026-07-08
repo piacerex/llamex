@@ -371,6 +371,37 @@ defmodule LlamexTest do
              "<|im_start|>system\nBe concise.<|im_end|>\n<|im_start|>user\nHello<|im_end|>\n<|im_start|>assistant\n"
   end
 
+  test "public chat prompt API preserves system role markers" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "</s>" => 1,
+          "<|system|>" => 2,
+          "<|user|>" => 3,
+          "<|assistant|>" => 4,
+          "Be" => 5,
+          "concise." => 6,
+          "Hello" => 7
+        },
+        "<unk>",
+        special_tokens: %{eos: %{id: 1, token: "</s>"}},
+        chat_template: system_role_marker_template()
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 8, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: Map.new(0..7, &{&1, [&1 * 1.0]})
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    assert Llamex.chat_prompt(prepared, "Hello", %{system: "Be concise."}) ==
+             "<|system|>\nBe concise.</s><|user|>\nHello</s><|assistant|>"
+  end
+
   test "public chat prompt API points to gguf inspect for missing template tokens" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
