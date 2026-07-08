@@ -15,6 +15,8 @@ defmodule Llamex.Context do
         }
 
   def new(model, backend) when is_atom(backend) do
+    Llamex.RuntimeCapability.validate!(model)
+
     %__MODULE__{
       model: backend.prepare_model(model),
       backend: backend,
@@ -25,6 +27,8 @@ defmodule Llamex.Context do
   end
 
   def new_prepared(model, backend) when is_atom(backend) do
+    Llamex.RuntimeCapability.validate!(model)
+
     %__MODULE__{
       model: model,
       backend: backend,

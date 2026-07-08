@@ -55,6 +55,45 @@ defmodule LlamexTest do
     assert result.context.backend == Llamex.Backend.List
   end
 
+  test "rejects non-loadable runtime capability before inference" do
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        architecture: "gemma3",
+        runtime_capability: %{
+          loadable?: false,
+          runtime_status: "known_unsupported",
+          runtime_blockers: [
+            "architecture runtime not implemented",
+            "extra norm tensor execution not implemented"
+          ],
+          blocking_issue_groups: [:runtime],
+          attention_variant: %{type: "full"},
+          rope_variant: %{type: "default"}
+        },
+        tokenizer: Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>"),
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError,
+                 ~r/model runtime is not loadable; architecture=gemma3; runtime=known_unsupported/,
+                 fn ->
+                   Llamex.prepare_model(model, Llamex.Backend.List)
+                 end
+
+    assert_raise ArgumentError, ~r/blocking_groups=runtime/, fn ->
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: :greedy
+      })
+    end
+  end
+
   test "generation reports adjacent special token prompt pieces" do
     tokenizer =
       Llamex.Tokenizer.whitespace(

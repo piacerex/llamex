@@ -27,6 +27,8 @@ defmodule Llamex do
   end
 
   def prepare_model(%Model{} = model, backend) when is_atom(backend) do
+    Llamex.RuntimeCapability.validate!(model)
+
     %PreparedModel{model: backend.prepare_model(model), backend: backend}
   end
 

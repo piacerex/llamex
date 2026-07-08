@@ -175,6 +175,9 @@ the runtime implements those extra norms.
 GGUF-loaded `Llamex.Model` structs preserve the detected `architecture`,
 `runtime_capability`, and `tensor_schema` so runtime-specific execution paths can
 be checked without re-reading checkpoint metadata.
+Models whose `runtime_capability.loadable?` is false are rejected by
+`prepare_model`, `prefill`, `generate`, and streaming entry points before backend
+execution starts.
 
 Supported tokenizer types:
 
