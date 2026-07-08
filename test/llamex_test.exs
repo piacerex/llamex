@@ -5464,6 +5464,42 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported tensor type names:"
   end
 
+  test "summarizes gguf diagnostics for task output" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:without_tensor_data))
+
+    assert Llamex.GGUF.Diagnostic.summary(diagnostic) == %{
+             loadable?: true,
+             compatibility_issues: [],
+             chat_usable: false,
+             chat_template_family: "none",
+             chat_template_issues: [],
+             tokenizer_metadata_issues: [],
+             eager_f32_bytes: 16,
+             gguf_payload_bytes: 16,
+             eager_f32_expansion_ratio: 1.0,
+             tensor_payload_by_type: %{
+               "F32" => %{
+                 tensors: 1,
+                 elements: 4,
+                 eager_f32_bytes: 16,
+                 gguf_payload_bytes: 16,
+                 eager_f32_expansion_ratio: 1.0
+               }
+             },
+             top_tensor_payloads: [
+               %{
+                 name: "token_embd.weight",
+                 type: "F32",
+                 dimensions: [2, 2],
+                 elements: 4,
+                 eager_f32_bytes: 16,
+                 gguf_payload_bytes: 16,
+                 eager_f32_expansion_ratio: 1.0
+               }
+             ]
+           }
+  end
+
   test "diagnoses supported quantized gguf tensor types without reading tensor data" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:with_q4_0_tensor_data))
 

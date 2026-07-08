@@ -276,21 +276,7 @@ defmodule Mix.Tasks.Llamex.Generate do
 
   defp model_diagnostic(model_path) do
     if Path.extname(model_path) == ".gguf" do
-      model_path
-      |> Llamex.GGUF.Diagnostic.inspect_file()
-      |> Map.take([
-        :loadable?,
-        :compatibility_issues,
-        :chat_usable,
-        :chat_template_family,
-        :chat_template_issues,
-        :tokenizer_metadata_issues,
-        :eager_f32_bytes,
-        :gguf_payload_bytes,
-        :eager_f32_expansion_ratio,
-        :tensor_payload_by_type,
-        :top_tensor_payloads
-      ])
+      Llamex.GGUF.Diagnostic.inspect_summary_file(model_path)
     end
   end
 

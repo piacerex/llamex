@@ -19,6 +19,19 @@ defmodule Llamex.GGUF.Diagnostic do
   ]
   @required_metadata_suffixes ["embedding_length"]
   @required_tensor_names ["token_embd.weight"]
+  @summary_keys [
+    :loadable?,
+    :compatibility_issues,
+    :chat_usable,
+    :chat_template_family,
+    :chat_template_issues,
+    :tokenizer_metadata_issues,
+    :eager_f32_bytes,
+    :gguf_payload_bytes,
+    :eager_f32_expansion_ratio,
+    :tensor_payload_by_type,
+    :top_tensor_payloads
+  ]
   @supported_tensor_types %{
     0 => "F32",
     1 => "F16",
@@ -106,6 +119,12 @@ defmodule Llamex.GGUF.Diagnostic do
     |> inspect_binary()
   end
 
+  def inspect_summary_file(path) when is_binary(path) do
+    path
+    |> inspect_file()
+    |> summary()
+  end
+
   def inspect_binary(binary) when is_binary(binary) do
     gguf = Llamex.GGUF.Reader.read_binary(binary)
     inspect_reader(gguf)
@@ -175,6 +194,8 @@ defmodule Llamex.GGUF.Diagnostic do
   def compatibility_issues(%Llamex.GGUF.Reader{} = gguf) do
     compatibility_issues(gguf.metadata, gguf.tensors)
   end
+
+  def summary(%{} = diagnostic), do: Map.take(diagnostic, @summary_keys)
 
   def format(%{} = diagnostic) do
     [
