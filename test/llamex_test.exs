@@ -7075,16 +7075,22 @@ defmodule LlamexTest do
       )
       |> put_in([Access.key!(:metadata), "gemma3.embedding_length"], %{type: :uint32, value: 2})
       |> update_in([Access.key!(:tensors)], fn tensors ->
-        [%{name: "blk.0.attn_q_norm.weight", dimensions: [3], type: 0, offset: 0} | tensors]
+        [
+          %{name: "blk.0.attn_q_norm.weight", dimensions: [3], type: 0, offset: 0},
+          %{name: "blk.12.attn_k_norm.weight", dimensions: [4], type: 0, offset: 0}
+          | tensors
+        ]
       end)
       |> Llamex.GGUF.Diagnostic.inspect_reader()
 
     assert diagnostic.tensor_shape_issues == [
-             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected embedding length 2"
+             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected embedding length 2",
+             "tensor shape mismatch: blk.12.attn_k_norm.weight schema [4] expected embedding length 2"
            ]
 
     assert diagnostic.compatibility_issue_groups.tensors == [
-             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected embedding length 2"
+             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected embedding length 2",
+             "tensor shape mismatch: blk.12.attn_k_norm.weight schema [4] expected embedding length 2"
            ]
 
     assert diagnostic.blocking_issue_groups == [:runtime, :tensor_features, :tensors]

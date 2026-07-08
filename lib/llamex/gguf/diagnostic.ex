@@ -949,29 +949,20 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp add_extra_norm_shape_issues(issues, "gemma3", embedding_length, tensors)
        when is_integer(embedding_length) do
-    [
-      "attn_q_norm",
-      "attn_k_norm",
-      "post_ffw_norm"
-    ]
-    |> Enum.reduce(issues, fn part, issues ->
-      name = "blk.0.#{part}.weight"
+    tensors
+    |> Enum.flat_map(&extra_norm_tensor_layer/1)
+    |> Enum.reduce(issues, fn %{name: name}, issues ->
+      %{dimensions: dimensions} = find_tensor(tensors, name)
 
-      case find_tensor(tensors, name) do
-        %{dimensions: dimensions} ->
-          case Llamex.GGUF.TensorSchema.schema_shape(dimensions) do
-            [^embedding_length] ->
-              issues
-
-            shape ->
-              [
-                "tensor shape mismatch: #{name} schema #{inspect(shape)} expected embedding length #{embedding_length}"
-                | issues
-              ]
-          end
-
-        _other ->
+      case Llamex.GGUF.TensorSchema.schema_shape(dimensions) do
+        [^embedding_length] ->
           issues
+
+        shape ->
+          [
+            "tensor shape mismatch: #{name} schema #{inspect(shape)} expected embedding length #{embedding_length}"
+            | issues
+          ]
       end
     end)
   end
