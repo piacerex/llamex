@@ -3073,6 +3073,22 @@ defmodule LlamexTest do
     end
   end
 
+  test "benchmark task rejects invalid sampler options" do
+    assert_raise Mix.Error, ~r/top_k must be a positive integer/, fn ->
+      Mix.Tasks.Llamex.Benchmark.run([
+        "priv/models/tiny.json",
+        "--tokens",
+        "1",
+        "--backend",
+        "list",
+        "--temperature",
+        "1.0",
+        "--top-k",
+        "0"
+      ])
+    end
+  end
+
   test "benchmark task prints prompt eval optimization hints" do
     output =
       capture_io(fn ->
