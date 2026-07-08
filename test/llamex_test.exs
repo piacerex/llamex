@@ -7667,6 +7667,36 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects gemma3 gguf models with architecture runtime blockers" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-incompatible-gemma3-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    gguf =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        context_size: 32,
+        tensors: [
+          {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+        ]
+      )
+
+    try do
+      File.write!(path, gguf)
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: unsupported architecture runtime: gemma3 (blocking issue groups: runtime) (architecture runtime blockers: architecture runtime not implemented; extra norm tensor execution not implemented)",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "diagnoses unknown architecture runtime status" do
     diagnostic =
       :with_unsupported_architecture_tensor_data
