@@ -633,6 +633,10 @@ Use `tensor_payload_by_type` to find which tensor types contribute most to that
 expansion before choosing the next compact in-memory representation.
 Use `top_tensor_payloads` to identify the largest individual tensors on the
 current eager F32 path.
+Use `tensor_schema_mappings` to see architecture-specific GGUF tensor names
+that are normalized into Llamex's internal tensor schema, such as Gemma 3
+post-attention norms. Use `tensor_schema_issues: []` to confirm that no tensor
+names remain outside the current schema mapping.
 Supported chat templates currently cover ChatML, `<|user|>`/`<|assistant|>`
 role markers, and Llama header markers using `<|start_header_id|>`,
 `<|end_header_id|>`, and `<|eot_id|>`, including templates that start with
@@ -642,11 +646,12 @@ user turn for that format. `tokenizer_metadata_issues` reports Gemma/chat marker
 tokens that are present but not marked as control tokens.
 Use `loadable: true` as the quick check that architecture, tokenizer metadata,
 tokenizer model metadata when present, required model metadata, required tensors,
-required tensor shapes, and tensor types are inside Llamex's current supported
-GGUF surface.
+required tensor schema names, required tensor shapes, and tensor types are
+inside Llamex's current supported GGUF surface.
 Use `compatibility_issues: []` in JSON output to confirm that no unsupported
 architecture, tokenizer metadata, tokenizer model, required model metadata, or
-required tensor, tensor shape mismatch, or tensor type was found.
+required tensor, tensor schema mapping issue, tensor shape mismatch, or tensor
+type was found.
 When `unsupported_features` is non-empty, inspect
 `unsupported_feature_metadata_values` to see the exact GGUF metadata values such
 as sliding-window size or RoPE scaling settings that caused the rejection. These
