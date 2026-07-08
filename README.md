@@ -171,7 +171,9 @@ runtime support is enabled. `blk.N.post_attention_norm.weight` is mapped to the
 internal `blk.N.ffn_norm.weight` schema for model-map inspection, while
 `blk.N.attn_q_norm.weight`, `blk.N.attn_k_norm.weight`, and
 `blk.N.post_ffw_norm.weight` are reported as unsupported tensor features until
-the runtime implements those extra norms.
+the runtime implements those extra norms. The loader preserves these optional
+extra norm tensors on layer maps for runtime implementation work, but they still
+remain guarded by `extra_norm_tensors` until execution support is added.
 GGUF-loaded `Llamex.Model` structs preserve the detected `architecture`,
 `runtime_capability`, and `tensor_schema` so runtime-specific execution paths can
 be checked without re-reading checkpoint metadata.

@@ -5403,6 +5403,73 @@ defmodule LlamexTest do
     assert next_token == 0
   end
 
+  test "preserves optional extra norm tensors in layer maps" do
+    model =
+      Llamex.ModelLoader.from_map(%{
+        "config" => %{
+          "vocab_size" => 2,
+          "embedding_size" => 2,
+          "block_count" => 1,
+          "attention_head_count" => 1
+        },
+        "tensors" => %{
+          "token_embd.weight" => %{
+            "shape" => [2, 2],
+            "dtype" => "f32",
+            "data" => [1.0, 0.0, 0.0, 1.0]
+          },
+          "blk.0.attn_norm.weight" => %{
+            "shape" => [2],
+            "dtype" => "f32",
+            "data" => [1.0, 1.0]
+          },
+          "blk.0.attn_q_norm.weight" => %{
+            "shape" => [2],
+            "dtype" => "f32",
+            "data" => [0.5, 0.5]
+          },
+          "blk.0.attn_k_norm.weight" => %{
+            "shape" => [2],
+            "dtype" => "f32",
+            "data" => [0.25, 0.25]
+          },
+          "blk.0.post_ffw_norm.weight" => %{
+            "shape" => [2],
+            "dtype" => "f32",
+            "data" => [0.75, 0.75]
+          },
+          "blk.0.attn_q.weight" => %{
+            "shape" => [2, 2],
+            "dtype" => "f32",
+            "data" => [1.0, 0.0, 0.0, 1.0]
+          },
+          "blk.0.attn_k.weight" => %{
+            "shape" => [2, 2],
+            "dtype" => "f32",
+            "data" => [1.0, 0.0, 0.0, 1.0]
+          },
+          "blk.0.attn_v.weight" => %{
+            "shape" => [2, 2],
+            "dtype" => "f32",
+            "data" => [1.0, 0.0, 0.0, 1.0]
+          },
+          "blk.0.attn_output.weight" => %{
+            "shape" => [2, 2],
+            "dtype" => "f32",
+            "data" => [1.0, 0.0, 0.0, 1.0]
+          }
+        }
+      })
+
+    assert [
+             %{
+               attention_q_norm: [0.5, 0.5],
+               attention_k_norm: [0.25, 0.25],
+               post_feed_forward_norm: [0.75, 0.75]
+             }
+           ] = model.layers
+  end
+
   test "reads gguf metadata and tensor directory" do
     gguf = tiny_gguf(:without_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(gguf)

@@ -147,6 +147,12 @@ defmodule Llamex.ModelLoader do
       attention_norm: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_norm.weight"),
       feed_forward_norm:
         Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.ffn_norm.weight"),
+      attention_q_norm:
+        Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.attn_q_norm.weight"),
+      attention_k_norm:
+        Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.attn_k_norm.weight"),
+      post_feed_forward_norm:
+        Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.post_ffw_norm.weight"),
       wq: wq,
       wk: wk,
       wv: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_v.weight"),
