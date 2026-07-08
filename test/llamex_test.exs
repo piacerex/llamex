@@ -5479,6 +5479,7 @@ defmodule LlamexTest do
              chat_template_issues: [],
              tokenizer_metadata_issues: [],
              tensor_schema_mappings: [],
+             tensor_schema_issues: [],
              eager_f32_bytes: 16,
              gguf_payload_bytes: 16,
              eager_f32_expansion_ratio: 1.0,
@@ -6134,9 +6135,33 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "tensor schema mappings: blk.0.post_attention_norm.weight->blk.0.ffn_norm.weight"
 
+    assert diagnostic.tensor_schema_issues == []
     assert diagnostic.missing_required_tensors == []
     assert diagnostic.tensor_shape_issues == []
     assert diagnostic.compatibility_issues == ["unsupported architecture runtime: gemma3"]
+  end
+
+  test "reports unmapped gemma3 tensor schema names" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
+
+    diagnostic =
+      parsed
+      |> put_in(
+        [Access.key!(:metadata), "general.architecture"],
+        %{type: :string, value: "gemma3"}
+      )
+      |> put_in([Access.key!(:metadata), "gemma3.embedding_length"], %{type: :uint32, value: 2})
+      |> update_in([Access.key!(:tensors)], fn tensors ->
+        [%{name: "blk.0.post_ffw_norm.weight", dimensions: [2], type: 0, offset: 0} | tensors]
+      end)
+      |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert diagnostic.tensor_schema_issues == [
+             "unmapped tensor schema: blk.0.post_ffw_norm.weight"
+           ]
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "tensor schema issues: unmapped tensor schema: blk.0.post_ffw_norm.weight"
   end
 
   test "normalizes gemma3 tensor names for model maps" do

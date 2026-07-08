@@ -53,6 +53,11 @@ defmodule Llamex.GGUF.TensorSchema do
     |> Enum.map(fn {name, schema_name} -> %{name: name, schema_name: schema_name} end)
   end
 
+  def unmapped_names(architecture, tensor_names) when is_list(tensor_names) do
+    tensor_names
+    |> Enum.reject(fn name -> recognized_name?(architecture, name) end)
+  end
+
   def normalize_name("gemma3", "blk." <> rest = name) do
     case String.split(rest, ".", parts: 3) do
       [index, "post_attention_norm", suffix] -> "blk.#{index}.ffn_norm.#{suffix}"
@@ -62,6 +67,39 @@ defmodule Llamex.GGUF.TensorSchema do
 
   def normalize_name(_architecture, name), do: name
 
+  def recognized_name?(architecture, name) when is_binary(name) do
+    architecture
+    |> normalize_name(name)
+    |> internal_name?()
+  end
+
   def schema_shape([columns, rows]), do: [rows, columns]
   def schema_shape(dimensions), do: dimensions
+
+  defp internal_name?(name)
+       when name in [@token_embedding_name, "output_norm.weight", "output.weight"] do
+    true
+  end
+
+  defp internal_name?("blk." <> rest) do
+    case String.split(rest, ".", parts: 3) do
+      [_index, part, "weight"] ->
+        part in [
+          "attn_norm",
+          "attn_q",
+          "attn_k",
+          "attn_v",
+          "attn_output",
+          "ffn_norm",
+          "ffn_gate",
+          "ffn_up",
+          "ffn_down"
+        ]
+
+      _other ->
+        false
+    end
+  end
+
+  defp internal_name?(_name), do: false
 end
