@@ -5551,7 +5551,10 @@ defmodule LlamexTest do
              tokenizer_model_supported?: true,
              pre_tokenizer: nil,
              pre_tokenizer_supported?: true,
+             tokenizer_kind: "whitespace",
              tokenizer_token_count: 2,
+             tokenizer_merge_count: 0,
+             tokenizer_score_count: 0,
              tokenizer_token_types: %{},
              special_tokens: %{},
              chat_usable: false,
@@ -6124,7 +6127,10 @@ defmodule LlamexTest do
       assert output =~ "tokenizer model supported: true"
       assert output =~ "pre-tokenizer: unknown"
       assert output =~ "pre-tokenizer supported: true"
+      assert output =~ "tokenizer kind: whitespace"
       assert output =~ "tokenizer tokens: 2"
+      assert output =~ "tokenizer merges: 0"
+      assert output =~ "tokenizer scores: 0"
       assert output =~ "tokenizer token types: none"
       assert output =~ "special tokens: none"
       assert output =~ "model config metadata prefix: llama"
@@ -6184,7 +6190,10 @@ defmodule LlamexTest do
       assert summary["tokenizer_model_supported?"] == true
       assert summary["pre_tokenizer"] == nil
       assert summary["pre_tokenizer_supported?"] == true
+      assert summary["tokenizer_kind"] == "whitespace"
       assert summary["tokenizer_token_count"] == 2
+      assert summary["tokenizer_merge_count"] == 0
+      assert summary["tokenizer_score_count"] == 0
       assert summary["tokenizer_token_types"] == %{}
       assert summary["special_tokens"] == %{}
       assert summary["chat_template"] == "none"
@@ -7129,6 +7138,13 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_merge_count == 2
     assert diagnostic.tokenizer_score_count == 6
     assert diagnostic.tokenizer_metadata_issues == []
+
+    summary = Llamex.GGUF.Diagnostic.summary(diagnostic)
+
+    assert summary.tokenizer_kind == "bpe"
+    assert summary.tokenizer_merge_count == 2
+    assert summary.tokenizer_score_count == 6
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: gpt2"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: bpe"
