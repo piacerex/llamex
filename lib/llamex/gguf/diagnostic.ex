@@ -26,6 +26,8 @@ defmodule Llamex.GGUF.Diagnostic do
     :chat_template_family,
     :chat_template_issues,
     :tokenizer_metadata_issues,
+    :model_config_metadata_prefix,
+    :missing_model_config_metadata,
     :unsupported_tensor_features,
     :tensor_schema_mappings,
     :tensor_schema_issues,
@@ -162,7 +164,9 @@ defmodule Llamex.GGUF.Diagnostic do
       pre_tokenizer: pre_tokenizer(gguf.metadata),
       pre_tokenizer_supported?: pre_tokenizer_supported?(gguf.metadata),
       missing_required_metadata: missing_required_metadata(gguf.metadata),
+      model_config_metadata_prefix: metadata_prefix(gguf.metadata),
       model_config: model_config(gguf.metadata),
+      missing_model_config_metadata: missing_model_config_metadata(gguf.metadata),
       tokenizer_kind: tokenizer_kind(gguf.metadata),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
@@ -229,7 +233,9 @@ defmodule Llamex.GGUF.Diagnostic do
       "supported pre-tokenizers: #{Enum.join(diagnostic.supported_pre_tokenizers, ", ")}",
       "pre-tokenizer supported: #{diagnostic.pre_tokenizer_supported?}",
       "missing required metadata: #{format_missing_required_metadata(diagnostic.missing_required_metadata)}",
+      "model config metadata prefix: #{diagnostic.model_config_metadata_prefix}",
       "model config: #{format_model_config(diagnostic.model_config)}",
+      "missing model config metadata: #{format_missing_model_config_metadata(diagnostic.missing_model_config_metadata)}",
       "loadable: #{diagnostic.loadable?}",
       "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
       "metadata: #{diagnostic.metadata_count}",
@@ -358,6 +364,10 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Llamex.GGUF.ModelConfig.partial_from_metadata()
     |> Enum.map(fn {key, value} -> {String.to_atom(key), value} end)
     |> Map.new()
+  end
+
+  defp missing_model_config_metadata(metadata) do
+    Llamex.GGUF.ModelConfig.missing_metadata(metadata)
   end
 
   defp tokenizer_kind(metadata) do
@@ -963,6 +973,14 @@ defmodule Llamex.GGUF.Diagnostic do
     config
     |> Enum.sort()
     |> Enum.map(fn {key, value} -> "#{key}=#{value}" end)
+    |> Enum.join(", ")
+  end
+
+  defp format_missing_model_config_metadata([]), do: "none"
+
+  defp format_missing_model_config_metadata(missing) do
+    missing
+    |> Enum.map(fn item -> "#{item.name}=#{item.metadata_key}" end)
     |> Enum.join(", ")
   end
 

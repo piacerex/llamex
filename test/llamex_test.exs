@@ -5381,8 +5381,15 @@ defmodule LlamexTest do
     assert diagnostic.pre_tokenizer == nil
     assert diagnostic.pre_tokenizer_supported? == true
     assert diagnostic.missing_required_metadata == []
+    assert diagnostic.model_config_metadata_prefix == "llama"
     assert diagnostic.model_config.vocab_size == 2
     assert diagnostic.model_config.embedding_size == 2
+
+    assert %{
+             name: "epsilon",
+             metadata_key: "llama.attention.layer_norm_rms_epsilon"
+           } in diagnostic.missing_model_config_metadata
+
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.supported_tokenizers == ["whitespace", "bpe"]
     assert diagnostic.supported_tokenizer_models == ["llama", "gpt2"]
@@ -5447,8 +5454,13 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer: unknown"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required metadata: none"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "model config metadata prefix: llama"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "model config:"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "embedding_size=2"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "missing model config metadata: epsilon=llama.attention.layer_norm_rms_epsilon"
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "unsupported features: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required tensors: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor shape issues: none"
@@ -5478,6 +5490,12 @@ defmodule LlamexTest do
              chat_template_family: "none",
              chat_template_issues: [],
              tokenizer_metadata_issues: [],
+             model_config_metadata_prefix: "llama",
+             missing_model_config_metadata: [
+               %{name: "epsilon", metadata_key: "llama.attention.layer_norm_rms_epsilon"},
+               %{name: "rope_theta", metadata_key: "llama.rope.freq_base"},
+               %{name: "rope_dimension_count", metadata_key: "llama.rope.dimension_count"}
+             ],
              unsupported_tensor_features: [],
              tensor_schema_mappings: [],
              tensor_schema_issues: [],
@@ -5669,6 +5687,9 @@ defmodule LlamexTest do
       |> Llamex.GGUF.Diagnostic.inspect_reader()
 
     assert diagnostic.missing_required_metadata == ["llama.embedding_length"]
+
+    assert %{name: "embedding_size", metadata_key: "llama.embedding_length"} in diagnostic.missing_model_config_metadata
+
     assert diagnostic.loadable? == false
 
     assert diagnostic.compatibility_issues == [
@@ -5678,6 +5699,7 @@ defmodule LlamexTest do
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~ "missing required metadata: llama.embedding_length"
+    assert formatted =~ "missing model config metadata: embedding_size=llama.embedding_length"
     assert formatted =~ "compatibility issues: missing required metadata: llama.embedding_length"
   end
 
@@ -5865,6 +5887,7 @@ defmodule LlamexTest do
       assert diagnostic["pre_tokenizer"] == nil
       assert diagnostic["pre_tokenizer_supported?"] == true
       assert diagnostic["missing_required_metadata"] == []
+      assert diagnostic["model_config_metadata_prefix"] == "llama"
       assert diagnostic["model_config"]["vocab_size"] == 2
       assert diagnostic["model_config"]["embedding_size"] == 2
       assert diagnostic["model_config"]["context_size"] == 16
@@ -5872,6 +5895,12 @@ defmodule LlamexTest do
       assert diagnostic["model_config"]["attention_head_count"] == 2
       assert diagnostic["model_config"]["attention_head_count_kv"] == 1
       assert diagnostic["model_config"]["feed_forward_size"] == 8
+
+      assert %{
+               "name" => "epsilon",
+               "metadata_key" => "llama.attention.layer_norm_rms_epsilon"
+             } in diagnostic["missing_model_config_metadata"]
+
       assert diagnostic["tokenizer_kind"] == "whitespace"
       assert diagnostic["supported_tokenizers"] == ["whitespace", "bpe"]
       assert diagnostic["supported_tokenizer_models"] == ["llama", "gpt2"]
