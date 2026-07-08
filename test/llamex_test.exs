@@ -3483,6 +3483,55 @@ defmodule LlamexTest do
     end
   end
 
+  test "generate task profiles gemma3 gguf generation" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-generate-gemma3-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    gguf =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        tokens: ["<unk>", "hello"],
+        tensors: [
+          {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+        ]
+      )
+
+    try do
+      File.write!(path, gguf)
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Generate.run([
+            path,
+            "hello",
+            "1",
+            "--backend",
+            "list",
+            "--profile"
+          ])
+        end)
+
+      profile = JSON.decode!(String.trim(output))
+
+      assert profile["model_path"] == path
+      assert profile["backend"] == "Elixir.Llamex.Backend.List"
+      assert profile["prompt_token_ids"] == [1]
+      assert profile["prompt_pieces"] == ["hello"]
+      assert profile["generated_tokens"] == [1]
+      assert profile["generated_pieces"] == ["hello"]
+      assert profile["text"] == "hello"
+      assert profile["model_diagnostic"]["architecture"] == "gemma3"
+      assert profile["model_diagnostic"]["loadable?"] == true
+      assert profile["model_diagnostic"]["compatibility_issues"] == []
+    after
+      File.rm(path)
+    end
+  end
+
   test "generate task applies chat template with system prompt" do
     path = Path.join(System.tmp_dir!(), "llamex-chat-#{System.unique_integer([:positive])}.json")
 
