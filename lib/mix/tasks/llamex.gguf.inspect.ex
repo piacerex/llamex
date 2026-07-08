@@ -5,6 +5,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       mix llamex.gguf.inspect model.gguf
       mix llamex.gguf.inspect model.gguf --json
       mix llamex.gguf.inspect first.gguf second.gguf --json
+      mix llamex.gguf.inspect --supported
+      mix llamex.gguf.inspect --supported --json
   """
 
   use Mix.Task
@@ -13,13 +15,29 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
 
   @impl true
   def run(args) do
-    {options, positional, invalid} = OptionParser.parse(args, strict: [json: :boolean])
+    {options, positional, invalid} =
+      OptionParser.parse(args, strict: [json: :boolean, supported: :boolean])
 
     if invalid != [] do
       Mix.raise("invalid options: #{inspect(invalid)}")
     end
 
     run_inspect(positional, Map.new(options))
+  end
+
+  defp run_inspect([], %{supported: true, json: true}) do
+    Mix.Task.run("app.start")
+
+    Llamex.GGUF.Diagnostic.supported_surface()
+    |> JSON.encode!()
+    |> Mix.shell().info()
+  end
+
+  defp run_inspect([], %{supported: true}) do
+    Mix.Task.run("app.start")
+
+    Llamex.GGUF.Diagnostic.format_supported_surface()
+    |> Mix.shell().info()
   end
 
   defp run_inspect(paths, %{json: true}) when length(paths) > 0 do
@@ -45,6 +63,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
   end
 
   defp run_inspect(_args, _options) do
-    Mix.raise("usage: mix llamex.gguf.inspect MODEL_GGUF [MODEL_GGUF ...] [--json]")
+    Mix.raise(
+      "usage: mix llamex.gguf.inspect MODEL_GGUF [MODEL_GGUF ...] [--json] | --supported [--json]"
+    )
   end
 end

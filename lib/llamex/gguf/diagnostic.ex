@@ -55,6 +55,30 @@ defmodule Llamex.GGUF.Diagnostic do
     ]
   end
 
+  def supported_surface do
+    %{
+      supported_architectures: supported_architectures(),
+      supported_tokenizers: supported_tokenizers(),
+      supported_tokenizer_models: supported_tokenizer_models(),
+      supported_pre_tokenizers: supported_pre_tokenizers(),
+      supported_tensor_type_names: supported_tensor_type_names(),
+      supported_tensor_type_ids: supported_tensor_type_ids(),
+      supported_combinations: supported_combinations()
+    }
+  end
+
+  def format_supported_surface(%{} = surface \\ supported_surface()) do
+    [
+      "supported architectures: #{Enum.join(surface.supported_architectures, ", ")}",
+      "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
+      "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
+      "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
+      "supported tensor type names: #{Enum.join(surface.supported_tensor_type_names, ", ")}",
+      "supported combinations: #{format_supported_combinations(surface.supported_combinations)}"
+    ]
+    |> Enum.join("\n")
+  end
+
   def inspect_file(path) when is_binary(path) do
     path
     |> File.read!()

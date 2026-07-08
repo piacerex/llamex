@@ -4368,6 +4368,48 @@ defmodule LlamexTest do
     end
   end
 
+  test "gguf inspect task can print supported surface without a model file" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Gguf.Inspect.run(["--supported"])
+      end)
+
+    assert output =~ "supported architectures: llama"
+    assert output =~ "supported tokenizers: whitespace, bpe"
+    assert output =~ "supported tokenizer models: llama, gpt2"
+    assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
+    assert output =~ "supported tensor type names:"
+
+    assert output =~
+             "supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
+  end
+
+  test "gguf inspect task can print supported surface as json without a model file" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Gguf.Inspect.run(["--supported", "--json"])
+      end)
+
+    surface = JSON.decode!(String.trim(output))
+
+    assert surface["supported_architectures"] == ["llama"]
+    assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
+    assert surface["supported_tokenizer_models"] == ["llama", "gpt2"]
+    assert surface["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]
+    assert "Q8_0" in surface["supported_tensor_type_names"]
+    assert surface["supported_tensor_type_ids"]["8"] == "Q8_0"
+
+    assert surface["supported_combinations"] == [
+             %{
+               "architecture" => "llama",
+               "tokenizers" => ["whitespace", "bpe"],
+               "tokenizer_models" => ["llama", "gpt2"],
+               "pre_tokenizers" => ["default", "gpt2", "llama-bpe"],
+               "tensor_types" => surface["supported_tensor_type_names"]
+             }
+           ]
+  end
+
   test "diagnoses unsupported gguf tokenizer model metadata" do
     parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
 

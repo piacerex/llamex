@@ -562,6 +562,8 @@ result.text
 GGUF compatibility can be inspected without loading tensor data:
 
 ```bash
+mix llamex.gguf.inspect --supported
+mix llamex.gguf.inspect --supported --json
 mix llamex.gguf.inspect model.gguf
 mix llamex.gguf.inspect model.gguf --json
 mix llamex.gguf.inspect first.gguf second.gguf --json
@@ -573,6 +575,8 @@ tokenizer model support/kind/merge counts, plus representative raw GGUF
 dimensions and normalized schema shapes for key tensors. This is the fastest way
 to decide whether `--chat` is safe for a checkpoint and whether tensor layout
 looks plausible.
+Use `--supported` without a model path to print the current supported GGUF
+surface before choosing a checkpoint.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `loadable: true` as the quick check that architecture, tokenizer metadata,
 tokenizer model metadata when present, and tensor types are inside Llamex's
