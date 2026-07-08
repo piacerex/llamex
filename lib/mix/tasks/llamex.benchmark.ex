@@ -74,6 +74,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
         repeat_count,
         options
       )
+      |> rank_results()
 
     print_results(results, options)
   end
@@ -211,6 +212,50 @@ defmodule Mix.Tasks.Llamex.Benchmark do
     }
   end
 
+  defp rank_results(results) do
+    results
+    |> Enum.group_by(& &1.requested_max_new_tokens)
+    |> Enum.flat_map(fn {_max_new_tokens, results} ->
+      ranked =
+        results
+        |> Enum.sort_by(&benchmark_mean/1, fn left, right ->
+          cond do
+            is_nil(left) -> false
+            is_nil(right) -> true
+            true -> left <= right
+          end
+        end)
+        |> Enum.with_index(1)
+
+      fastest_mean =
+        ranked
+        |> List.first()
+        |> then(fn
+          {result, _rank} -> benchmark_mean(result)
+          nil -> nil
+        end)
+
+      fastest_backend =
+        ranked
+        |> List.first()
+        |> then(fn
+          {result, _rank} -> result.backend
+          nil -> nil
+        end)
+
+      Enum.map(ranked, fn {result, rank} ->
+        mean = benchmark_mean(result)
+
+        result
+        |> Map.put(:comparison_rank, rank)
+        |> Map.put(:comparison_fastest?, rank == 1)
+        |> Map.put(:comparison_fastest_backend, fastest_backend)
+        |> Map.put(:mean_milliseconds_delta_from_fastest, mean_delta(mean, fastest_mean))
+      end)
+    end)
+    |> Enum.sort_by(&{&1.requested_max_new_tokens, &1.comparison_rank})
+  end
+
   defp print_results(results, %{json: true}) do
     Mix.shell().info(JSON.encode!(results))
   end
@@ -226,12 +271,21 @@ defmodule Mix.Tasks.Llamex.Benchmark do
           "mean_ms=#{format_float(summary.total_milliseconds.mean)} " <>
           "median_ms=#{format_float(summary.total_milliseconds.median)} " <>
           "best_ms=#{format_float(summary.total_milliseconds.best)} " <>
+          "rank=#{result.comparison_rank} " <>
+          "fastest_backend=#{result.comparison_fastest_backend} " <>
+          "mean_delta_ms=#{format_float(result.mean_milliseconds_delta_from_fastest)} " <>
           "tokens_per_second=#{format_float(summary.tokens_per_second.mean)} " <>
           "prompt_eval_top_layers=#{format_prompt_eval_top(result, :layers)} " <>
           "prompt_eval_top_components=#{format_prompt_eval_top(result, :components)}"
       )
     end)
   end
+
+  defp benchmark_mean(result), do: result.summary.total_milliseconds.mean
+
+  defp mean_delta(nil, _fastest_mean), do: nil
+  defp mean_delta(_mean, nil), do: nil
+  defp mean_delta(mean, fastest_mean), do: mean - fastest_mean
 
   defp token_counts(%{tokens: tokens}) do
     tokens

@@ -2841,6 +2841,21 @@ defmodule LlamexTest do
     assert Enum.all?(results, &is_map(&1["summary"]))
     assert Enum.all?(results, &is_map(&1["summary"]["total_milliseconds"]))
     assert Enum.all?(results, &Map.has_key?(&1["summary"], "tokens_per_second"))
+
+    assert Enum.all?(
+             results,
+             &(&1["comparison_fastest_backend"] in ["Llamex.Backend.List", "Llamex.Backend.Nx"])
+           )
+
+    assert results
+           |> Enum.group_by(& &1["requested_max_new_tokens"])
+           |> Map.values()
+           |> Enum.all?(fn grouped ->
+             Enum.sort(Enum.map(grouped, & &1["comparison_rank"])) == [1, 2] and
+               Enum.count(grouped, & &1["comparison_fastest?"]) == 1 and
+               Enum.any?(grouped, &(&1["mean_milliseconds_delta_from_fastest"] == 0))
+           end)
+
     assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["phase"] == "measured" end))
     assert Enum.all?(results, &Enum.all?(&1["warmups"], fn run -> run["phase"] == "warmup" end))
     assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["prepared?"] == true end))
@@ -2896,6 +2911,9 @@ defmodule LlamexTest do
     assert output =~ "prompt_eval_top_layers=none"
     assert output =~ "prompt_eval_top_components=eval.logits:"
     assert output =~ "backend_prepare_ms="
+    assert output =~ "rank=1"
+    assert output =~ "fastest_backend=Llamex.Backend.List"
+    assert output =~ "mean_delta_ms=0.00"
   end
 
   test "generate task profile includes configured exla target" do

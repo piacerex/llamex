@@ -279,10 +279,12 @@ The benchmark task reports raw warmup and measured runs plus summary values
 for total, prefill, step, eval, per-generated-token milliseconds, and
 tokens-per-second. It prepares the model once per backend before warmup and
 measured runs, reporting that one-time cost as `backend_prepare_milliseconds`
-in JSON and `backend_prepare_ms` in text output. It accepts backend comparison,
-EXLA, natural sampler, context window, stop-control, sampling, and
-`--trim-to-sentence` options used by the generation and smoke tasks. For
-example:
+in JSON and `backend_prepare_ms` in text output. When comparing backends, each
+result also includes `comparison_rank`, `comparison_fastest_backend`, and
+`mean_milliseconds_delta_from_fastest` for the same requested token count. It
+accepts backend comparison, EXLA, natural sampler, context window, stop-control,
+sampling, and `--trim-to-sentence` options used by the generation and smoke
+tasks. For example:
 
 ```bash
 mix llamex.benchmark /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf \
