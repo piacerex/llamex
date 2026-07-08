@@ -39,6 +39,8 @@ defmodule Llamex.GGUF.Diagnostic do
     :tokenizer_metadata_issues,
     :model_config_metadata_prefix,
     :missing_model_config_metadata,
+    :unsupported_features,
+    :unsupported_feature_metadata_values,
     :unsupported_tensor_features,
     :tensor_schema_mappings,
     :tensor_schema_issues,

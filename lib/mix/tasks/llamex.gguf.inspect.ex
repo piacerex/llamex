@@ -167,6 +167,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "chat template family: #{summary.chat_template_family}",
       "chat template missing tokens: #{format_list(summary.missing_chat_template_tokens)}",
       "tokenizer metadata issues: #{format_list(summary.tokenizer_metadata_issues)}",
+      "unsupported features: #{format_list(summary.unsupported_features)}",
+      "unsupported feature metadata values: #{format_metadata_values(summary.unsupported_feature_metadata_values)}",
       "unsupported tensor features: #{format_list(summary.unsupported_tensor_features)}",
       "tensor schema mappings: #{format_mappings(summary.tensor_schema_mappings)}",
       "tensor schema issues: #{format_list(summary.tensor_schema_issues)}",
@@ -242,6 +244,15 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
 
   defp format_list([]), do: "none"
   defp format_list(values), do: Enum.join(values, "; ")
+
+  defp format_metadata_values(values) when map_size(values) == 0, do: "none"
+
+  defp format_metadata_values(values) do
+    values
+    |> Enum.sort()
+    |> Enum.map(fn {key, value} -> "#{key}=#{value}" end)
+    |> Enum.join(", ")
+  end
 
   defp format_atoms([]), do: "none"
 

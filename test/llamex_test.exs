@@ -5563,6 +5563,8 @@ defmodule LlamexTest do
                %{name: "rope_theta", metadata_key: "llama.rope.freq_base"},
                %{name: "rope_dimension_count", metadata_key: "llama.rope.dimension_count"}
              ],
+             unsupported_features: [],
+             unsupported_feature_metadata_values: %{},
              unsupported_tensor_features: [],
              tensor_schema_mappings: [],
              tensor_schema_issues: [],
@@ -5822,6 +5824,20 @@ defmodule LlamexTest do
     assert formatted =~ "llama.rope.scaling.factor=8.0"
     assert formatted =~ "llama.rope.scaling.original_context_length=2048"
     assert formatted =~ "llama.rope.scaling.type=linear"
+
+    summary = Llamex.GGUF.Diagnostic.summary(diagnostic)
+
+    assert summary.unsupported_features == [
+             "unsupported attention variant: sliding_window",
+             "unsupported RoPE scaling: linear"
+           ]
+
+    assert summary.unsupported_feature_metadata_values == %{
+             "llama.attention.sliding_window" => 128,
+             "llama.rope.scaling.factor" => 8.0,
+             "llama.rope.scaling.original_context_length" => 2048,
+             "llama.rope.scaling.type" => "linear"
+           }
   end
 
   test "diagnoses unsupported gemma3 attention and rope metadata by architecture prefix" do
@@ -6095,6 +6111,8 @@ defmodule LlamexTest do
 
       assert output =~ "chat template missing tokens: none"
       assert output =~ "chat template: none"
+      assert output =~ "unsupported features: none"
+      assert output =~ "unsupported feature metadata values: none"
       assert output =~ "tensor schema mappings: none"
       assert output =~ "eager f32 lower bound: 16 B"
       assert output =~ "gguf payload bytes: 0 B"
@@ -6139,6 +6157,8 @@ defmodule LlamexTest do
       assert summary["pre_tokenizer_supported?"] == true
       assert summary["chat_template"] == "none"
       assert summary["missing_chat_template_tokens"] == []
+      assert summary["unsupported_features"] == []
+      assert summary["unsupported_feature_metadata_values"] == %{}
       assert summary["loadable?"] == false
       assert summary["blocking_issue_groups"] == ["tensors"]
       assert summary["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
