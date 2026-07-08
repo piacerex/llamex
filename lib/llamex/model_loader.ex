@@ -16,6 +16,22 @@ defmodule Llamex.ModelLoader do
     |> Llamex.new_model()
   end
 
+  def from_compact_map(%{"tensor_format" => "compact", "tensors" => tensors} = attrs)
+      when is_map(tensors) do
+    attrs
+    |> Map.put("token_embeddings", Llamex.TensorStore.fetch_dequantized_token_embeddings(tensors))
+    |> Map.delete("tensors")
+    |> from_map()
+  end
+
+  def from_compact_map(%{"tensor_format" => tensor_format}) do
+    raise ArgumentError, "compact model map expected tensor_format=compact, got #{tensor_format}"
+  end
+
+  def from_compact_map(_attrs) do
+    raise ArgumentError, "compact model map expected tensor_format=compact"
+  end
+
   defp atomize_model(attrs) when is_map(attrs) do
     tensors = decoded_tensors(attrs)
 

@@ -5828,6 +5828,37 @@ defmodule LlamexTest do
              expected
   end
 
+  test "loads a model from compact q4_0 token embeddings" do
+    binary = tiny_gguf(:with_q4_0_matrix_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+
+    compact_map =
+      parsed
+      |> Llamex.GGUF.ModelLoader.to_model_map(binary, tensor_format: :compact)
+      |> put_in(["config", "embedding_size"], 32)
+
+    model = Llamex.ModelLoader.from_compact_map(compact_map)
+
+    assert model.config.vocab_size == 2
+    assert model.config.embedding_size == 32
+
+    assert model.token_embeddings ==
+             Llamex.TensorStore.fetch_dequantized_token_embeddings(compact_map["tensors"])
+
+    assert model.architecture == "llama"
+    assert model.tensor_schema.architecture == "llama"
+  end
+
+  test "rejects non-compact model maps in the compact loader path" do
+    binary = tiny_gguf(:with_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+    model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
+
+    assert_raise ArgumentError,
+                 "compact model map expected tensor_format=compact, got dequantized",
+                 fn -> Llamex.ModelLoader.from_compact_map(model_map) end
+  end
+
   test "rejects compact tensor dequantization for unsupported compact types" do
     assert_raise ArgumentError, "compact tensor type Q8_0 cannot be dequantized yet", fn ->
       Llamex.TensorStore.dequantize_compact_tensor(%{
