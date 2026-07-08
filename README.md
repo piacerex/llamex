@@ -282,7 +282,9 @@ The benchmark task reports raw warmup and measured runs plus summary values
 for total, prefill, step, eval, per-generated-token milliseconds, and
 tokens-per-second. It prepares the model once per backend before warmup and
 measured runs, reporting that one-time cost as `backend_prepare_milliseconds`
-in JSON and `backend_prepare_ms` in text output. When comparing backends, each
+in JSON and `backend_prepare_ms` in text output. Each JSON run includes prompt
+and generated token pieces, so benchmark output can be matched back to tokenizer
+text fragments without a separate profile run. When comparing backends, each
 result also includes `comparison_rank`, `comparison_fastest_backend`, and
 `mean_milliseconds_delta_from_fastest` for the same requested token count. It
 accepts backend comparison, EXLA, natural sampler, context window, stop-control,
