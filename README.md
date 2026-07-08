@@ -693,6 +693,8 @@ type was found.
 Use `compatibility_issue_groups` to separate runtime, tokenizer, metadata,
 feature, tensor-feature, and tensor blockers while keeping
 `compatibility_issues` as the ordered flat list.
+Use `blocking_issue_groups` as the compact first-pass list of non-empty blocker
+categories.
 When `unsupported_features` is non-empty, inspect
 `unsupported_feature_metadata_values` to see the exact GGUF metadata values such
 as sliding-window size or RoPE scaling settings that caused the rejection. These

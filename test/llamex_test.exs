@@ -5416,6 +5416,8 @@ defmodule LlamexTest do
              tensors: ["unsupported tensor type: type_99 (1)"]
            }
 
+    assert diagnostic.blocking_issue_groups == [:tensors]
+
     assert diagnostic.tensor_shapes == [
              %{
                name: "token_embd.weight",
@@ -5498,6 +5500,8 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "tensors=unsupported tensor type: type_99 (1)"
 
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "blocking issue groups: tensors"
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "compatibility issues: unsupported tensor type: type_99 (1)"
 
@@ -5522,6 +5526,7 @@ defmodule LlamexTest do
                tensor_features: [],
                tensors: []
              },
+             blocking_issue_groups: [],
              chat_usable: false,
              chat_template_family: "none",
              chat_template_issues: [],
@@ -5849,6 +5854,8 @@ defmodule LlamexTest do
              "unsupported attention variant: sliding_window",
              "unsupported RoPE scaling: linear"
            ]
+
+    assert diagnostic.blocking_issue_groups == [:runtime, :features]
   end
 
   test "diagnoses missing required gguf tensors" do

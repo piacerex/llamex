@@ -23,6 +23,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :loadable?,
     :compatibility_issues,
     :compatibility_issue_groups,
+    :blocking_issue_groups,
     :chat_usable,
     :chat_template_family,
     :chat_template_issues,
@@ -254,6 +255,10 @@ defmodule Llamex.GGUF.Diagnostic do
       unsupported_tensors: unsupported_tensors(gguf.tensors),
       compatibility_issues: compatibility_issues(gguf.metadata, gguf.tensors),
       compatibility_issue_groups: compatibility_issue_groups(gguf.metadata, gguf.tensors),
+      blocking_issue_groups:
+        gguf.metadata
+        |> compatibility_issue_groups(gguf.tensors)
+        |> blocking_issue_groups(),
       loadable?: loadable?(gguf.metadata, gguf.tensors)
     }
   end
@@ -291,6 +296,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "loadable: #{diagnostic.loadable?}",
       "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
       "compatibility issue groups: #{format_compatibility_issue_groups(diagnostic.compatibility_issue_groups)}",
+      "blocking issue groups: #{format_blocking_issue_groups(diagnostic.blocking_issue_groups)}",
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer model: #{diagnostic.tokenizer_model || "unknown"}",
@@ -587,6 +593,11 @@ defmodule Llamex.GGUF.Diagnostic do
         |> add_tensor_type_issues(tensors)
         |> Enum.reverse()
     }
+  end
+
+  defp blocking_issue_groups(groups) do
+    [:runtime, :tokenizer, :metadata, :features, :tensor_features, :tensors]
+    |> Enum.filter(fn group -> Map.fetch!(groups, group) != [] end)
   end
 
   defp add_architecture_issue(issues, metadata) do
@@ -1106,6 +1117,9 @@ defmodule Llamex.GGUF.Diagnostic do
     end)
     |> Enum.join(", ")
   end
+
+  defp format_blocking_issue_groups([]), do: "none"
+  defp format_blocking_issue_groups(groups), do: Enum.join(groups, ", ")
 
   defp format_missing_required_metadata([]), do: "none"
 
