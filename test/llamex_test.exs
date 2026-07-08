@@ -6102,6 +6102,11 @@ defmodule LlamexTest do
 
       assert output =~ "blocking issue groups: tensors"
       assert output =~ "compatibility issues: unsupported tensor type: type_99 (1)"
+
+      assert output =~
+               "compatibility issue groups: features=none, metadata=none, runtime=none"
+
+      assert output =~ "tensors=unsupported tensor type: type_99 (1)"
       assert output =~ "tokenizer model: llama"
       assert output =~ "tokenizer model supported: true"
       assert output =~ "pre-tokenizer: unknown"

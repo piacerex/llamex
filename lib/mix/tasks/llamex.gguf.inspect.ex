@@ -156,6 +156,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "loadable: #{summary.loadable?}",
       "blocking issue groups: #{format_atoms(summary.blocking_issue_groups)}",
       "compatibility issues: #{format_list(summary.compatibility_issues)}",
+      "compatibility issue groups: #{format_issue_groups(summary.compatibility_issue_groups)}",
       "tokenizer model: #{summary.tokenizer_model || "unknown"}",
       "tokenizer model supported: #{summary.tokenizer_model_supported?}",
       "pre-tokenizer: #{summary.pre_tokenizer || "unknown"}",
@@ -255,6 +256,16 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     values
     |> Enum.sort()
     |> Enum.map(fn {key, value} -> "#{key}=#{value}" end)
+    |> Enum.join(", ")
+  end
+
+  defp format_issue_groups(groups) do
+    groups
+    |> Enum.sort()
+    |> Enum.map(fn {group, issues} ->
+      issues = if issues == [], do: "none", else: Enum.join(issues, "; ")
+      "#{group}=#{issues}"
+    end)
     |> Enum.join(", ")
   end
 
