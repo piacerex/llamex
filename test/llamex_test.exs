@@ -4163,6 +4163,39 @@ defmodule LlamexTest do
     end
   end
 
+  test "generate task rejects special stop tokens without a tokenizer" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-no-special-tokenizer-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 2, "embedding_size" => 1},
+      "token_embeddings" => %{
+        "0" => [0.0],
+        "1" => [1.0]
+      }
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      assert_raise Mix.Error, ~r/--stop-special requires a model tokenizer/, fn ->
+        Mix.Tasks.Llamex.Generate.run([
+          path,
+          "hello",
+          "1",
+          "--profile",
+          "--stop-special",
+          "eos"
+        ])
+      end
+    after
+      File.rm(path)
+    end
+  end
+
   test "generate task can stop on generated control tokens" do
     path =
       Path.join(
