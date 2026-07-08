@@ -115,6 +115,14 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.decode(tokenizer, [1, 2]) == "hello world"
   end
 
+  test "encodes and decodes Japanese prompts with the minimal tokenizer" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "こんにちは" => 1, "世界" => 2}, "<unk>")
+
+    assert Llamex.Tokenizer.encode(tokenizer, "こんにちは 世界") == [1, 2]
+    assert Llamex.Tokenizer.encode(tokenizer, "こんにちは 未知語") == [1, 0]
+    assert Llamex.Tokenizer.decode(tokenizer, [1, 2]) == "こんにちは 世界"
+  end
+
   test "encodes text with the minimal bpe tokenizer" do
     tokenizer =
       Llamex.Tokenizer.bpe(
@@ -1550,6 +1558,46 @@ defmodule LlamexTest do
     assert result.prepared? == false
     assert result.sampler == %{temperature: 1.0, top_k: 1, seed: 42}
     assert result.text == "world"
+  end
+
+  test "generates text from a Japanese prompt" do
+    tokenizer =
+      Llamex.Tokenizer.new(
+        %{"<unk>" => 0, "こんにちは" => 1, "世界" => 2, "です" => 3},
+        "<unk>"
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 4, embedding_size: 3},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0, 0.0],
+          1 => [1.0, 0.0, 0.0],
+          2 => [0.0, 1.0, 0.0],
+          3 => [0.0, 0.0, 1.0]
+        },
+        output: %{
+          weight: [
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [0.0, 3.0, 0.0]
+          ]
+        }
+      })
+
+    result =
+      Llamex.generate(model, "こんにちは", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 2,
+        stop_token: 3
+      })
+
+    assert result.prompt_tokens == [1]
+    assert result.generated_tokens == [2, 3]
+    assert result.text == "世界 です"
+    assert result.finish_reason == :stop
   end
 
   test "generation rejects invalid sampler seeds" do
