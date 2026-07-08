@@ -6,13 +6,26 @@ defmodule Llamex.GGUF.ModelLoader do
   """
 
   def load(path) when is_binary(path) do
+    load(path, [])
+  end
+
+  def load(path, opts) when is_binary(path) and is_list(opts) do
     binary = File.read!(path)
     gguf = Llamex.GGUF.Reader.read_binary(binary)
     validate_loadable!(gguf)
 
-    gguf
-    |> to_model_map(binary)
-    |> Llamex.ModelLoader.from_map()
+    model_map = to_model_map(gguf, binary, opts)
+
+    case Keyword.get(opts, :tensor_format, :dequantized) do
+      :compact ->
+        Llamex.ModelLoader.from_compact_map(model_map)
+
+      :dequantized ->
+        Llamex.ModelLoader.from_map(model_map)
+
+      tensor_format ->
+        raise ArgumentError, "unsupported GGUF tensor format: #{inspect(tensor_format)}"
+    end
   end
 
   def to_model_map(%Llamex.GGUF.Reader{} = gguf, binary) when is_binary(binary) do

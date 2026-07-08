@@ -5867,6 +5867,34 @@ defmodule LlamexTest do
     assert is_binary(result.text)
   end
 
+  test "loads compact q4_0 gguf models through loader option" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-compact-q4-0-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_q4_0_matrix_tensor_data))
+
+      model = Llamex.GGUF.ModelLoader.load(path, tensor_format: :compact)
+
+      assert model.config.vocab_size == 2
+      assert model.config.embedding_size == 32
+
+      result =
+        Llamex.generate(model, "hello", %{
+          backend: Llamex.Backend.List,
+          max_new_tokens: 1,
+          sampler: :greedy
+        })
+
+      assert length(result.generated_tokens) == 1
+    after
+      File.rm(path)
+    end
+  end
+
   test "rejects non-compact model maps in the compact loader path" do
     binary = tiny_gguf(:with_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(binary)

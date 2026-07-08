@@ -182,6 +182,8 @@ GGUF モデル読み込み
   opt-in で構築でき、compact Q4_0 token embeddings を遅延展開できる。
 - compact Q4_0 token embeddings から構築した最小 `Model` は List backend で
   1 token generation smoke を通せる。
+- `Llamex.GGUF.ModelLoader.load/2` は `tensor_format: :compact` で GGUF file から
+  compact Q4_0 embedding path を opt-in でロードできる。
 - chat template は ChatML / role marker / Llama header / Gemma turn marker に加え、
   Mistral・Llama2 系の `[INST]...[/INST]` marker を診断・適用できる。
 - `Llamex.Backend.FPGA.capabilities/0` で FPGA backend の fallback 状態、

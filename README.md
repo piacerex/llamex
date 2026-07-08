@@ -807,6 +807,8 @@ embedding map from compact Q4_0 `token_embd.weight` on demand.
 model map by lazily dequantizing compact Q4_0 token embeddings.
 That opt-in compact model path is smoke-tested through one-token generation on
 the List backend.
+`Llamex.GGUF.ModelLoader.load/2` accepts `tensor_format: :compact` for the same
+compact Q4_0 embedding path when loading from a GGUF file.
 Chat template support includes ChatML, role markers, Llama header markers,
 Gemma turn markers, and Mistral/Llama2-style `[INST]...[/INST]` markers.
 With `--json`, multiple GGUF paths can be inspected in one command for model
