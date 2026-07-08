@@ -7383,6 +7383,52 @@ defmodule LlamexTest do
     assert model_map["config"]["rope_theta"] == 10_000.0
   end
 
+  test "selects architecture-prefixed gguf model config metadata" do
+    metadata =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        context_size: 32,
+        tensors: [
+          {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+        ]
+      )
+      |> Llamex.GGUF.Reader.read_binary()
+      |> Map.fetch!(:metadata)
+
+    assert Llamex.GGUF.ModelConfig.metadata_prefix(metadata) == "gemma3"
+
+    assert Llamex.GGUF.ModelConfig.from_metadata(metadata) == %{
+             "attention_head_count" => 2,
+             "attention_head_count_kv" => 1,
+             "block_count" => 0,
+             "context_size" => 32,
+             "embedding_size" => 2,
+             "epsilon" => 1.0e-6,
+             "feed_forward_size" => 8,
+             "rope_theta" => 10_000.0,
+             "vocab_size" => 2
+           }
+  end
+
+  test "falls back to llama gguf model config metadata when architecture prefix is absent" do
+    metadata =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        metadata_prefix: "llama",
+        block_count: 0,
+        context_size: 16,
+        tensors: [
+          {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+        ]
+      )
+      |> Llamex.GGUF.Reader.read_binary()
+      |> Map.fetch!(:metadata)
+
+    assert Llamex.GGUF.ModelConfig.metadata_prefix(metadata) == "llama"
+    assert Llamex.GGUF.ModelConfig.from_metadata(metadata)["context_size"] == 16
+  end
+
   test "summarizes gemma3-prefixed model config from gguf file path" do
     path =
       Path.join(
