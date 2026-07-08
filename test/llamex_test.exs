@@ -5612,6 +5612,26 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects gguf models with unsupported rope scaling before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-incompatible-rope-scaling-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_unsupported_rope_scaling_tensor_data))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: unsupported RoPE scaling: linear",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "rejects gguf models with missing required metadata before loading tensor data" do
     path =
       Path.join(
@@ -5802,8 +5822,14 @@ defmodule LlamexTest do
   defp tiny_gguf(mode) do
     extra_metadata =
       case mode do
-        :with_unsupported_pre_tokenizer_tensor_data -> [kv_string("tokenizer.ggml.pre", "qwen2")]
-        _other -> []
+        :with_unsupported_pre_tokenizer_tensor_data ->
+          [kv_string("tokenizer.ggml.pre", "qwen2")]
+
+        :with_unsupported_rope_scaling_tensor_data ->
+          [kv_string("llama.rope.scaling.type", "linear")]
+
+        _other ->
+          []
       end
 
     metadata =
@@ -5875,6 +5901,9 @@ defmodule LlamexTest do
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_unsupported_pre_tokenizer_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_unsupported_rope_scaling_tensor_data ->
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_missing_embedding_length_tensor_data ->
