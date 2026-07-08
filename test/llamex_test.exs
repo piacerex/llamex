@@ -5931,6 +5931,54 @@ defmodule LlamexTest do
     end
   end
 
+  test "gguf inspect task can print tensor schema summary" do
+    path =
+      Path.join(System.tmp_dir!(), "llamex-schema-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_gguf(:without_tensor_data))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--schema"])
+        end)
+
+      assert output =~ "architecture: llama"
+      assert output =~ "mappings: none"
+      assert output =~ "unsupported features: none"
+      assert output =~ "issues: none"
+    after
+      File.rm(path)
+    end
+  end
+
+  test "gguf inspect task can print tensor schema summaries as json" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-schema-json-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:without_tensor_data))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--schema", "--json"])
+        end)
+
+      [summary] = JSON.decode!(String.trim(output))
+
+      assert summary["path"] == path
+      assert summary["architecture"] == "llama"
+      assert summary["mappings"] == []
+      assert summary["unsupported_features"] == []
+      assert summary["issues"] == []
+    after
+      File.rm(path)
+    end
+  end
+
   test "gguf inspect task can print supported surface without a model file" do
     output =
       capture_io(fn ->
