@@ -1699,6 +1699,39 @@ defmodule LlamexTest do
     assert result.finish_reason == :stop
   end
 
+  test "generation rejects invalid stop tokens" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "stop token must be a non-negative integer, got: -1", fn ->
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        stop_tokens: [2, -1]
+      })
+    end
+
+    assert_raise ArgumentError,
+                 "stop_tokens must be a list of non-negative integers, got: 2",
+                 fn ->
+                   Llamex.generate(model, "hello", %{
+                     backend: Llamex.Backend.List,
+                     max_new_tokens: 1,
+                     stop_tokens: 2
+                   })
+                 end
+  end
+
   test "generates until a configured stop sequence appears" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -2202,6 +2235,29 @@ defmodule LlamexTest do
         backend: Llamex.Backend.List,
         max_new_tokens: 1,
         stop_sequences: [:world]
+      })
+    end
+  end
+
+  test "generation profile rejects invalid stop tokens" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "stop token must be a non-negative integer, got: :eos", fn ->
+      Llamex.Profile.generation_steps(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        stop_token: :eos
       })
     end
   end

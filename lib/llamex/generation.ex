@@ -503,10 +503,7 @@ defmodule Llamex.Generation do
     end
   end
 
-  defp stop_tokens(%{stop_tokens: stop_tokens}) when is_list(stop_tokens), do: stop_tokens
-  defp stop_tokens(%{stop_token: nil}), do: []
-  defp stop_tokens(%{stop_token: stop_token}) when is_integer(stop_token), do: [stop_token]
-  defp stop_tokens(_opts), do: []
+  defp stop_tokens(opts), do: Llamex.StopTokens.from_options(opts)
 
   defp stop_token?(token, stop_tokens), do: token in stop_tokens
 
