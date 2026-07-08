@@ -166,6 +166,13 @@ Recognized transformer tensor names:
 - `output_norm.weight`
 - `output.weight`
 
+Gemma 3 diagnostics also recognize architecture-specific tensor names before
+runtime support is enabled. `blk.N.post_attention_norm.weight` is mapped to the
+internal `blk.N.ffn_norm.weight` schema for model-map inspection, while
+`blk.N.attn_q_norm.weight`, `blk.N.attn_k_norm.weight`, and
+`blk.N.post_ffw_norm.weight` are reported as unsupported tensor features until
+the runtime implements those extra norms.
+
 Supported tokenizer types:
 
 - `whitespace`: splits on whitespace and looks up whole tokens.
