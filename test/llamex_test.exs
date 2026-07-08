@@ -3102,6 +3102,10 @@ defmodule LlamexTest do
 
     try do
       File.write!(path, JSON.encode!(model))
+      loaded_model = Llamex.ModelLoader.load_json(path)
+
+      assert Llamex.Natural.control_stop_tokens(loaded_model) == [5, 6]
+      assert Llamex.Natural.suppressed_token_ids(loaded_model) == [0, 3, 4, 5]
 
       output =
         capture_io(fn ->
