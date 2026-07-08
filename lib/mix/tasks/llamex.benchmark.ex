@@ -207,6 +207,8 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       milliseconds_per_generated_token:
         milliseconds_per_generated_token(total_milliseconds, generated_count),
       timing_components: profile.timing_summary.components,
+      timing_top_components: profile.timing_summary.top_components,
+      timing_top_layers: profile.timing_summary.top_layers,
       prompt_eval_steps: profile.prompt_eval_steps,
       prompt_eval_summary: profile.prompt_eval_summary
     }
@@ -275,6 +277,8 @@ defmodule Mix.Tasks.Llamex.Benchmark do
           "fastest_backend=#{result.comparison_fastest_backend} " <>
           "mean_delta_ms=#{format_float(result.mean_milliseconds_delta_from_fastest)} " <>
           "tokens_per_second=#{format_float(summary.tokens_per_second.mean)} " <>
+          "top_components=#{format_run_top(result, :timing_top_components)} " <>
+          "top_layers=#{format_run_top(result, :timing_top_layers)} " <>
           "prompt_eval_top_layers=#{format_prompt_eval_top(result, :layers)} " <>
           "prompt_eval_top_components=#{format_prompt_eval_top(result, :components)}"
       )
@@ -357,6 +361,21 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       |> Map.get(key, [])
       |> Enum.map(fn %{label: label, milliseconds: milliseconds} -> {label, milliseconds} end)
     end)
+    |> format_top_entries()
+  end
+
+  defp format_run_top(result, key) do
+    result.runs
+    |> Enum.flat_map(fn run ->
+      run
+      |> Map.get(key, [])
+      |> Enum.map(fn %{label: label, milliseconds: milliseconds} -> {label, milliseconds} end)
+    end)
+    |> format_top_entries()
+  end
+
+  defp format_top_entries(entries) do
+    entries
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
     |> Enum.map(fn {label, milliseconds} -> {label, Enum.sum(milliseconds)} end)
     |> Enum.sort_by(fn {_label, milliseconds} -> milliseconds end, :desc)

@@ -3073,6 +3073,20 @@ defmodule LlamexTest do
              results,
              &Enum.all?(&1["runs"], fn run -> is_map(run["prompt_eval_summary"]) end)
            )
+
+    assert Enum.all?(
+             results,
+             &Enum.all?(&1["runs"], fn run ->
+               Enum.any?(run["timing_top_components"], fn component ->
+                 String.starts_with?(component["label"], "eval.")
+               end)
+             end)
+           )
+
+    assert Enum.all?(
+             results,
+             &Enum.all?(&1["runs"], fn run -> run["timing_top_layers"] == [] end)
+           )
   end
 
   test "benchmark task rejects invalid sampler seed option" do
@@ -3127,6 +3141,9 @@ defmodule LlamexTest do
     assert output =~ "rank=1"
     assert output =~ "fastest_backend=Llamex.Backend.List"
     assert output =~ "mean_delta_ms=0.00"
+    assert output =~ "top_components="
+    assert output =~ "eval.logits:"
+    assert output =~ "top_layers=none"
   end
 
   test "generate task profile includes configured exla target" do
