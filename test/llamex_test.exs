@@ -6027,6 +6027,56 @@ defmodule LlamexTest do
     end
   end
 
+  test "gguf inspect task can print diagnostic summary" do
+    path =
+      Path.join(System.tmp_dir!(), "llamex-summary-#{System.unique_integer([:positive])}.gguf")
+
+    try do
+      File.write!(path, tiny_gguf(:with_unsupported_tensor_type))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--summary"])
+        end)
+
+      assert output =~ "loadable: false"
+      assert output =~ "blocking issue groups: tensors"
+      assert output =~ "compatibility issues: unsupported tensor type: type_99 (1)"
+      assert output =~ "eager f32 lower bound: 16 B"
+      assert output =~ "gguf payload bytes: 0 B"
+    after
+      File.rm(path)
+    end
+  end
+
+  test "gguf inspect task can print diagnostic summaries as json" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-summary-json-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_unsupported_tensor_type))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--summary", "--json"])
+        end)
+
+      [summary] = JSON.decode!(String.trim(output))
+
+      assert summary["path"] == path
+      assert summary["loadable?"] == false
+      assert summary["blocking_issue_groups"] == ["tensors"]
+      assert summary["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
+      assert summary["eager_f32_bytes"] == 16
+      assert summary["gguf_payload_bytes"] == 0
+    after
+      File.rm(path)
+    end
+  end
+
   test "gguf inspect task can print tensor schema summary" do
     path =
       Path.join(System.tmp_dir!(), "llamex-schema-#{System.unique_integer([:positive])}.gguf")

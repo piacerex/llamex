@@ -610,6 +610,8 @@ mix llamex.gguf.inspect --supported
 mix llamex.gguf.inspect --supported --json
 mix llamex.gguf.inspect model.gguf
 mix llamex.gguf.inspect model.gguf --json
+mix llamex.gguf.inspect model.gguf --summary
+mix llamex.gguf.inspect first.gguf second.gguf --summary --json
 mix llamex.gguf.inspect model.gguf --config
 mix llamex.gguf.inspect first.gguf second.gguf --config --json
 mix llamex.gguf.inspect model.gguf --schema
