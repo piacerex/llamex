@@ -5375,6 +5375,7 @@ defmodule LlamexTest do
 
     assert diagnostic.architecture_supported? == true
     assert diagnostic.architecture_known? == true
+    assert diagnostic.architecture_runtime_status == "supported"
     assert diagnostic.tokenizer_supported? == true
     assert diagnostic.tokenizer_model == "llama"
     assert diagnostic.tokenizer_model_supported? == true
@@ -5437,6 +5438,7 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor elements: 4"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture known: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture supported: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture runtime status: supported"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "known architectures: llama, gemma3"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported architectures: llama"
 
@@ -5882,6 +5884,7 @@ defmodule LlamexTest do
              ]
 
       assert diagnostic["tokenizer_supported?"] == true
+      assert diagnostic["architecture_runtime_status"] == "supported"
       assert diagnostic["tokenizer_model"] == "llama"
       assert diagnostic["tokenizer_model_supported?"] == true
       assert diagnostic["pre_tokenizer"] == nil
@@ -6259,6 +6262,7 @@ defmodule LlamexTest do
     assert diagnostic.architecture == "gemma3"
     assert diagnostic.architecture_known? == true
     assert diagnostic.architecture_supported? == false
+    assert diagnostic.architecture_runtime_status == "known_unsupported"
     assert diagnostic.missing_required_metadata == []
     assert diagnostic.tensor_shape_issues == []
     assert diagnostic.model_config.vocab_size == 2
@@ -6276,6 +6280,7 @@ defmodule LlamexTest do
     assert formatted =~ "architecture: gemma3"
     assert formatted =~ "architecture known: true"
     assert formatted =~ "architecture supported: false"
+    assert formatted =~ "architecture runtime status: known_unsupported"
     assert formatted =~ "missing required metadata: none"
     assert formatted =~ "embedding_size=2"
     assert formatted =~ "compatibility issues: unsupported architecture runtime: gemma3"
@@ -7303,6 +7308,18 @@ defmodule LlamexTest do
     after
       File.rm(path)
     end
+  end
+
+  test "diagnoses unknown architecture runtime status" do
+    diagnostic =
+      :with_unsupported_architecture_tensor_data
+      |> tiny_gguf()
+      |> Llamex.GGUF.Diagnostic.inspect_binary()
+
+    assert diagnostic.architecture == "mistral"
+    assert diagnostic.architecture_known? == false
+    assert diagnostic.architecture_supported? == false
+    assert diagnostic.architecture_runtime_status == "unknown"
   end
 
   test "rejects gguf models with unsupported rope scaling before loading tensor data" do

@@ -158,6 +158,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_combinations: supported_combinations(),
       architecture_known?: architecture_known?(gguf.metadata),
       architecture_supported?: architecture_supported?(gguf.metadata),
+      architecture_runtime_status: architecture_runtime_status(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_model: tokenizer_model(gguf.metadata),
       tokenizer_model_supported?: tokenizer_model_supported?(gguf.metadata),
@@ -226,6 +227,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "supported combinations: #{format_supported_combinations(diagnostic.supported_combinations)}",
       "architecture known: #{diagnostic.architecture_known?}",
       "architecture supported: #{diagnostic.architecture_supported?}",
+      "architecture runtime status: #{diagnostic.architecture_runtime_status}",
       "supported tokenizers: #{Enum.join(diagnostic.supported_tokenizers, ", ")}",
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
       "supported tokenizer models: #{Enum.join(diagnostic.supported_tokenizer_models, ", ")}",
@@ -327,6 +329,14 @@ defmodule Llamex.GGUF.Diagnostic do
     metadata
     |> metadata_value("general.architecture")
     |> then(&(&1 in @supported_architectures))
+  end
+
+  defp architecture_runtime_status(metadata) do
+    cond do
+      architecture_supported?(metadata) -> "supported"
+      architecture_known?(metadata) -> "known_unsupported"
+      true -> "unknown"
+    end
   end
 
   defp tokenizer_supported?(metadata) do

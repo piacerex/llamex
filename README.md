@@ -633,8 +633,8 @@ Llamex.GGUF.ModelLoader.tensor_schema_summary_file("model.gguf")
 `Llamex.GGUF.Reader` when caller code wants to reuse metadata.
 
 The inspection output includes supported architecture/tokenizer/tensor type
-combinations, special tokens, tokenizer `add_bos` / `add_eos` flags, chat
-template support/family, missing marker tokens, tokenizer model
+combinations, architecture runtime status, special tokens, tokenizer `add_bos` /
+`add_eos` flags, chat template support/family, missing marker tokens, tokenizer model
 support/kind/merge counts, score counts, tokenizer metadata issues, token type
 counts, mapped Llama model config, missing model config metadata,
 unsupported attention/RoPE feature metadata, plus representative raw GGUF
