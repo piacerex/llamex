@@ -182,7 +182,8 @@ features from blockers that still prevent loading, and
 `blocked_runtime_features` for direct loadability checks.
 Models whose `runtime_capability.loadable?` is false are rejected by
 `prepare_model`, `prefill`, `generate`, and streaming entry points before backend
-execution starts.
+execution starts. `Llamex.GGUF.ModelLoader.load/1` also reports blocked runtime
+features before tensor loading.
 Use `Llamex.RuntimeCapability.loadable?/1`, `blocker_ids/1`, and
 `blockers_by_component/1` to inspect those runtime gaps from either a model or a
 runtime capability map. `feature_status/1` and `blocked_features/1` expose the

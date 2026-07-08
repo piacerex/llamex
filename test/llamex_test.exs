@@ -8203,7 +8203,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_unsupported_architecture_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported architecture: mistral (blocking issue groups: runtime)",
+                   "GGUF model is not loadable by Llamex: unsupported architecture: mistral (blocking issue groups: runtime) (blocked runtime features: architecture_runtime)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -8233,7 +8233,7 @@ defmodule LlamexTest do
       File.write!(path, gguf)
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported architecture runtime: gemma3 (blocking issue groups: runtime) (architecture runtime blockers: architecture runtime not implemented)",
+                   "GGUF model is not loadable by Llamex: unsupported architecture runtime: gemma3 (blocking issue groups: runtime) (architecture runtime blockers: architecture runtime not implemented) (blocked runtime features: architecture_runtime)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -8265,7 +8265,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_unsupported_rope_scaling_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported RoPE scaling: linear (blocking issue groups: features)",
+                   "GGUF model is not loadable by Llamex: unsupported RoPE scaling: linear (blocking issue groups: features) (blocked runtime features: rope_variant)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -8285,7 +8285,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_sliding_window_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported attention variant: sliding_window (blocking issue groups: features)",
+                   "GGUF model is not loadable by Llamex: unsupported attention variant: sliding_window (blocking issue groups: features) (blocked runtime features: attention_variant)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end

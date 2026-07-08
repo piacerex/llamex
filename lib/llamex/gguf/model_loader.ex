@@ -121,7 +121,7 @@ defmodule Llamex.GGUF.ModelLoader do
         |> Enum.join(", ")
 
       raise ArgumentError,
-            "GGUF model is not loadable by Llamex: #{issues} (blocking issue groups: #{blocking_groups})#{runtime_blockers_suffix(diagnostic)}"
+            "GGUF model is not loadable by Llamex: #{issues} (blocking issue groups: #{blocking_groups})#{runtime_blockers_suffix(diagnostic)}#{blocked_runtime_features_suffix(diagnostic)}"
     end
   end
 
@@ -129,6 +129,15 @@ defmodule Llamex.GGUF.ModelLoader do
 
   defp runtime_blockers_suffix(%{architecture_runtime_blockers: blockers}) do
     " (architecture runtime blockers: #{Enum.join(blockers, "; ")})"
+  end
+
+  defp blocked_runtime_features_suffix(%{runtime_capability: %{blocked_runtime_features: []}}),
+    do: ""
+
+  defp blocked_runtime_features_suffix(%{
+         runtime_capability: %{blocked_runtime_features: features}
+       }) do
+    " (blocked runtime features: #{features |> Enum.map(&Atom.to_string/1) |> Enum.join(", ")})"
   end
 
   defp metadata_value(metadata, key, default) do
