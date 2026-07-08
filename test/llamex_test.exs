@@ -2533,7 +2533,11 @@ defmodule LlamexTest do
 
     profile = Llamex.Profile.prefill_steps(model, "hello world", %{backend: Llamex.Backend.List})
 
+    assert profile.backend == Llamex.Backend.List
+    assert profile.exla == nil
+    assert profile.prepared? == false
     assert profile.prompt_tokens == [1, 2]
+    assert profile.prompt_pieces == ["hello", "world"]
     assert profile.current_token == 2
     assert profile.current_piece == "world"
     assert profile.context_tokens == [1]

@@ -85,7 +85,11 @@ defmodule Llamex.Profile do
       end)
 
     %{
+      backend: context.backend,
+      exla: exla_info(context.backend),
+      prepared?: profile_prepared?(model, opts),
       prompt_tokens: prompt_tokens,
+      prompt_pieces: token_pieces(display_model, prompt_tokens),
       original_prompt_token_count: length(original_prompt_tokens),
       context_window: context_window,
       prompt_truncated?: length(prompt_tokens) < length(original_prompt_tokens),

@@ -681,6 +681,9 @@ Llamex.Profile.generation_step(model, "hello", %{backend: Llamex.Backend.List})
 
 The result includes prompt token IDs/pieces, sampled token info/text, prefill
 timings, and step timings.
+Use `Llamex.Profile.prefill_steps/3` when you only need prompt-eval timings; it
+reports backend, EXLA target metadata, prepared status, prompt token IDs/pieces,
+and per-token prefill timings.
 Profile JSON includes `timing_summary.top_components` and
 `timing_summary.top_layers` sorted by elapsed milliseconds. Use those fields to
 pick the next backend optimization target from the measured run instead of
