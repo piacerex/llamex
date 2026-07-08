@@ -3057,6 +3057,27 @@ defmodule LlamexTest do
     assert Enum.all?(results, &Enum.all?(&1["warmups"], fn run -> run["phase"] == "warmup" end))
     assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["prepared?"] == true end))
     assert Enum.all?(results, &Enum.all?(&1["warmups"], fn run -> run["prepared?"] == true end))
+    assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["prompt_tokens"] == 1 end))
+
+    assert Enum.all?(
+             results,
+             &Enum.all?(&1["runs"], fn run -> run["original_prompt_token_count"] == 1 end)
+           )
+
+    assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["context_window"] == nil end))
+
+    assert Enum.all?(
+             results,
+             &Enum.all?(&1["runs"], fn run -> run["prompt_truncated?"] == false end)
+           )
+
+    assert Enum.all?(
+             results,
+             &Enum.all?(&1["runs"], fn run ->
+               run["effective_max_new_tokens"] == run["requested_max_new_tokens"]
+             end)
+           )
+
     assert Enum.all?(results, &Enum.all?(&1["runs"], fn run -> run["sampler"]["seed"] == 42 end))
 
     assert Enum.all?(
@@ -3087,6 +3108,37 @@ defmodule LlamexTest do
              results,
              &Enum.all?(&1["runs"], fn run -> run["timing_top_layers"] == [] end)
            )
+  end
+
+  test "benchmark task JSON reports context window limits" do
+    output =
+      capture_io(fn ->
+        Mix.Tasks.Llamex.Benchmark.run([
+          "priv/models/tiny.json",
+          "--json",
+          "--prompt",
+          "hello world",
+          "--tokens",
+          "3",
+          "--backend",
+          "list",
+          "--context-window",
+          "1",
+          "--repeat",
+          "1"
+        ])
+      end)
+
+    [result] = JSON.decode!(String.trim(output))
+    [run] = result["runs"]
+
+    assert run["requested_max_new_tokens"] == 3
+    assert run["effective_max_new_tokens"] == 1
+    assert run["prompt_tokens"] == 1
+    assert run["original_prompt_token_count"] == 2
+    assert run["context_window"] == 1
+    assert run["prompt_truncated?"] == true
+    assert run["finish_reason"] == "context_window"
   end
 
   test "benchmark task rejects invalid sampler seed option" do
