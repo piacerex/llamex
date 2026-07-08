@@ -145,6 +145,8 @@ GGUF モデル読み込み
   README でも natural smoke の GGUF diagnostic 出力を明示している。
 - `compact_weight_estimate` で現在の eager F32 bytes、GGUF payload bytes、
   possible savings、expansion ratio をまとめて確認できる。
+- generate profile、benchmark、natural smoke の GGUF JSON artifact で
+  `compact_weight_estimate` を確認できることをテストで固定している。
 
 ## gemma3対応
 

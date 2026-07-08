@@ -3699,6 +3699,13 @@ defmodule LlamexTest do
       assert profile["model_diagnostic"]["gguf_payload_bytes"] == 40
       assert profile["model_diagnostic"]["eager_f32_expansion_ratio"] == 1.0
 
+      assert profile["model_diagnostic"]["compact_weight_estimate"] == %{
+               "current_eager_f32_bytes" => 40,
+               "compact_payload_bytes" => 40,
+               "possible_savings_bytes" => 0,
+               "eager_f32_expansion_ratio" => 1.0
+             }
+
       assert profile["model_diagnostic"]["tensor_payload_by_type"]["F32"] == %{
                "tensors" => 3,
                "elements" => 10,
@@ -3951,6 +3958,14 @@ defmodule LlamexTest do
       assert result["model_diagnostic"]["eager_f32_bytes"] == 40
       assert result["model_diagnostic"]["gguf_payload_bytes"] == 40
       assert result["model_diagnostic"]["eager_f32_expansion_ratio"] == 1.0
+
+      assert result["model_diagnostic"]["compact_weight_estimate"] == %{
+               "current_eager_f32_bytes" => 40,
+               "compact_payload_bytes" => 40,
+               "possible_savings_bytes" => 0,
+               "eager_f32_expansion_ratio" => 1.0
+             }
+
       assert result["model_diagnostic"] == run["model_diagnostic"]
 
       assert result["model_diagnostic"]["tensor_payload_by_type"]["F32"] == %{
@@ -4515,6 +4530,12 @@ defmodule LlamexTest do
       assert Enum.all?(results, &(&1["model_diagnostic"]["architecture"] == "gemma3"))
       assert Enum.all?(results, &(&1["model_diagnostic"]["loadable?"] == true))
       assert Enum.all?(results, &(&1["model_diagnostic"]["eager_f32_expansion_ratio"] == 1.0))
+
+      assert Enum.all?(
+               results,
+               &(&1["model_diagnostic"]["compact_weight_estimate"]["possible_savings_bytes"] == 0)
+             )
+
       assert Enum.map(results, & &1["text"]) == ["world", "です"]
       assert Enum.map(results, & &1["ok"]) == [true, true]
       assert Enum.map(results, & &1["issues"]) == [[], []]
