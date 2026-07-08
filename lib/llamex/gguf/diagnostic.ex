@@ -353,6 +353,7 @@ defmodule Llamex.GGUF.Diagnostic do
   defp tokenizer_metadata_issues(metadata) do
     []
     |> add_tokenizer_scores_issue(metadata)
+    |> add_tokenizer_token_type_issue(metadata)
     |> Enum.reverse()
   end
 
@@ -362,6 +363,20 @@ defmodule Llamex.GGUF.Diagnostic do
       {%{values: tokens}, %{values: scores}} when length(tokens) != length(scores) ->
         [
           "tokenizer score count mismatch: tokens=#{length(tokens)} scores=#{length(scores)}"
+          | issues
+        ]
+
+      _other ->
+        issues
+    end
+  end
+
+  defp add_tokenizer_token_type_issue(issues, metadata) do
+    case {metadata_value(metadata, "tokenizer.ggml.tokens"),
+          metadata_value(metadata, "tokenizer.ggml.token_type")} do
+      {%{values: tokens}, %{values: token_types}} when length(tokens) != length(token_types) ->
+        [
+          "tokenizer token_type count mismatch: tokens=#{length(tokens)} token_types=#{length(token_types)}"
           | issues
         ]
 

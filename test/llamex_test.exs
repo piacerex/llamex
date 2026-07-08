@@ -6391,6 +6391,20 @@ defmodule LlamexTest do
              "tokenizer metadata issues: tokenizer score count mismatch: tokens=6 scores=2"
   end
 
+  test "diagnoses tokenizer token type count mismatches" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_bpe_token_type_mismatch_gguf())
+
+    assert diagnostic.tokenizer_token_count == 6
+    assert diagnostic.tokenizer_token_types == %{"unknown" => 1, "normal" => 1}
+
+    assert diagnostic.tokenizer_metadata_issues == [
+             "tokenizer token_type count mismatch: tokens=6 token_types=2"
+           ]
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "tokenizer metadata issues: tokenizer token_type count mismatch: tokens=6 token_types=2"
+  end
+
   test "builds a bpe tokenizer with gguf special token metadata" do
     parsed = Llamex.GGUF.Reader.read_binary(tiny_bpe_special_token_gguf())
 
@@ -7903,6 +7917,26 @@ defmodule LlamexTest do
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "l", "o", "w", "lo", "low"]),
       kv_array_string("tokenizer.ggml.merges", ["l o", "lo w"]),
       kv_array_f32("tokenizer.ggml.scores", [0.0, -1.0]),
+      kv_u32("tokenizer.ggml.unknown_token_id", 0)
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_bpe_token_type_mismatch_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_string("tokenizer.ggml.model", "gpt2"),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "l", "o", "w", "lo", "low"]),
+      kv_array_string("tokenizer.ggml.merges", ["l o", "lo w"]),
+      kv_array_u32("tokenizer.ggml.token_type", [2, 1]),
       kv_u32("tokenizer.ggml.unknown_token_id", 0)
     ]
 
