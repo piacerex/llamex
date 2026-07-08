@@ -162,6 +162,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "model config metadata prefix: #{summary.model_config_metadata_prefix}",
       "missing model config metadata: #{format_model_config_missing_metadata(summary.missing_model_config_metadata)}",
       "chat usable: #{summary.chat_usable}",
+      "chat template: #{summary.chat_template}",
       "chat template family: #{summary.chat_template_family}",
       "chat template missing tokens: #{format_list(summary.missing_chat_template_tokens)}",
       "tokenizer metadata issues: #{format_list(summary.tokenizer_metadata_issues)}",

@@ -5534,6 +5534,7 @@ defmodule LlamexTest do
              pre_tokenizer: nil,
              pre_tokenizer_supported?: true,
              chat_usable: false,
+             chat_template: "none",
              chat_template_family: "none",
              missing_chat_template_tokens: [],
              chat_template_issues: [],
@@ -6061,6 +6062,7 @@ defmodule LlamexTest do
                "missing model config metadata: epsilon: llama.attention.layer_norm_rms_epsilon"
 
       assert output =~ "chat template missing tokens: none"
+      assert output =~ "chat template: none"
       assert output =~ "tensor schema mappings: none"
       assert output =~ "eager f32 lower bound: 16 B"
       assert output =~ "gguf payload bytes: 0 B"
@@ -6093,6 +6095,7 @@ defmodule LlamexTest do
       assert summary["tokenizer_model_supported?"] == true
       assert summary["pre_tokenizer"] == nil
       assert summary["pre_tokenizer_supported?"] == true
+      assert summary["chat_template"] == "none"
       assert summary["missing_chat_template_tokens"] == []
       assert summary["loadable?"] == false
       assert summary["blocking_issue_groups"] == ["tensors"]
