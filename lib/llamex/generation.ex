@@ -253,6 +253,7 @@ defmodule Llamex.Generation do
     %{
       text: Llamex.decode(model, generated_tokens),
       prompt_tokens: prompt_tokens,
+      prompt_pieces: token_pieces(model, prompt_tokens),
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
       prompt_truncated?: state.prompt_truncated?,
@@ -261,6 +262,7 @@ defmodule Llamex.Generation do
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
       generated_tokens: generated_tokens,
+      generated_pieces: token_pieces(model, generated_tokens),
       sampler: sampler,
       finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
       context: context
@@ -340,6 +342,7 @@ defmodule Llamex.Generation do
     %{
       text: Llamex.decode(model, generated_tokens),
       prompt_tokens: prompt_tokens,
+      prompt_pieces: token_pieces(model, prompt_tokens),
       original_prompt_token_count: state.original_prompt_token_count,
       context_window: state.context_window,
       prompt_truncated?: state.prompt_truncated?,
@@ -348,6 +351,7 @@ defmodule Llamex.Generation do
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: effective_max_new_tokens,
       generated_tokens: generated_tokens,
+      generated_pieces: token_pieces(model, generated_tokens),
       sampler: sampler,
       finish_reason: finish_reason(finish_reason, max_new_tokens, effective_max_new_tokens),
       context: context
@@ -503,6 +507,12 @@ defmodule Llamex.Generation do
   defp stop_token?(token, stop_tokens), do: token in stop_tokens
 
   defp stop_sequences(opts), do: Llamex.StopSequences.from_options(opts)
+
+  defp token_pieces(%{tokenizer: %{id_to_token: id_to_token}}, token_ids) do
+    Enum.map(token_ids, &Map.get(id_to_token, &1, Integer.to_string(&1)))
+  end
+
+  defp token_pieces(_model, token_ids), do: Enum.map(token_ids, &Integer.to_string/1)
 
   defp stop_sequence?(_text, []), do: false
 

@@ -50,6 +50,8 @@ defmodule LlamexTest do
       })
 
     assert result.text == "world"
+    assert result.prompt_pieces == ["hello"]
+    assert result.generated_pieces == ["world"]
     assert result.context.backend == Llamex.Backend.List
   end
 
@@ -1551,6 +1553,8 @@ defmodule LlamexTest do
       })
 
     assert result.generated_tokens == [2]
+    assert result.prompt_pieces == ["A", "B"]
+    assert result.generated_pieces == ["C"]
     assert result.requested_max_new_tokens == 3
     assert result.effective_max_new_tokens == 1
     assert result.finish_reason == :context_window

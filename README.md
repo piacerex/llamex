@@ -492,6 +492,10 @@ IO.inspect DateTime.diff(DateTime.utc_now(), start_time, :second) / 60
 result.text
 ```
 
+Generation results also include `prompt_pieces` and `generated_pieces` so token
+IDs can be matched back to tokenizer text fragments without running a separate
+profile command.
+
 #### Prepared Chat Generation
 
 Use `generate_chat/3` when the tokenizer has a supported chat template. It
