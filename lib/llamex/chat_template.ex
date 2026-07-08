@@ -7,14 +7,38 @@ defmodule Llamex.ChatTemplate do
 
   @chatml_template "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
   @supported_roles ["system", "user", "assistant"]
+  @supported_families ["chatml", "role_markers", "llama_header_markers"]
 
   def supported_roles, do: @supported_roles
+
+  def supported_families, do: @supported_families
 
   def supported?(nil), do: true
   def supported?(@chatml_template), do: true
 
   def supported?(template) when is_binary(template) do
     role_marker_template?(template) or header_marker_template?(template)
+  end
+
+  def family(nil), do: "none"
+
+  def family(template) when is_binary(template) do
+    cond do
+      not supported?(template) ->
+        "unsupported"
+
+      chatml_template?(template) ->
+        "chatml"
+
+      header_marker_template?(template) ->
+        "llama_header_markers"
+
+      role_marker_template?(template) ->
+        "role_markers"
+
+      true ->
+        "supported"
+    end
   end
 
   def markers(nil), do: []
@@ -89,6 +113,11 @@ defmodule Llamex.ChatTemplate do
     String.contains?(template, "<|user|>") and
       String.contains?(template, "<|assistant|>") and
       String.contains?(template, "eos_token")
+  end
+
+  defp chatml_template?(template) do
+    String.contains?(template, "<|im_start|>") and
+      String.contains?(template, "<|im_end|>")
   end
 
   defp header_marker_template?(template) do

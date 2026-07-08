@@ -350,6 +350,25 @@ defmodule LlamexTest do
            }) == ["<|im_end|>"]
   end
 
+  test "classifies chat template families" do
+    assert Llamex.ChatTemplate.supported_families() == [
+             "chatml",
+             "role_markers",
+             "llama_header_markers"
+           ]
+
+    assert Llamex.ChatTemplate.family(nil) == "none"
+    assert Llamex.ChatTemplate.family(chatml_template()) == "chatml"
+    assert Llamex.ChatTemplate.family(role_marker_template()) == "role_markers"
+    assert Llamex.ChatTemplate.family(system_role_marker_template()) == "role_markers"
+    assert Llamex.ChatTemplate.family(llama_header_template()) == "llama_header_markers"
+
+    assert Llamex.ChatTemplate.family(llama_header_with_begin_template()) ==
+             "llama_header_markers"
+
+    assert Llamex.ChatTemplate.family("{{ messages | unsupported_filter }}") == "unsupported"
+  end
+
   test "applies role marker chat templates with tokenizer eos token" do
     tokenizer =
       Llamex.Tokenizer.whitespace(

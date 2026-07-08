@@ -7,7 +7,6 @@ defmodule Llamex.GGUF.Diagnostic do
   @supported_tokenizers ["whitespace", "bpe"]
   @supported_tokenizer_models ["llama", "gpt2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
-  @supported_chat_templates ["chatml", "role_markers", "llama_header_markers"]
   @unsupported_feature_metadata [
     "llama.attention.sliding_window",
     "llama.rope.scaling.type"
@@ -40,7 +39,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def supported_pre_tokenizers, do: @supported_pre_tokenizers
 
-  def supported_chat_templates, do: @supported_chat_templates
+  def supported_chat_templates, do: Llamex.ChatTemplate.supported_families()
 
   def unsupported_feature_metadata, do: @unsupported_feature_metadata
 
@@ -488,32 +487,9 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp chat_template_family(metadata) do
-    case metadata_value(metadata, "tokenizer.chat_template") do
-      nil ->
-        "none"
-
-      template ->
-        cond do
-          not Llamex.ChatTemplate.supported?(template) ->
-            "unsupported"
-
-          String.contains?(template, "<|im_start|>") and
-              String.contains?(template, "<|im_end|>") ->
-            "chatml"
-
-          String.contains?(template, "<|start_header_id|>") and
-            String.contains?(template, "<|end_header_id|>") and
-              String.contains?(template, "<|eot_id|>") ->
-            "llama_header_markers"
-
-          String.contains?(template, "<|user|>") and
-              String.contains?(template, "<|assistant|>") ->
-            "role_markers"
-
-          true ->
-            "supported"
-        end
-    end
+    metadata
+    |> metadata_value("tokenizer.chat_template")
+    |> Llamex.ChatTemplate.family()
   end
 
   defp chat_usable?("supported", []), do: true
