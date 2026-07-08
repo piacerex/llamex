@@ -7534,6 +7534,92 @@ defmodule LlamexTest do
     end
   end
 
+  test "gguf inspect task can print gemma3 json diagnostics" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-gemma3-inspect-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    gguf =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        context_size: 32,
+        feed_forward_size: 16,
+        epsilon: 1.0e-5,
+        rope_theta: 1_000_000.0,
+        rope_dimension_count: 2,
+        tokens: ["<unk>", "hello", "<start_of_turn>", "<end_of_turn>", "user", "model"],
+        extra_metadata: [
+          kv_string("tokenizer.ggml.model", "llama"),
+          kv_string("tokenizer.ggml.pre", "llama-bpe"),
+          kv_string("tokenizer.ggml.chat_template", gemma_turn_template()),
+          kv_u32("tokenizer.ggml.eos_token_id", 3)
+        ],
+        tensors: [
+          {"token_embd.weight", [2, 6],
+           [1.0, 0.0, 0.0, 1.0, 0.5, 0.5, 0.25, 0.25, 0.2, 0.8, 0.0, 1.0]}
+        ]
+      )
+
+    try do
+      File.write!(path, gguf)
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Gguf.Inspect.run([path, "--json"])
+        end)
+
+      [diagnostic] = JSON.decode!(String.trim(output))
+
+      assert diagnostic["path"] == path
+      assert diagnostic["architecture"] == "gemma3"
+      assert diagnostic["architecture_runtime_status"] == "supported"
+      assert diagnostic["loadable?"] == true
+      assert diagnostic["compatibility_issues"] == []
+      assert diagnostic["blocking_issue_groups"] == []
+
+      assert diagnostic["model_combination"] == %{
+               "architecture" => "gemma3",
+               "runtime_status" => "supported",
+               "tokenizer_kind" => "whitespace",
+               "tokenizer_model" => "llama",
+               "pre_tokenizer" => "llama-bpe",
+               "tensor_types" => ["F32"]
+             }
+
+      assert diagnostic["runtime_capability"]["loadable?"] == true
+      assert diagnostic["runtime_capability"]["runtime_status"] == "supported"
+      assert diagnostic["runtime_capability"]["blocked_runtime_features"] == []
+      assert diagnostic["runtime_capability"]["attention_variant"] == %{"type" => "full"}
+      assert diagnostic["runtime_capability"]["rope_variant"] == %{"type" => "default"}
+
+      assert diagnostic["attention_variant"] == %{"type" => "full"}
+      assert diagnostic["rope_variant"] == %{"type" => "default"}
+      assert diagnostic["tokenizer_model"] == "llama"
+      assert diagnostic["pre_tokenizer"] == "llama-bpe"
+      assert diagnostic["chat_template"] == "supported"
+      assert diagnostic["chat_template_family"] == "gemma_turn_markers"
+      assert diagnostic["chat_usable"] == true
+      assert diagnostic["missing_chat_template_tokens"] == []
+      assert diagnostic["special_tokens"] == %{"eos" => %{"id" => 3, "piece" => "<end_of_turn>"}}
+
+      assert diagnostic["model_config_metadata_prefix"] == "gemma3"
+      assert diagnostic["model_config"]["context_size"] == 32
+      assert diagnostic["model_config"]["feed_forward_size"] == 16
+      assert_in_delta diagnostic["model_config"]["epsilon"], 1.0e-5, 1.0e-10
+      assert diagnostic["model_config"]["rope_theta"] == 1_000_000.0
+      assert diagnostic["model_config"]["rope_dimension_count"] == 2
+
+      assert diagnostic["tensor_schema_mappings"] == []
+      assert diagnostic["tensor_schema_issues"] == []
+      assert diagnostic["tensor_shape_issues"] == []
+    after
+      File.rm(path)
+    end
+  end
+
   test "gguf inspect task can print json diagnostics for multiple files" do
     first =
       Path.join(System.tmp_dir!(), "llamex-inspect-a-#{System.unique_integer([:positive])}.gguf")
