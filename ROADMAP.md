@@ -164,6 +164,8 @@ GGUF モデル読み込み
   量子化 weight 保持形式を選択できる。
 - `Llamex.TensorStore` は compact tensor payload を識別し、標準の dequantized
   model loader 経路では明示拒否するため、compact backend 境界が曖昧にならない。
+- chat template は ChatML / role marker / Llama header / Gemma turn marker に加え、
+  Mistral・Llama2 系の `[INST]...[/INST]` marker を診断・適用できる。
 
 ## gemma3対応
 

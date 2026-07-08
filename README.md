@@ -794,6 +794,8 @@ omit the option or use `:dequantized` for the default inference-ready map.
 `Llamex.TensorStore` identifies compact tensor payloads and rejects them on the
 dequantized model-loader path, making the missing compact backend boundary
 explicit instead of failing as a malformed tensor.
+Chat template support includes ChatML, role markers, Llama header markers,
+Gemma turn markers, and Mistral/Llama2-style `[INST]...[/INST]` markers.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 

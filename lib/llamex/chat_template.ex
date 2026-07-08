@@ -7,7 +7,13 @@ defmodule Llamex.ChatTemplate do
 
   @chatml_template "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
   @supported_roles ["system", "user", "assistant"]
-  @supported_families ["chatml", "role_markers", "llama_header_markers", "gemma_turn_markers"]
+  @supported_families [
+    "chatml",
+    "role_markers",
+    "llama_header_markers",
+    "gemma_turn_markers",
+    "mistral_inst_markers"
+  ]
 
   def supported_roles, do: @supported_roles
 
@@ -18,7 +24,7 @@ defmodule Llamex.ChatTemplate do
 
   def supported?(template) when is_binary(template) do
     role_marker_template?(template) or header_marker_template?(template) or
-      gemma_turn_marker_template?(template)
+      gemma_turn_marker_template?(template) or mistral_inst_marker_template?(template)
   end
 
   def family(nil), do: "none"
@@ -36,6 +42,9 @@ defmodule Llamex.ChatTemplate do
 
       gemma_turn_marker_template?(template) ->
         "gemma_turn_markers"
+
+      mistral_inst_marker_template?(template) ->
+        "mistral_inst_markers"
 
       role_marker_template?(template) ->
         "role_markers"
@@ -58,7 +67,12 @@ defmodule Llamex.ChatTemplate do
       |> Regex.scan(template)
       |> Enum.map(&List.first/1)
 
-    Enum.uniq(pipe_markers ++ gemma_markers)
+    inst_markers =
+      ~r/\[\/?INST\]/
+      |> Regex.scan(template)
+      |> Enum.map(&List.first/1)
+
+    Enum.uniq(pipe_markers ++ gemma_markers ++ inst_markers)
   end
 
   def missing_tokens(nil, _token_to_id), do: []
@@ -118,6 +132,9 @@ defmodule Llamex.ChatTemplate do
       gemma_turn_marker_template?(template) ->
         apply_gemma_turn_marker_template(messages)
 
+      mistral_inst_marker_template?(template) ->
+        apply_mistral_inst_marker_template(messages, tokenizer)
+
       true ->
         raise ArgumentError, "unsupported chat template"
     end
@@ -144,6 +161,11 @@ defmodule Llamex.ChatTemplate do
     String.contains?(template, "<start_of_turn>") and
       String.contains?(template, "<end_of_turn>") and
       String.contains?(template, "model")
+  end
+
+  defp mistral_inst_marker_template?(template) do
+    String.contains?(template, "[INST]") and
+      String.contains?(template, "[/INST]")
   end
 
   defp apply_role_marker_template(template, messages, tokenizer) do
@@ -200,6 +222,22 @@ defmodule Llamex.ChatTemplate do
       end)
 
     prompt <> "<start_of_turn>model\n"
+  end
+
+  defp apply_mistral_inst_marker_template(messages, tokenizer) do
+    eos_token = eos_token(tokenizer)
+
+    messages
+    |> merge_system_into_gemma_user()
+    |> Enum.map_join("", fn message ->
+      case message_role(message) do
+        "assistant" ->
+          message_content(message) <> eos_token
+
+        _role ->
+          "[INST] " <> message_content(message) <> " [/INST]"
+      end
+    end)
   end
 
   defp merge_system_into_gemma_user(messages) do

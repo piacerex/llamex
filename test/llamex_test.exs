@@ -468,6 +468,8 @@ defmodule LlamexTest do
              "<end_of_turn>"
            ]
 
+    assert Llamex.ChatTemplate.markers(mistral_inst_template()) == ["[INST]", "[/INST]"]
+
     assert Llamex.ChatTemplate.missing_tokens(chatml_template(), %{
              "<unk>" => 0,
              "<|im_start|>" => 1
@@ -477,6 +479,11 @@ defmodule LlamexTest do
              "<unk>" => 0,
              "<start_of_turn>" => 1
            }) == ["<end_of_turn>"]
+
+    assert Llamex.ChatTemplate.missing_tokens(mistral_inst_template(), %{
+             "<unk>" => 0,
+             "[INST]" => 1
+           }) == ["[/INST]"]
   end
 
   test "classifies chat template families" do
@@ -484,7 +491,8 @@ defmodule LlamexTest do
              "chatml",
              "role_markers",
              "llama_header_markers",
-             "gemma_turn_markers"
+             "gemma_turn_markers",
+             "mistral_inst_markers"
            ]
 
     assert Llamex.ChatTemplate.family(nil) == "none"
@@ -493,6 +501,7 @@ defmodule LlamexTest do
     assert Llamex.ChatTemplate.family(system_role_marker_template()) == "role_markers"
     assert Llamex.ChatTemplate.family(llama_header_template()) == "llama_header_markers"
     assert Llamex.ChatTemplate.family(gemma_turn_template()) == "gemma_turn_markers"
+    assert Llamex.ChatTemplate.family(mistral_inst_template()) == "mistral_inst_markers"
 
     assert Llamex.ChatTemplate.family(llama_header_with_begin_template()) ==
              "llama_header_markers"
@@ -621,6 +630,32 @@ defmodule LlamexTest do
 
     assert Llamex.ChatTemplate.apply(llama_header_with_begin_template(), messages, tokenizer) ==
              "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nBe concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nHello<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+  end
+
+  test "applies mistral inst marker chat templates" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "</s>" => 1, "[INST]" => 2, "[/INST]" => 3},
+        "<unk>",
+        special_tokens: %{eos: %{id: 1, token: "</s>"}}
+      )
+
+    messages = [
+      %{role: "system", content: "Be concise."},
+      %{role: "user", content: "Hello"},
+      %{role: "assistant", content: "Hi."},
+      %{role: "user", content: "Again"}
+    ]
+
+    assert Llamex.ChatTemplate.supported?(mistral_inst_template())
+
+    assert Llamex.ChatTemplate.missing_tokens(
+             mistral_inst_template(),
+             tokenizer.token_to_id
+           ) == []
+
+    assert Llamex.ChatTemplate.apply(mistral_inst_template(), messages, tokenizer) ==
+             "[INST] Be concise.\n\nHello [/INST]Hi.</s>[INST] Again [/INST]"
   end
 
   test "rejects unsupported chat roles" do
@@ -7057,7 +7092,7 @@ defmodule LlamexTest do
     assert output =~ "mistral=models:llama/gpt2, pre:default/gpt2/llama-bpe"
 
     assert output =~
-             "supported chat templates: chatml, role_markers, llama_header_markers, gemma_turn_markers"
+             "supported chat templates: chatml, role_markers, llama_header_markers, gemma_turn_markers, mistral_inst_markers"
 
     assert output =~
              "unsupported feature metadata: *.attention.sliding_window, *.rope.scaling.type"
@@ -7290,7 +7325,8 @@ defmodule LlamexTest do
              "chatml",
              "role_markers",
              "llama_header_markers",
-             "gemma_turn_markers"
+             "gemma_turn_markers",
+             "mistral_inst_markers"
            ]
 
     assert surface["supported_chat_templates"] == Llamex.ChatTemplate.supported_families()
@@ -8349,6 +8385,21 @@ defmodule LlamexTest do
            ]
   end
 
+  test "diagnoses mistral inst marker chat templates as usable" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_mistral_inst_chat_template_gguf())
+
+    assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_template_family == "mistral_inst_markers"
+    assert diagnostic.chat_usable == true
+    assert diagnostic.missing_chat_template_tokens == []
+    assert diagnostic.chat_template_issues == []
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "chat template family: mistral_inst_markers"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
+  end
+
   test "diagnoses unsupported chat templates" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_unsupported_chat_template_gguf())
 
@@ -8430,6 +8481,21 @@ defmodule LlamexTest do
              tokenizer
            ) ==
              "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nBe concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nHello<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+  end
+
+  test "builds a tokenizer with gguf mistral inst chat template metadata" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_mistral_inst_chat_template_gguf())
+
+    tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
+
+    assert Llamex.ChatTemplate.apply(
+             tokenizer.chat_template,
+             [
+               %{role: "system", content: "Be concise."},
+               %{role: "user", content: "Hello"}
+             ],
+             tokenizer
+           ) == "[INST] Be concise.\n\nHello [/INST]"
   end
 
   test "decodes gguf byte tokens" do
@@ -10669,6 +10735,32 @@ defmodule LlamexTest do
     IO.iodata_to_binary([header, metadata])
   end
 
+  defp tiny_mistral_inst_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_array_string("tokenizer.ggml.tokens", [
+        "<unk>",
+        "</s>",
+        "[INST]",
+        "[/INST]",
+        "Be",
+        "concise.",
+        "Hello"
+      ]),
+      kv_u32("tokenizer.ggml.eos_token_id", 1),
+      kv_string("tokenizer.chat_template", mistral_inst_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
   defp tiny_gemma_turn_chat_template_gguf do
     metadata = [
       kv_string("general.architecture", "gemma3"),
@@ -10793,6 +10885,10 @@ defmodule LlamexTest do
 
   defp gemma_turn_template do
     "{% for message in messages %}{{ '<start_of_turn>' + message['role'] + '\n' + message['content'] + '<end_of_turn>\n' }}{% endfor %}{% if add_generation_prompt %}{{ '<start_of_turn>model\n' }}{% endif %}"
+  end
+
+  defp mistral_inst_template do
+    "{% for message in messages %}{% if message['role'] == 'user' %}{{ '[INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ message['content'] + eos_token }}{% endif %}{% endfor %}"
   end
 
   defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]
