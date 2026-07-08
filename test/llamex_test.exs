@@ -4209,6 +4209,7 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_model_supported? == true
     assert diagnostic.pre_tokenizer == nil
     assert diagnostic.pre_tokenizer_supported? == true
+    assert diagnostic.missing_required_metadata == []
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.supported_tokenizers == ["whitespace", "bpe"]
     assert diagnostic.supported_tokenizer_models == ["llama", "gpt2"]
@@ -4263,6 +4264,7 @@ defmodule LlamexTest do
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer: unknown"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required metadata: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: llama"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: whitespace"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 0"
@@ -4288,6 +4290,7 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_model_supported? == true
     assert diagnostic.pre_tokenizer == nil
     assert diagnostic.pre_tokenizer_supported? == true
+    assert diagnostic.missing_required_metadata == []
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.unsupported_tensor_types == %{}
@@ -4302,8 +4305,30 @@ defmodule LlamexTest do
     assert formatted =~ "tokenizer model: llama"
     assert formatted =~ "tokenizer kind: whitespace"
     assert formatted =~ "tokenizer merges: 0"
+    assert formatted =~ "missing required metadata: none"
     assert formatted =~ "loadable: true"
     assert formatted =~ "compatibility issues: none"
+  end
+
+  test "diagnoses missing required gguf model metadata" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
+
+    diagnostic =
+      parsed
+      |> update_in([Access.key!(:metadata)], &Map.delete(&1, "llama.embedding_length"))
+      |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert diagnostic.missing_required_metadata == ["llama.embedding_length"]
+    assert diagnostic.loadable? == false
+
+    assert diagnostic.compatibility_issues == [
+             "missing required metadata: llama.embedding_length"
+           ]
+
+    formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
+
+    assert formatted =~ "missing required metadata: llama.embedding_length"
+    assert formatted =~ "compatibility issues: missing required metadata: llama.embedding_length"
   end
 
   test "gguf inspect task can print json diagnostics" do
@@ -4341,6 +4366,7 @@ defmodule LlamexTest do
       assert diagnostic["tokenizer_model_supported?"] == true
       assert diagnostic["pre_tokenizer"] == nil
       assert diagnostic["pre_tokenizer_supported?"] == true
+      assert diagnostic["missing_required_metadata"] == []
       assert diagnostic["tokenizer_kind"] == "whitespace"
       assert diagnostic["supported_tokenizers"] == ["whitespace", "bpe"]
       assert diagnostic["supported_tokenizer_models"] == ["llama", "gpt2"]
@@ -5031,6 +5057,26 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects gguf models with missing required metadata before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-missing-metadata-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_missing_embedding_length_tensor_data))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: missing required metadata: llama.embedding_length",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "loads gguf output norm and output tensors" do
     path =
       Path.join(
@@ -5165,13 +5211,6 @@ defmodule LlamexTest do
         _other -> []
       end
 
-    header = [
-      "GGUF",
-      u32(3),
-      u64(1),
-      u64(10 + length(extra_metadata))
-    ]
-
     metadata =
       [
         kv_string("general.architecture", "llama"),
@@ -5184,7 +5223,16 @@ defmodule LlamexTest do
         kv_u32("llama.attention.head_count_kv", 1),
         kv_u32("llama.feed_forward_length", 8),
         kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
-      ] ++ extra_metadata
+      ]
+      |> maybe_delete_metadata(mode)
+      |> Kernel.++(extra_metadata)
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(1),
+      u64(length(metadata))
+    ]
 
     {dimensions, tensor_type, values} =
       case mode do
@@ -5231,6 +5279,9 @@ defmodule LlamexTest do
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_unsupported_pre_tokenizer_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_missing_embedding_length_tensor_data ->
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_rectangular_tensor_data ->
@@ -5318,6 +5369,12 @@ defmodule LlamexTest do
         without_data
     end
   end
+
+  defp maybe_delete_metadata(metadata, :with_missing_embedding_length_tensor_data) do
+    List.delete_at(metadata, 3)
+  end
+
+  defp maybe_delete_metadata(metadata, _mode), do: metadata
 
   defp with_aligned_f32_tensor_data(binary, values) do
     padding = rem(32 - rem(byte_size(binary), 32), 32)

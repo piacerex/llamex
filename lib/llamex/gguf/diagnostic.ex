@@ -7,6 +7,7 @@ defmodule Llamex.GGUF.Diagnostic do
   @supported_tokenizers ["whitespace", "bpe"]
   @supported_tokenizer_models ["llama", "gpt2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
+  @required_metadata_keys ["llama.embedding_length"]
   @supported_tensor_types %{
     0 => "F32",
     1 => "F16",
@@ -107,6 +108,7 @@ defmodule Llamex.GGUF.Diagnostic do
       tokenizer_model_supported?: tokenizer_model_supported?(gguf.metadata),
       pre_tokenizer: pre_tokenizer(gguf.metadata),
       pre_tokenizer_supported?: pre_tokenizer_supported?(gguf.metadata),
+      missing_required_metadata: missing_required_metadata(gguf.metadata),
       tokenizer_kind: tokenizer_kind(gguf.metadata),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
@@ -151,6 +153,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tokenizer model supported: #{diagnostic.tokenizer_model_supported?}",
       "supported pre-tokenizers: #{Enum.join(diagnostic.supported_pre_tokenizers, ", ")}",
       "pre-tokenizer supported: #{diagnostic.pre_tokenizer_supported?}",
+      "missing required metadata: #{format_missing_required_metadata(diagnostic.missing_required_metadata)}",
       "loadable: #{diagnostic.loadable?}",
       "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
       "metadata: #{diagnostic.metadata_count}",
@@ -230,6 +233,10 @@ defmodule Llamex.GGUF.Diagnostic do
     end
   end
 
+  defp missing_required_metadata(metadata) do
+    Enum.reject(@required_metadata_keys, &Map.has_key?(metadata, &1))
+  end
+
   defp tokenizer_kind(metadata) do
     case metadata_value(metadata, "tokenizer.ggml.merges") do
       %{values: [_first | _rest]} -> "bpe"
@@ -247,6 +254,7 @@ defmodule Llamex.GGUF.Diagnostic do
   defp loadable?(metadata, tensors) do
     architecture_supported?(metadata) and tokenizer_supported?(metadata) and
       tokenizer_model_supported?(metadata) and pre_tokenizer_supported?(metadata) and
+      missing_required_metadata(metadata) == [] and
       unsupported_tensors(tensors) == []
   end
 
@@ -256,6 +264,7 @@ defmodule Llamex.GGUF.Diagnostic do
     |> add_tokenizer_issue(metadata)
     |> add_tokenizer_model_issue(metadata)
     |> add_pre_tokenizer_issue(metadata)
+    |> add_required_metadata_issues(metadata)
     |> add_tensor_type_issues(tensors)
     |> Enum.reverse()
   end
@@ -303,6 +312,14 @@ defmodule Llamex.GGUF.Diagnostic do
           ["unsupported pre-tokenizer: #{pre_tokenizer}" | issues]
         end
     end
+  end
+
+  defp add_required_metadata_issues(issues, metadata) do
+    metadata
+    |> missing_required_metadata()
+    |> Enum.reduce(issues, fn key, issues ->
+      ["missing required metadata: #{key}" | issues]
+    end)
   end
 
   defp add_tensor_type_issues(issues, tensors) do
@@ -455,6 +472,10 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_compatibility_issues([]), do: "none"
 
   defp format_compatibility_issues(issues), do: Enum.join(issues, "; ")
+
+  defp format_missing_required_metadata([]), do: "none"
+
+  defp format_missing_required_metadata(keys), do: Enum.join(keys, ", ")
 
   defp format_special_tokens(tokens) when map_size(tokens) == 0, do: "none"
 
