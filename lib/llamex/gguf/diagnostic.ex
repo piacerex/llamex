@@ -45,6 +45,10 @@ defmodule Llamex.GGUF.Diagnostic do
   @supported_tokenizer_models ["llama", "gpt2"]
   @known_pre_tokenizers ["default", "gpt2", "llama-bpe", "qwen2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
+  @known_attention_variants ["full", "sliding_window"]
+  @supported_attention_variants ["full"]
+  @known_rope_variants ["default", "linear", "yarn"]
+  @supported_rope_variants ["default"]
   @unsupported_feature_metadata [
     "*.attention.sliding_window",
     "*.rope.scaling.type"
@@ -139,6 +143,14 @@ defmodule Llamex.GGUF.Diagnostic do
   def known_pre_tokenizers, do: @known_pre_tokenizers
 
   def supported_pre_tokenizers, do: @supported_pre_tokenizers
+
+  def known_attention_variants, do: @known_attention_variants
+
+  def supported_attention_variants, do: @supported_attention_variants
+
+  def known_rope_variants, do: @known_rope_variants
+
+  def supported_rope_variants, do: @supported_rope_variants
 
   def supported_chat_templates, do: Llamex.ChatTemplate.supported_families()
 
@@ -271,6 +283,32 @@ defmodule Llamex.GGUF.Diagnostic do
     end)
   end
 
+  def attention_variant_status_surface do
+    Map.new(known_attention_variants(), fn variant ->
+      status =
+        if variant in supported_attention_variants() do
+          "supported"
+        else
+          "known_unsupported"
+        end
+
+      {variant, status}
+    end)
+  end
+
+  def rope_variant_status_surface do
+    Map.new(known_rope_variants(), fn variant ->
+      status =
+        if variant in supported_rope_variants() do
+          "supported"
+        else
+          "known_unsupported"
+        end
+
+      {variant, status}
+    end)
+  end
+
   def supported_surface do
     %{
       supported_architectures: supported_architectures(),
@@ -287,6 +325,12 @@ defmodule Llamex.GGUF.Diagnostic do
       known_pre_tokenizers: known_pre_tokenizers(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
       pre_tokenizer_status_surface: pre_tokenizer_status_surface(),
+      known_attention_variants: known_attention_variants(),
+      supported_attention_variants: supported_attention_variants(),
+      attention_variant_status_surface: attention_variant_status_surface(),
+      known_rope_variants: known_rope_variants(),
+      supported_rope_variants: supported_rope_variants(),
+      rope_variant_status_surface: rope_variant_status_surface(),
       tokenizer_metadata_surface: tokenizer_metadata_surface(),
       supported_chat_templates: supported_chat_templates(),
       unsupported_feature_metadata: unsupported_feature_metadata(),
@@ -316,6 +360,12 @@ defmodule Llamex.GGUF.Diagnostic do
       "known pre-tokenizers: #{Enum.join(surface.known_pre_tokenizers, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
       "pre-tokenizer status surface: #{format_status_surface(surface.pre_tokenizer_status_surface)}",
+      "known attention variants: #{Enum.join(surface.known_attention_variants, ", ")}",
+      "supported attention variants: #{Enum.join(surface.supported_attention_variants, ", ")}",
+      "attention variant status surface: #{format_status_surface(surface.attention_variant_status_surface)}",
+      "known RoPE variants: #{Enum.join(surface.known_rope_variants, ", ")}",
+      "supported RoPE variants: #{Enum.join(surface.supported_rope_variants, ", ")}",
+      "RoPE variant status surface: #{format_status_surface(surface.rope_variant_status_surface)}",
       "tokenizer metadata surface: #{format_tokenizer_metadata_surface(surface.tokenizer_metadata_surface)}",
       "supported chat templates: #{Enum.join(surface.supported_chat_templates, ", ")}",
       "unsupported feature metadata: #{Enum.join(surface.unsupported_feature_metadata, ", ")}",

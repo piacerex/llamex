@@ -6998,6 +6998,18 @@ defmodule LlamexTest do
     assert output =~
              "pre-tokenizer status surface: default=supported; gpt2=supported; llama-bpe=supported; qwen2=known_unsupported"
 
+    assert output =~ "known attention variants: full, sliding_window"
+    assert output =~ "supported attention variants: full"
+
+    assert output =~
+             "attention variant status surface: full=supported; sliding_window=known_unsupported"
+
+    assert output =~ "known RoPE variants: default, linear, yarn"
+    assert output =~ "supported RoPE variants: default"
+
+    assert output =~
+             "RoPE variant status surface: default=supported; linear=known_unsupported; yarn=known_unsupported"
+
     assert output =~ "tokenizer metadata surface:"
     assert output =~ "gemma3=models:llama/gpt2, pre:default/gpt2/llama-bpe"
     assert output =~ "llama=models:llama/gpt2, pre:default/gpt2/llama-bpe"
@@ -7177,6 +7189,23 @@ defmodule LlamexTest do
              "gpt2" => "supported",
              "llama-bpe" => "supported",
              "qwen2" => "known_unsupported"
+           }
+
+    assert surface["known_attention_variants"] == ["full", "sliding_window"]
+    assert surface["supported_attention_variants"] == ["full"]
+
+    assert surface["attention_variant_status_surface"] == %{
+             "full" => "supported",
+             "sliding_window" => "known_unsupported"
+           }
+
+    assert surface["known_rope_variants"] == ["default", "linear", "yarn"]
+    assert surface["supported_rope_variants"] == ["default"]
+
+    assert surface["rope_variant_status_surface"] == %{
+             "default" => "supported",
+             "linear" => "known_unsupported",
+             "yarn" => "known_unsupported"
            }
 
     assert surface["tokenizer_metadata_surface"]["gemma3"]["tokenizer_models"] == [

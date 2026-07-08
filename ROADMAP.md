@@ -153,6 +153,9 @@ GGUF モデル読み込み
 - tokenizer metadata surface では SentencePiece tokenizer model と Qwen2
   pre-tokenizer を known unsupported として明示し、対応済み tokenizer
   metadata と未対応候補を分けて確認できる。
+- attention / RoPE variant surface では full attention / default RoPE と、
+  sliding-window attention / linear・YaRN RoPE scaling の known unsupported
+  status を分けて確認できる。
 
 ## gemma3対応
 

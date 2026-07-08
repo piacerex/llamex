@@ -780,6 +780,10 @@ Tokenizer metadata diagnostics also separate supported entries from known but
 unsupported candidates: `sentencepiece` tokenizer models and `qwen2`
 pre-tokenizers are visible in the supported surface but still rejected by the
 loader until their runtime paths are implemented.
+Attention and RoPE diagnostics expose variant status in the supported surface:
+`full` attention and default RoPE are supported, while sliding-window attention
+and linear / YaRN RoPE scaling are known unsupported variants with explicit
+feature blockers.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 
