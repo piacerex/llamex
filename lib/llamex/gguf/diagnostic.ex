@@ -537,6 +537,10 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp architecture_supported?(metadata) do
+    architecture_runtime_supported?(metadata)
+  end
+
+  defp architecture_runtime_supported?(metadata) do
     metadata
     |> metadata_value("general.architecture")
     |> then(&(&1 in @supported_architectures))
@@ -544,7 +548,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp architecture_runtime_status(metadata) do
     cond do
-      architecture_supported?(metadata) -> "supported"
+      architecture_runtime_supported?(metadata) -> "supported"
       architecture_known?(metadata) -> "known_unsupported"
       true -> "unknown"
     end
@@ -619,7 +623,7 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp add_architecture_feature_blocker(blockers, metadata) do
-    if architecture_supported?(metadata) do
+    if architecture_runtime_supported?(metadata) do
       blockers
     else
       architecture = metadata_value(metadata, "general.architecture") || "unknown"
@@ -823,7 +827,7 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp loadable?(metadata, tensors) do
-    architecture_supported?(metadata) and tokenizer_supported?(metadata) and
+    architecture_runtime_supported?(metadata) and tokenizer_supported?(metadata) and
       tokenizer_model_supported?(metadata) and pre_tokenizer_supported?(metadata) and
       missing_required_metadata(metadata) == [] and
       unsupported_features(metadata) == [] and
@@ -879,7 +883,7 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp add_architecture_issue(issues, metadata) do
-    if architecture_supported?(metadata) do
+    if architecture_runtime_supported?(metadata) do
       issues
     else
       [architecture_issue(metadata) | issues]
