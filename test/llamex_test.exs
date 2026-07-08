@@ -2893,6 +2893,13 @@ defmodule LlamexTest do
     assert profile.token == 2
     assert profile.token_info == %{token: 2, piece: "world"}
     assert profile.text == "world"
+
+    assert profile.backend_profile.extra_norm_layers == %{
+             attention_q_norm: 0,
+             attention_k_norm: 0,
+             post_feed_forward_norm: 0
+           }
+
     assert profile.eval_timings.layers == []
     assert profile.eval_timings.output_norm.label == "output_norm"
     assert profile.eval_timings.logits.label == "logits"
@@ -2905,6 +2912,40 @@ defmodule LlamexTest do
 
     assert Enum.map(profile.timings, & &1.label) == ["prefill", "step"]
     assert Enum.all?(profile.timings, &is_integer(&1.milliseconds))
+  end
+
+  test "profiles preserved extra norm layer counts" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 2, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0, 0.0],
+          1 => [0.0, 1.0]
+        },
+        layers: [
+          %{
+            attention_norm: [1.0, 1.0],
+            attention_q_norm: [0.5, 0.5],
+            attention_k_norm: [0.25, 0.25],
+            post_feed_forward_norm: [0.75, 0.75],
+            wq: [[1.0, 0.0], [0.0, 1.0]],
+            wk: [[1.0, 0.0], [0.0, 1.0]],
+            wv: [[1.0, 0.0], [0.0, 1.0]],
+            wo: [[1.0, 0.0], [0.0, 1.0]]
+          }
+        ]
+      })
+
+    profile = Llamex.Profile.generation_step(model, "hello", %{backend: Llamex.Backend.List})
+
+    assert profile.backend_profile.extra_norm_layers == %{
+             attention_q_norm: 1,
+             attention_k_norm: 1,
+             post_feed_forward_norm: 1
+           }
   end
 
   test "profiles adjacent special token prompt pieces" do

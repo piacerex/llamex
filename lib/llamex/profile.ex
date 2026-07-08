@@ -342,6 +342,7 @@ defmodule Llamex.Profile do
       gate_up_combined_layers: count_layers(model.layers, :w_gate_up),
       tensor_attention_norm_layers: count_layers(model.layers, :attention_norm),
       tensor_feed_forward_norm_layers: count_layers(model.layers, :feed_forward_norm),
+      extra_norm_layers: extra_norm_layers(model.layers),
       output_norm_tensor?: tensor?(model.output_norm),
       output_weight_tensor?: tensor?(get_in(model.output, [:weight])),
       prepared_kv_cache_entries: map_size(context.kv_cache.prepared_layers),
@@ -353,8 +354,21 @@ defmodule Llamex.Profile do
   defp backend_profile(%Context{model: model}) do
     %{
       tensor_backend?: false,
-      layer_count: length(model.layers)
+      layer_count: length(model.layers),
+      extra_norm_layers: extra_norm_layers(model.layers)
     }
+  end
+
+  defp extra_norm_layers(layers) do
+    %{
+      attention_q_norm: count_present_layers(layers, :attention_q_norm),
+      attention_k_norm: count_present_layers(layers, :attention_k_norm),
+      post_feed_forward_norm: count_present_layers(layers, :post_feed_forward_norm)
+    }
+  end
+
+  defp count_present_layers(layers, key) do
+    Enum.count(layers, fn layer -> not is_nil(Map.get(layer, key)) end)
   end
 
   defp count_layers(layers, key) do
