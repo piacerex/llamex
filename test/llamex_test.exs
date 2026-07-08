@@ -1802,6 +1802,24 @@ defmodule LlamexTest do
                      sampler: %{temperature: 1.0, top_p: 0.0, seed: 1}
                    })
                  end
+
+    assert_raise ArgumentError, "sampler must be :greedy or a map, got: :beam", fn ->
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: :beam
+      })
+    end
+
+    assert_raise ArgumentError, "sampler must be :greedy or a map, got: \"greedy\"", fn ->
+      model
+      |> Llamex.stream("hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: "greedy"
+      })
+      |> Enum.to_list()
+    end
   end
 
   test "generation result includes configured exla target" do

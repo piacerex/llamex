@@ -61,7 +61,7 @@ defmodule Llamex.Generation do
     case Map.get(opts, :sampler, :greedy) do
       :greedy -> :greedy
       sampler when is_map(sampler) -> Sampler.validate_options!(sampler)
-      sampler -> sampler
+      sampler -> raise ArgumentError, "sampler must be :greedy or a map, got: #{inspect(sampler)}"
     end
   end
 
