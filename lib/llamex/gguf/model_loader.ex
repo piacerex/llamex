@@ -34,6 +34,12 @@ defmodule Llamex.GGUF.ModelLoader do
     Llamex.GGUF.TensorSchema.summary(architecture, tensor_names)
   end
 
+  def tensor_schema_summary_file(path) when is_binary(path) do
+    path
+    |> Llamex.GGUF.Reader.read_metadata()
+    |> tensor_schema_summary()
+  end
+
   defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary, architecture) do
     gguf
     |> Llamex.GGUF.Reader.read_tensor_data(binary)

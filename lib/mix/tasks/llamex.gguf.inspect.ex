@@ -93,9 +93,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
   end
 
   defp tensor_schema_summary(path) do
-    path
-    |> Llamex.GGUF.Reader.read_metadata()
-    |> Llamex.GGUF.ModelLoader.tensor_schema_summary()
+    Llamex.GGUF.ModelLoader.tensor_schema_summary_file(path)
   end
 
   defp format_tensor_schema_summary(summary) do

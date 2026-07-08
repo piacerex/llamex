@@ -619,9 +619,11 @@ The tensor schema summary can also be checked from IEx without reading tensor
 payloads:
 
 ```elixir
-gguf = Llamex.GGUF.Reader.read_metadata("model.gguf")
-Llamex.GGUF.ModelLoader.tensor_schema_summary(gguf)
+Llamex.GGUF.ModelLoader.tensor_schema_summary_file("model.gguf")
 ```
+
+`Llamex.GGUF.ModelLoader.tensor_schema_summary/1` accepts an already parsed
+`Llamex.GGUF.Reader` when caller code wants to reuse metadata.
 
 The inspection output includes supported architecture/tokenizer/tensor type
 combinations, special tokens, tokenizer `add_bos` / `add_eos` flags, chat

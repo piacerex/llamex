@@ -6328,6 +6328,21 @@ defmodule LlamexTest do
     refute Map.has_key?(model_map["tensors"], "blk.0.post_attention_norm.weight")
   end
 
+  test "summarizes tensor schema from gguf file path" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-schema-summary-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    File.write!(path, tiny_gguf(:without_tensor_data))
+
+    parsed = Llamex.GGUF.Reader.read_metadata(path)
+
+    assert Llamex.GGUF.ModelLoader.tensor_schema_summary_file(path) ==
+             Llamex.GGUF.ModelLoader.tensor_schema_summary(parsed)
+  end
+
   test "reports unsupported gemma3 tensor features in model maps" do
     binary = tiny_gguf(:with_tensor_data)
 
