@@ -136,6 +136,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
         prompt: prompt,
         settings: settings,
         text: result.text,
+        prompt_tokens: result.prompt_tokens,
         prompt_pieces: result.prompt_pieces,
         generated_tokens: result.generated_tokens,
         generated_pieces: token_pieces(model, result.generated_tokens),
