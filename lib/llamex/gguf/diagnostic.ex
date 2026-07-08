@@ -52,6 +52,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :tokenizer_metadata_issues,
     :missing_required_metadata,
     :model_config_metadata_prefix,
+    :model_config,
     :missing_model_config_metadata,
     :unsupported_features,
     :unsupported_feature_metadata_values,

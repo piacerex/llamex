@@ -5568,6 +5568,15 @@ defmodule LlamexTest do
              tokenizer_metadata_issues: [],
              missing_required_metadata: [],
              model_config_metadata_prefix: "llama",
+             model_config: %{
+               vocab_size: 2,
+               embedding_size: 2,
+               context_size: 16,
+               block_count: 1,
+               attention_head_count: 2,
+               attention_head_count_kv: 1,
+               feed_forward_size: 8
+             },
              missing_model_config_metadata: [
                %{name: "epsilon", metadata_key: "llama.attention.layer_norm_rms_epsilon"},
                %{name: "rope_theta", metadata_key: "llama.rope.freq_base"},
@@ -6151,6 +6160,8 @@ defmodule LlamexTest do
       assert output =~ "special tokens: none"
       assert output =~ "missing required metadata: none"
       assert output =~ "model config metadata prefix: llama"
+      assert output =~ "model config:"
+      assert output =~ "embedding_size: 2"
 
       assert output =~
                "missing model config metadata: epsilon: llama.attention.layer_norm_rms_epsilon"
@@ -6217,6 +6228,17 @@ defmodule LlamexTest do
       assert summary["tokenizer_token_types"] == %{}
       assert summary["special_tokens"] == %{}
       assert summary["missing_required_metadata"] == []
+
+      assert summary["model_config"] == %{
+               "attention_head_count" => 2,
+               "attention_head_count_kv" => 1,
+               "block_count" => 1,
+               "context_size" => 16,
+               "embedding_size" => 2,
+               "feed_forward_size" => 8,
+               "vocab_size" => 2
+             }
+
       assert summary["chat_template"] == "none"
       assert summary["missing_chat_template_tokens"] == []
       assert summary["unsupported_features"] == []
@@ -6630,6 +6652,17 @@ defmodule LlamexTest do
     assert diagnostic.model_config.attention_head_count == 2
     assert diagnostic.model_config.attention_head_count_kv == 1
     assert diagnostic.model_config.feed_forward_size == 8
+
+    assert Llamex.GGUF.Diagnostic.summary(diagnostic).model_config == %{
+             vocab_size: 2,
+             embedding_size: 2,
+             context_size: 32,
+             block_count: 1,
+             attention_head_count: 2,
+             attention_head_count_kv: 1,
+             feed_forward_size: 8
+           }
+
     assert diagnostic.loadable? == false
     assert diagnostic.compatibility_issues == ["unsupported architecture runtime: gemma3"]
 

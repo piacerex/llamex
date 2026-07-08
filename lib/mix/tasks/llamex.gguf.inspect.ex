@@ -170,6 +170,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "special tokens: #{format_special_tokens(summary.special_tokens)}",
       "missing required metadata: #{format_list(summary.missing_required_metadata)}",
       "model config metadata prefix: #{summary.model_config_metadata_prefix}",
+      "model config: #{format_model_config_summary(summary.model_config)}",
       "missing model config metadata: #{format_model_config_missing_metadata(summary.missing_model_config_metadata)}",
       "chat usable: #{summary.chat_usable}",
       "chat template: #{summary.chat_template}",
