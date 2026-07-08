@@ -5426,6 +5426,14 @@ defmodule LlamexTest do
         [Access.key!(:metadata), "llama.rope.scaling.type"],
         %{type: :string, value: "linear"}
       )
+      |> put_in(
+        [Access.key!(:metadata), "llama.rope.scaling.factor"],
+        %{type: :float32, value: 8.0}
+      )
+      |> put_in(
+        [Access.key!(:metadata), "llama.rope.scaling.original_context_length"],
+        %{type: :uint32, value: 2048}
+      )
       |> Llamex.GGUF.Diagnostic.inspect_reader()
 
     assert diagnostic.loadable? == false
@@ -5437,6 +5445,13 @@ defmodule LlamexTest do
 
     assert diagnostic.compatibility_issues == diagnostic.unsupported_features
 
+    assert diagnostic.unsupported_feature_metadata_values == %{
+             "llama.attention.sliding_window" => 128,
+             "llama.rope.scaling.factor" => 8.0,
+             "llama.rope.scaling.original_context_length" => 2048,
+             "llama.rope.scaling.type" => "linear"
+           }
+
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~
@@ -5444,6 +5459,12 @@ defmodule LlamexTest do
 
     assert formatted =~
              "compatibility issues: unsupported attention variant: sliding_window; unsupported RoPE scaling: linear"
+
+    assert formatted =~ "unsupported feature metadata values:"
+    assert formatted =~ "llama.attention.sliding_window=128"
+    assert formatted =~ "llama.rope.scaling.factor=8.0"
+    assert formatted =~ "llama.rope.scaling.original_context_length=2048"
+    assert formatted =~ "llama.rope.scaling.type=linear"
   end
 
   test "diagnoses missing required gguf tensors" do
@@ -6702,7 +6723,11 @@ defmodule LlamexTest do
           [kv_string("tokenizer.ggml.pre", "qwen2")]
 
         :with_unsupported_rope_scaling_tensor_data ->
-          [kv_string("llama.rope.scaling.type", "linear")]
+          [
+            kv_string("llama.rope.scaling.type", "linear"),
+            kv_f32("llama.rope.scaling.factor", 8.0),
+            kv_u32("llama.rope.scaling.original_context_length", 2048)
+          ]
 
         :with_sliding_window_tensor_data ->
           [kv_u32("llama.attention.sliding_window", 128)]
@@ -7685,6 +7710,7 @@ defmodule LlamexTest do
 
   defp kv_string(key, value), do: [gguf_string(key), u32(8), gguf_string(value)]
   defp kv_u32(key, value), do: [gguf_string(key), u32(4), u32(value)]
+  defp kv_f32(key, value), do: [gguf_string(key), u32(6), <<value::little-float-size(32)>>]
   defp kv_bool(key, value), do: [gguf_string(key), u32(7), if(value, do: <<1>>, else: <<0>>)]
 
   defp kv_array_u32(key, values),

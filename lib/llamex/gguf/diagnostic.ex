@@ -11,6 +11,12 @@ defmodule Llamex.GGUF.Diagnostic do
     "llama.attention.sliding_window",
     "llama.rope.scaling.type"
   ]
+  @unsupported_feature_detail_metadata [
+    "llama.attention.sliding_window",
+    "llama.rope.scaling.type",
+    "llama.rope.scaling.factor",
+    "llama.rope.scaling.original_context_length"
+  ]
   @required_metadata_keys ["llama.embedding_length"]
   @required_tensor_names ["token_embd.weight"]
   @supported_tensor_types %{
@@ -134,6 +140,7 @@ defmodule Llamex.GGUF.Diagnostic do
       tokenizer_token_types: tokenizer_token_types(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
       unsupported_features: unsupported_features(gguf.metadata),
+      unsupported_feature_metadata_values: unsupported_feature_metadata_values(gguf.metadata),
       chat_template: chat_template,
       chat_template_family: chat_template_family,
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
@@ -190,6 +197,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tokenizer token types: #{format_type_counts(diagnostic.tokenizer_token_types)}",
       "special tokens: #{format_special_tokens(diagnostic.special_tokens)}",
       "unsupported features: #{format_unsupported_features(diagnostic.unsupported_features)}",
+      "unsupported feature metadata values: #{format_metadata_values(diagnostic.unsupported_feature_metadata_values)}",
       "chat template: #{diagnostic.chat_template}",
       "chat template family: #{diagnostic.chat_template_family}",
       "chat usable: #{diagnostic.chat_usable}",
@@ -586,6 +594,22 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.reverse()
   end
 
+  defp unsupported_feature_metadata_values(metadata) do
+    if unsupported_features(metadata) == [] do
+      %{}
+    else
+      @unsupported_feature_detail_metadata
+      |> Enum.flat_map(fn key ->
+        case metadata_value(metadata, key) do
+          nil -> []
+          "none" -> []
+          value -> [{key, value}]
+        end
+      end)
+      |> Map.new()
+    end
+  end
+
   defp add_sliding_window_issue(issues, metadata) do
     case metadata_value(metadata, "llama.attention.sliding_window") do
       nil -> issues
@@ -703,6 +727,15 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_unsupported_features([]), do: "none"
 
   defp format_unsupported_features(features), do: Enum.join(features, "; ")
+
+  defp format_metadata_values(values) when map_size(values) == 0, do: "none"
+
+  defp format_metadata_values(values) do
+    values
+    |> Enum.sort()
+    |> Enum.map(fn {key, value} -> "#{key}=#{value}" end)
+    |> Enum.join(", ")
+  end
 
   defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
 

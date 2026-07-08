@@ -623,6 +623,9 @@ GGUF surface.
 Use `compatibility_issues: []` in JSON output to confirm that no unsupported
 architecture, tokenizer metadata, tokenizer model, required model metadata, or
 required tensor, tensor shape mismatch, or tensor type was found.
+When `unsupported_features` is non-empty, inspect
+`unsupported_feature_metadata_values` to see the exact GGUF metadata values such
+as sliding-window size or RoPE scaling settings that caused the rejection.
 `Llamex.GGUF.ModelLoader.load/1` uses the same compatibility checks before
 loading tensor data.
 With `--json`, multiple GGUF paths can be inspected in one command for model
