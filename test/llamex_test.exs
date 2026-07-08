@@ -4117,6 +4117,19 @@ defmodule LlamexTest do
     end
   end
 
+  test "generate task rejects unsupported special stop tokens" do
+    assert_raise Mix.Error, ~r/unsupported special stop token: cls/, fn ->
+      Mix.Tasks.Llamex.Generate.run([
+        "priv/models/tiny.json",
+        "hello",
+        "2",
+        "--profile",
+        "--stop-special",
+        "cls"
+      ])
+    end
+  end
+
   test "generate task can stop on generated control tokens" do
     path =
       Path.join(
