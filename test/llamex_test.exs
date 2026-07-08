@@ -3459,7 +3459,11 @@ defmodule LlamexTest do
     assert result["model_path"] == "priv/models/tiny.json"
     assert result["prompt"] == "hello"
     assert result["text"] == "world"
+    assert result["prompt_pieces"] == ["hello"]
     assert result["generated_tokens"] == [2]
+    assert result["generated_pieces"] == ["world"]
+    assert result["completion_tokens"] == []
+    assert result["completion_pieces"] == []
     assert result["ok"] == true
     assert result["issues"] == []
     assert result["settings"]["backend"] == "Llamex.Backend.Nx"
@@ -3828,6 +3832,8 @@ defmodule LlamexTest do
       assert result["ok"] == true
       assert result["issues"] == []
       assert result["text"] == "a b c d e f g ."
+      assert result["prompt_pieces"] == ["The"]
+      assert result["generated_pieces"] == ["a", "b", "c", "d", "e", "f", "g", "."]
       assert result["settings"]["max_new_tokens"] == 8
       assert result["settings"]["min_words"] == 4
       assert result["settings"]["reject_open_ending"] == true

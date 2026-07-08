@@ -272,9 +272,9 @@ Use `mix llamex.natural.baseline MODEL --json` for the current stricter GGUF
 baseline gate. It defaults to the known-good `The quick brown fox` prompt with
 8 initial tokens, at least 4 generated word fragments, incomplete-ending rejection,
 up to 8 completion tokens, sentence trimming, and fail-on-issue enabled.
-JSON smoke output includes the `model_path` and `settings` used for each prompt,
-including the backend and EXLA target metadata, so baseline results are
-auditable.
+JSON smoke output includes the `model_path`, prompt/generated/completion token
+pieces, and `settings` used for each prompt, including the backend and EXLA
+target metadata, so baseline results are auditable.
 
 Use `mix llamex.benchmark MODEL --tokens 8,16,24,32 --json` to compare
 generation cost across multiple output lengths after loading the model once.

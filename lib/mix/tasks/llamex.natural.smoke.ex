@@ -136,8 +136,11 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
         prompt: prompt,
         settings: settings,
         text: result.text,
+        prompt_pieces: result.prompt_pieces,
         generated_tokens: result.generated_tokens,
+        generated_pieces: token_pieces(model, result.generated_tokens),
         completion_tokens: result.completion_tokens,
+        completion_pieces: token_pieces(model, result.completion_tokens),
         discarded_text: Map.get(result, :discarded_text, ""),
         finish_reason: result.finish_reason,
         ok: check.ok,
@@ -183,6 +186,12 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
   end
 
   defp display_sampler(sampler), do: sampler
+
+  defp token_pieces(%{tokenizer: %{id_to_token: id_to_token}}, token_ids) do
+    Enum.map(token_ids, &Map.get(id_to_token, &1, Integer.to_string(&1)))
+  end
+
+  defp token_pieces(_model, token_ids), do: Enum.map(token_ids, &Integer.to_string/1)
 
   defp exla_settings(backend) when backend in [Llamex.Backend.Nx, Llamex.Backend.NxEXLA] do
     Llamex.Backend.NxEXLA.configured()
