@@ -30,6 +30,8 @@ defmodule Llamex.GGUF.Diagnostic do
     :architecture_runtime_status,
     :architecture_runtime_blockers,
     :model_combination,
+    :attention_variant,
+    :rope_variant,
     :loadable?,
     :compatibility_issues,
     :compatibility_issue_groups,
@@ -272,6 +274,8 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_runtime_status: architecture_runtime_status(gguf.metadata),
       architecture_runtime_blockers: architecture_runtime_blockers(gguf.metadata),
       model_combination: model_combination(gguf.metadata, gguf.tensors),
+      attention_variant: attention_variant(gguf.metadata),
+      rope_variant: rope_variant(gguf.metadata),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_metadata: tokenizer_metadata_for(gguf.metadata),
       tokenizer_model: tokenizer_model(gguf.metadata),
@@ -349,6 +353,8 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture runtime status: #{diagnostic.architecture_runtime_status}",
       "architecture runtime blockers: #{format_list(diagnostic.architecture_runtime_blockers)}",
       "model combination: #{format_model_combination(diagnostic.model_combination)}",
+      "attention variant: #{format_variant(diagnostic.attention_variant)}",
+      "RoPE variant: #{format_variant(diagnostic.rope_variant)}",
       "supported tokenizers: #{Enum.join(diagnostic.supported_tokenizers, ", ")}",
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
       "supported tokenizer models: #{Enum.join(diagnostic.supported_tokenizer_models, ", ")}",
@@ -1059,6 +1065,37 @@ defmodule Llamex.GGUF.Diagnostic do
     end
   end
 
+  defp attention_variant(metadata) do
+    prefix = metadata_prefix(metadata)
+
+    case metadata_value(metadata, metadata_key(prefix, "attention.sliding_window")) do
+      nil -> %{type: "full"}
+      window -> %{type: "sliding_window", window: window}
+    end
+  end
+
+  defp rope_variant(metadata) do
+    prefix = metadata_prefix(metadata)
+
+    case metadata_value(metadata, metadata_key(prefix, "rope.scaling.type")) do
+      nil ->
+        %{type: "default"}
+
+      "none" ->
+        %{type: "default"}
+
+      type ->
+        %{
+          type: type,
+          factor: metadata_value(metadata, metadata_key(prefix, "rope.scaling.factor")),
+          original_context_length:
+            metadata_value(metadata, metadata_key(prefix, "rope.scaling.original_context_length"))
+        }
+        |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+        |> Map.new()
+    end
+  end
+
   defp add_sliding_window_issue(issues, metadata) do
     case metadata_value(
            metadata,
@@ -1152,6 +1189,12 @@ defmodule Llamex.GGUF.Diagnostic do
       "tensor_types=#{tensor_types}"
     ]
     |> Enum.join(", ")
+  end
+
+  defp format_variant(%{} = variant) do
+    variant
+    |> Enum.sort()
+    |> Enum.map_join(", ", fn {key, value} -> "#{key}=#{value}" end)
   end
 
   defp format_supported_tensor_type_ids(ids) do

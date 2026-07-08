@@ -154,6 +154,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "architecture runtime status: #{summary.architecture_runtime_status}",
       "architecture runtime blockers: #{format_list(summary.architecture_runtime_blockers)}",
       "model combination: #{format_model_combination(summary.model_combination)}",
+      "attention variant: #{format_variant(summary.attention_variant)}",
+      "RoPE variant: #{format_variant(summary.rope_variant)}",
       "loadable: #{summary.loadable?}",
       "blocking issue groups: #{format_atoms(summary.blocking_issue_groups)}",
       "compatibility issues: #{format_list(summary.compatibility_issues)}",
@@ -256,6 +258,12 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "tensor_types=#{tensor_types}"
     ]
     |> Enum.join(", ")
+  end
+
+  defp format_variant(%{} = variant) do
+    variant
+    |> Enum.sort()
+    |> Enum.map_join(", ", fn {key, value} -> "#{key}=#{value}" end)
   end
 
   defp format_list([]), do: "none"

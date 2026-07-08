@@ -5539,6 +5539,8 @@ defmodule LlamexTest do
                pre_tokenizer: "default",
                tensor_types: ["F32"]
              },
+             attention_variant: %{type: "full"},
+             rope_variant: %{type: "default"},
              loadable?: true,
              compatibility_issues: [],
              compatibility_issue_groups: %{
@@ -5860,6 +5862,14 @@ defmodule LlamexTest do
 
     summary = Llamex.GGUF.Diagnostic.summary(diagnostic)
 
+    assert summary.attention_variant == %{type: "sliding_window", window: 128}
+
+    assert summary.rope_variant == %{
+             type: "linear",
+             factor: 8.0,
+             original_context_length: 2048
+           }
+
     assert summary.unsupported_features == [
              "unsupported attention variant: sliding_window",
              "unsupported RoPE scaling: linear"
@@ -5902,6 +5912,13 @@ defmodule LlamexTest do
       |> Llamex.GGUF.Diagnostic.inspect_reader()
 
     assert diagnostic.architecture == "gemma3"
+    assert diagnostic.attention_variant == %{type: "sliding_window", window: 1024}
+
+    assert diagnostic.rope_variant == %{
+             type: "linear",
+             factor: 4.0,
+             original_context_length: 32_768
+           }
 
     assert diagnostic.unsupported_features == [
              "unsupported attention variant: sliding_window",
@@ -6141,6 +6158,8 @@ defmodule LlamexTest do
       assert output =~
                "model combination: architecture=llama, runtime=supported, tokenizer=whitespace, model=llama, pre=default, tensor_types=type_99"
 
+      assert output =~ "attention variant: type=full"
+      assert output =~ "RoPE variant: type=default"
       assert output =~ "blocking issue groups: tensors"
       assert output =~ "compatibility issues: unsupported tensor type: type_99 (1)"
 
@@ -6217,6 +6236,8 @@ defmodule LlamexTest do
                "tensor_types" => ["type_99"]
              }
 
+      assert summary["attention_variant"] == %{"type" => "full"}
+      assert summary["rope_variant"] == %{"type" => "default"}
       assert summary["tokenizer_model"] == "llama"
       assert summary["tokenizer_model_supported?"] == true
       assert summary["pre_tokenizer"] == nil
@@ -6633,6 +6654,9 @@ defmodule LlamexTest do
              "extra norm tensor execution not implemented"
            ]
 
+    assert diagnostic.attention_variant == %{type: "full"}
+    assert diagnostic.rope_variant == %{type: "default"}
+
     assert diagnostic.tokenizer_model == "llama"
     assert diagnostic.tokenizer_model_supported? == true
     assert diagnostic.pre_tokenizer == "llama-bpe"
@@ -6676,6 +6700,8 @@ defmodule LlamexTest do
     assert formatted =~
              "architecture runtime blockers: architecture runtime not implemented; extra norm tensor execution not implemented"
 
+    assert formatted =~ "attention variant: type=full"
+    assert formatted =~ "RoPE variant: type=default"
     assert formatted =~ "missing required metadata: none"
     assert formatted =~ "embedding_size=2"
     assert formatted =~ "compatibility issues: unsupported architecture runtime: gemma3"
