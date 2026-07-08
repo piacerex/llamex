@@ -46,6 +46,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :architecture_runtime_blockers,
     :architecture_runtime_blocker_details,
     :runtime_feature_status,
+    :runtime_feature_blockers,
     :model_combination,
     :runtime_capability,
     :attention_variant,
@@ -310,6 +311,7 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_runtime_blockers: architecture_runtime_blockers(gguf.metadata),
       architecture_runtime_blocker_details: architecture_runtime_blocker_details(gguf.metadata),
       runtime_feature_status: runtime_feature_status(gguf.metadata),
+      runtime_feature_blockers: runtime_feature_blockers(gguf.metadata),
       model_combination: model_combination(gguf.metadata, gguf.tensors),
       runtime_capability: runtime_capability(gguf.metadata, gguf.tensors),
       attention_variant: attention_variant(gguf.metadata),
@@ -393,6 +395,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture runtime blockers: #{format_list(diagnostic.architecture_runtime_blockers)}",
       "architecture runtime blocker details: #{format_blocker_details(diagnostic.architecture_runtime_blocker_details)}",
       "runtime feature status: #{format_runtime_feature_status(%{(diagnostic.architecture || "unknown") => diagnostic.runtime_feature_status})}",
+      "runtime feature blockers: #{format_feature_blockers(diagnostic.runtime_feature_blockers)}",
       "model combination: #{format_model_combination(diagnostic.model_combination)}",
       "runtime capability: #{format_runtime_capability(diagnostic.runtime_capability)}",
       "attention variant: #{format_variant(diagnostic.attention_variant)}",
@@ -485,6 +488,7 @@ defmodule Llamex.GGUF.Diagnostic do
       runtime_blockers: architecture_runtime_blockers(metadata),
       runtime_blocker_details: architecture_runtime_blocker_details(metadata),
       runtime_feature_status: runtime_feature_status(metadata),
+      runtime_feature_blockers: runtime_feature_blockers(metadata),
       blocked_runtime_features: blocked_runtime_features(metadata),
       blocking_issue_groups: blocking_issue_groups(groups),
       attention_variant: attention_variant(metadata),
@@ -604,6 +608,71 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.filter(fn {_feature, status} -> status == "blocked" end)
     |> Enum.map(fn {feature, _status} -> feature end)
     |> Enum.sort()
+  end
+
+  defp runtime_feature_blockers(metadata) do
+    []
+    |> add_architecture_feature_blocker(metadata)
+    |> add_attention_feature_blocker(metadata)
+    |> add_rope_feature_blocker(metadata)
+    |> Enum.reverse()
+  end
+
+  defp add_architecture_feature_blocker(blockers, metadata) do
+    if architecture_supported?(metadata) do
+      blockers
+    else
+      architecture = metadata_value(metadata, "general.architecture") || "unknown"
+
+      [
+        %{
+          feature: :architecture_runtime,
+          component: "engine",
+          reason: "architecture runtime not implemented",
+          issue: architecture_issue(metadata),
+          value: architecture
+        }
+        | blockers
+      ]
+    end
+  end
+
+  defp add_attention_feature_blocker(blockers, metadata) do
+    case attention_variant(metadata) do
+      %{type: "full"} ->
+        blockers
+
+      variant ->
+        [
+          %{
+            feature: :attention_variant,
+            component: "attention",
+            reason: "attention variant not implemented",
+            issue: "unsupported attention variant: #{variant.type}",
+            value: variant
+          }
+          | blockers
+        ]
+    end
+  end
+
+  defp add_rope_feature_blocker(blockers, metadata) do
+    case rope_variant(metadata) do
+      %{type: "default"} ->
+        blockers
+
+      variant ->
+        [
+          %{
+            feature: :rope_variant,
+            component: "rope",
+            reason: "RoPE variant not implemented",
+            issue: "unsupported RoPE scaling: #{variant.type}",
+            value: variant
+          }
+          | blockers
+        ]
+    end
   end
 
   defp tokenizer_supported?(metadata) do
@@ -813,13 +882,17 @@ defmodule Llamex.GGUF.Diagnostic do
     if architecture_supported?(metadata) do
       issues
     else
-      architecture = metadata_value(metadata, "general.architecture") || "unknown"
+      [architecture_issue(metadata) | issues]
+    end
+  end
 
-      if architecture_known?(metadata) do
-        ["unsupported architecture runtime: #{architecture}" | issues]
-      else
-        ["unsupported architecture: #{architecture}" | issues]
-      end
+  defp architecture_issue(metadata) do
+    architecture = metadata_value(metadata, "general.architecture") || "unknown"
+
+    if architecture_known?(metadata) do
+      "unsupported architecture runtime: #{architecture}"
+    else
+      "unsupported architecture: #{architecture}"
     end
   end
 
@@ -1438,6 +1511,16 @@ defmodule Llamex.GGUF.Diagnostic do
       "#{architecture}=#{features}"
     end)
     |> Enum.join("; ")
+  end
+
+  defp format_feature_blockers([]), do: "none"
+
+  defp format_feature_blockers(blockers) do
+    blockers
+    |> Enum.map(fn blocker ->
+      "#{blocker.feature}:#{blocker.component}:#{blocker.reason}:#{blocker.issue}"
+    end)
+    |> Enum.join("/")
   end
 
   defp format_blocker_details([]), do: "none"

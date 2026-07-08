@@ -5756,6 +5756,7 @@ defmodule LlamexTest do
                attention_variant: "supported",
                rope_variant: "supported"
              },
+             runtime_feature_blockers: [],
              model_combination: %{
                architecture: "llama",
                runtime_status: "supported",
@@ -5774,6 +5775,7 @@ defmodule LlamexTest do
                  attention_variant: "supported",
                  rope_variant: "supported"
                },
+               runtime_feature_blockers: [],
                blocked_runtime_features: [],
                blocking_issue_groups: [],
                attention_variant: %{type: "full"},
@@ -6181,6 +6183,30 @@ defmodule LlamexTest do
              rope_variant: "blocked"
            }
 
+    assert diagnostic.runtime_feature_blockers == [
+             %{
+               feature: :architecture_runtime,
+               component: "engine",
+               reason: "architecture runtime not implemented",
+               issue: "unsupported architecture runtime: gemma3",
+               value: "gemma3"
+             },
+             %{
+               feature: :attention_variant,
+               component: "attention",
+               reason: "attention variant not implemented",
+               issue: "unsupported attention variant: sliding_window",
+               value: %{type: "sliding_window", window: 1024}
+             },
+             %{
+               feature: :rope_variant,
+               component: "rope",
+               reason: "RoPE variant not implemented",
+               issue: "unsupported RoPE scaling: linear",
+               value: %{type: "linear", factor: 4.0, original_context_length: 32_768}
+             }
+           ]
+
     assert diagnostic.compatibility_issues == [
              "unsupported architecture runtime: gemma3",
              "unsupported attention variant: sliding_window",
@@ -6404,6 +6430,7 @@ defmodule LlamexTest do
       assert output =~ "architecture runtime status: supported"
       assert output =~ "architecture runtime blockers: none"
       assert output =~ "architecture runtime blocker details: none"
+      assert output =~ "runtime feature blockers: none"
 
       assert output =~
                "model combination: architecture=llama, runtime=supported, tokenizer=whitespace, model=llama, pre=default, tensor_types=type_99"
@@ -6488,6 +6515,8 @@ defmodule LlamexTest do
                "rope_variant" => "supported"
              }
 
+      assert summary["runtime_feature_blockers"] == []
+
       assert summary["model_combination"] == %{
                "architecture" => "llama",
                "runtime_status" => "supported",
@@ -6507,6 +6536,7 @@ defmodule LlamexTest do
                  "attention_variant" => "supported",
                  "rope_variant" => "supported"
                },
+               "runtime_feature_blockers" => [],
                "blocked_runtime_features" => [],
                "blocking_issue_groups" => ["tensors"],
                "attention_variant" => %{"type" => "full"},
@@ -6983,6 +7013,15 @@ defmodule LlamexTest do
                post_feed_forward_extra_norm: "supported",
                rope_variant: "supported"
              },
+             runtime_feature_blockers: [
+               %{
+                 feature: :architecture_runtime,
+                 component: "engine",
+                 reason: "architecture runtime not implemented",
+                 issue: "unsupported architecture runtime: gemma3",
+                 value: "gemma3"
+               }
+             ],
              blocked_runtime_features: [:architecture_runtime],
              blocking_issue_groups: [:runtime],
              attention_variant: %{type: "full"},
@@ -7240,6 +7279,15 @@ defmodule LlamexTest do
                post_feed_forward_extra_norm: "supported",
                rope_variant: "supported"
              },
+             runtime_feature_blockers: [
+               %{
+                 feature: :architecture_runtime,
+                 component: "engine",
+                 reason: "architecture runtime not implemented",
+                 issue: "unsupported architecture runtime: gemma3",
+                 value: "gemma3"
+               }
+             ],
              blocked_runtime_features: [:architecture_runtime],
              blocking_issue_groups: [:runtime, :tensors],
              attention_variant: %{type: "full"},
@@ -7329,6 +7377,15 @@ defmodule LlamexTest do
                  post_feed_forward_extra_norm: "supported",
                  rope_variant: "supported"
                },
+               runtime_feature_blockers: [
+                 %{
+                   feature: :architecture_runtime,
+                   component: "engine",
+                   reason: "architecture runtime not implemented",
+                   issue: "unsupported architecture runtime: gemma3",
+                   value: "gemma3"
+                 }
+               ],
                blocked_runtime_features: [:architecture_runtime],
                blocking_issue_groups: [:runtime],
                attention_variant: %{type: "full"},

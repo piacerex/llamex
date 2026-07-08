@@ -155,6 +155,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "architecture runtime blockers: #{format_list(summary.architecture_runtime_blockers)}",
       "architecture runtime blocker details: #{format_blocker_details(summary.architecture_runtime_blocker_details)}",
       "runtime feature status: #{format_runtime_feature_status(summary.runtime_feature_status)}",
+      "runtime feature blockers: #{format_feature_blockers(summary.runtime_feature_blockers)}",
       "model combination: #{format_model_combination(summary.model_combination)}",
       "runtime capability: #{format_runtime_capability(summary.runtime_capability)}",
       "attention variant: #{format_variant(summary.attention_variant)}",
@@ -297,6 +298,16 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     statuses
     |> Enum.sort()
     |> Enum.map_join(", ", fn {feature, status} -> "#{feature}=#{status}" end)
+  end
+
+  defp format_feature_blockers([]), do: "none"
+
+  defp format_feature_blockers(blockers) do
+    blockers
+    |> Enum.map(fn blocker ->
+      "#{blocker.feature}=#{blocker.component}:#{blocker.reason}"
+    end)
+    |> Enum.join(", ")
   end
 
   defp blocked_runtime_features(capability) do
