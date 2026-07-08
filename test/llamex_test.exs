@@ -5565,6 +5565,24 @@ defmodule LlamexTest do
     assert "Q8_0" in surface["supported_tensor_type_names"]
     assert surface["supported_tensor_type_ids"]["8"] == "Q8_0"
 
+    assert surface["supported_tensor_type_ids"] == %{
+             "0" => "F32",
+             "1" => "F16",
+             "2" => "Q4_0",
+             "3" => "Q4_1",
+             "6" => "Q5_0",
+             "7" => "Q5_1",
+             "8" => "Q8_0",
+             "9" => "Q8_1",
+             "10" => "Q2_K",
+             "11" => "Q3_K",
+             "12" => "Q4_K",
+             "13" => "Q5_K",
+             "14" => "Q6_K",
+             "15" => "Q8_K",
+             "30" => "BF16"
+           }
+
     assert surface["supported_combinations"] == [
              %{
                "architecture" => "llama",
