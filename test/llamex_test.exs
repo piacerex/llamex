@@ -2086,6 +2086,81 @@ defmodule LlamexTest do
     end
   end
 
+  test "prepared list nx and nx_exla backends agree on greedy generation" do
+    if Code.ensure_loaded?(Nx) do
+      tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+      model =
+        Llamex.new_model(%{
+          config: %{vocab_size: 3, embedding_size: 2},
+          tokenizer: tokenizer,
+          token_embeddings: %{
+            0 => [0.0, 0.0],
+            1 => [1.0, 0.0],
+            2 => [2.0, 0.0]
+          },
+          output: %{weight: [[0.0, 0.0], [0.0, 1.0], [2.0, 0.0]]}
+        })
+
+      results =
+        [Llamex.Backend.List, Llamex.Backend.Nx, Llamex.Backend.NxEXLA]
+        |> Enum.map(fn backend ->
+          model
+          |> Llamex.prepare_model(backend)
+          |> Llamex.generate("hello", %{
+            max_new_tokens: 1,
+            stop_tokens: [2]
+          })
+        end)
+
+      assert Enum.map(results, & &1.generated_tokens) == [[2], [2], [2]]
+      assert Enum.map(results, & &1.text) == ["world", "world", "world"]
+      assert Enum.map(results, & &1.finish_reason) == [:stop, :stop, :stop]
+      assert Enum.all?(results, & &1.prepared?)
+    end
+  end
+
+  test "prepared list nx and nx_exla backends agree on top-k sampling" do
+    if Code.ensure_loaded?(Nx) do
+      tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+      model =
+        Llamex.new_model(%{
+          config: %{vocab_size: 3, embedding_size: 2},
+          tokenizer: tokenizer,
+          token_embeddings: %{
+            0 => [0.0, 0.0],
+            1 => [1.0, 0.0],
+            2 => [2.0, 0.0]
+          },
+          output: %{weight: [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]]}
+        })
+
+      sampler = %{
+        temperature: 1.0,
+        top_k: 2,
+        top_p: 1.0,
+        random: 0.0
+      }
+
+      results =
+        [Llamex.Backend.List, Llamex.Backend.Nx, Llamex.Backend.NxEXLA]
+        |> Enum.map(fn backend ->
+          model
+          |> Llamex.prepare_model(backend)
+          |> Llamex.generate("hello", %{
+            max_new_tokens: 1,
+            sampler: sampler
+          })
+        end)
+
+      assert Enum.map(results, & &1.generated_tokens) == [[2], [2], [2]]
+      assert Enum.map(results, & &1.text) == ["world", "world", "world"]
+      assert Enum.map(results, & &1.sampler) == [sampler, sampler, sampler]
+      assert Enum.all?(results, & &1.prepared?)
+    end
+  end
+
   test "fpga backend fallback can generate through output weights" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
