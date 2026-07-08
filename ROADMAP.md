@@ -157,7 +157,8 @@ tokenizer model / pre-tokenizer、chat template、runtime capability、
 model config、tensor schema の診断出力を固定している。Gemma3 loaded model
 では List backend と NxEXLA backend の greedy 1 token 生成一致を smoke
 test で確認している。`mix llamex.natural.smoke` は `--include-japanese`
-でデフォルト英語 prompt suite に日本語 prompt を追加できる。
+でデフォルト英語 prompt suite に日本語 prompt を追加でき、Gemma3 GGUF
+fixture で英語 prompt と日本語 prompt の natural smoke を固定している。
 
 - 対象モデルを `unsloth/gemma-3-270m-it-GGUF` に固定する。
   - 最初は最小量子化 GGUF を使い、ロード可否と 1 token 生成を優先する。

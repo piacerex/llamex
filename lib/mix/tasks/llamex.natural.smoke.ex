@@ -53,7 +53,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
       Mix.raise("invalid options: #{inspect(invalid)}")
     end
 
-    run_smoke(positional, Map.new(options))
+    run_smoke(positional, options_map(options))
   end
 
   defp run_smoke([model_path], options), do: run_smoke([model_path, "3"], options)
@@ -92,6 +92,17 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
   defp run_smoke(_args, _options) do
     Mix.raise(~s(usage: mix llamex.natural.smoke MODEL [max_new_tokens] [--json] [--prompt TEXT]))
   end
+
+  defp options_map(options) do
+    options
+    |> Keyword.delete(:prompt)
+    |> Map.new()
+    |> put_prompts(Keyword.get_values(options, :prompt))
+  end
+
+  defp put_prompts(options, []), do: options
+  defp put_prompts(options, [prompt]), do: Map.put(options, :prompt, prompt)
+  defp put_prompts(options, prompts), do: Map.put(options, :prompt, prompts)
 
   defp smoke_results!(
          model,

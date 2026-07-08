@@ -4422,6 +4422,59 @@ defmodule LlamexTest do
     assert result["prompt"] == "hello"
   end
 
+  test "natural smoke task runs English and Japanese prompts against a gemma3 gguf" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-natural-gemma3-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    gguf =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        tokens: ["<unk>", "hello", "こんにちは", "world", "です"],
+        tensors: [
+          {"token_embd.weight", [2, 5], [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 2.0]}
+        ]
+      )
+
+    try do
+      File.write!(path, gguf)
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Natural.Smoke.run([
+            path,
+            "1",
+            "--json",
+            "--backend",
+            "list",
+            "--top-k",
+            "1",
+            "--prompt",
+            "hello",
+            "--prompt",
+            "こんにちは"
+          ])
+        end)
+
+      results = JSON.decode!(String.trim(output))
+
+      assert Enum.map(results, & &1["prompt"]) == ["hello", "こんにちは"]
+      assert Enum.map(results, & &1["text"]) == ["world", "です"]
+      assert Enum.map(results, & &1["ok"]) == [true, true]
+      assert Enum.map(results, & &1["issues"]) == [[], []]
+
+      assert Enum.map(results, & &1["settings"]["backend"]) == [
+               "Llamex.Backend.List",
+               "Llamex.Backend.List"
+             ]
+    after
+      File.rm(path)
+    end
+  end
+
   test "natural smoke task rejects invalid sampler seed option" do
     assert_raise Mix.Error, ~r/seed must be a non-negative integer/, fn ->
       Mix.Tasks.Llamex.Natural.Smoke.run([
