@@ -250,7 +250,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp model_config(metadata) do
     %{
-      vocab_size: metadata_value(metadata, "llama.vocab_size"),
+      vocab_size: metadata_value(metadata, "llama.vocab_size") || tokenizer_token_count(metadata),
       embedding_size: metadata_value(metadata, "llama.embedding_length"),
       context_size: metadata_value(metadata, "llama.context_length"),
       block_count: metadata_value(metadata, "llama.block_count"),

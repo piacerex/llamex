@@ -632,6 +632,7 @@ supported tokenizer models: llama, gpt2
 tokenizer model supported: true
 supported pre-tokenizers: default, gpt2, llama-bpe
 pre-tokenizer supported: true
+model config: ...
 loadable: true
 compatibility issues: none
 tokenizer model: unknown

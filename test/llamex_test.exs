@@ -4546,6 +4546,7 @@ defmodule LlamexTest do
     assert diagnostic.pre_tokenizer == nil
     assert diagnostic.pre_tokenizer_supported? == true
     assert diagnostic.missing_required_metadata == []
+    assert diagnostic.model_config.vocab_size == 2
     assert diagnostic.model_config.embedding_size == 2
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.supported_tokenizers == ["whitespace", "bpe"]
@@ -4634,6 +4635,7 @@ defmodule LlamexTest do
     assert diagnostic.pre_tokenizer == nil
     assert diagnostic.pre_tokenizer_supported? == true
     assert diagnostic.missing_required_metadata == []
+    assert diagnostic.model_config.vocab_size == 2
     assert diagnostic.model_config.embedding_size == 2
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.tokenizer_merge_count == 0
@@ -4754,6 +4756,7 @@ defmodule LlamexTest do
       assert diagnostic["pre_tokenizer"] == nil
       assert diagnostic["pre_tokenizer_supported?"] == true
       assert diagnostic["missing_required_metadata"] == []
+      assert diagnostic["model_config"]["vocab_size"] == 2
       assert diagnostic["model_config"]["embedding_size"] == 2
       assert diagnostic["model_config"]["context_size"] == 16
       assert diagnostic["model_config"]["block_count"] == 1
