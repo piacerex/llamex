@@ -430,9 +430,9 @@ result.text
 #### Token Streaming
 
 Use `stream/3` to receive token chunks as they are generated. Each chunk
-includes `:token`, `:text`, `:generated_tokens`, `:sampler`, `:prepared?`,
-`:context`, and `:finish_reason`; the final length-limited chunk has
-`token: nil`.
+includes `:token`, `:text`, `:generated_tokens`, `:generated_pieces`,
+`:sampler`, `:prepared?`, `:context`, and `:finish_reason`; the final
+length-limited chunk has `token: nil`.
 
 ```elixir
 prepared

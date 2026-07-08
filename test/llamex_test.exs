@@ -444,6 +444,7 @@ defmodule LlamexTest do
       |> Enum.to_list()
 
     assert Enum.map(chunks, & &1.text) == ["world", ""]
+    assert Enum.map(chunks, & &1.generated_pieces) == [["world"], ["world"]]
     assert List.last(chunks).finish_reason == :length
   end
 
@@ -482,6 +483,7 @@ defmodule LlamexTest do
       |> Enum.to_list()
 
     assert Enum.map(chunks, & &1.text) == ["world"]
+    assert Enum.map(chunks, & &1.generated_pieces) == [["world"]]
     assert List.last(chunks).finish_reason == :stop_sequence
     assert Enum.all?(chunks, & &1.prepared?)
   end
