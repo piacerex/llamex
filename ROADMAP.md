@@ -179,7 +179,7 @@ README の tensor schema 診断説明も Gemma3 extra norm supported path と整
   tokenizer、chat template、runtime capability、model config、tensor schema を固定している。
 - `loads gemma3 gguf models with supported text runtime variants` で load、
   `generate/3`、`prefill/3`、`step/3`、`generate_chat/3`、`stream_chat/3`、
-  List / NxEXLA 一致を固定している。
+  system / user / assistant role chat、List / NxEXLA 一致を固定している。
 - `generate task profiles gemma3 gguf generation` で `mix llamex.generate`
   相当の CLI profile 経路を固定している。
 - `loads gemma3 gguf extra norm tensors into model layers` で q/k extra norm と

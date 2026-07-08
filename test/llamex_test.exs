@@ -7709,7 +7709,16 @@ defmodule LlamexTest do
         epsilon: 1.0e-5,
         rope_theta: 1_000_000.0,
         rope_dimension_count: 2,
-        tokens: ["<unk>", "hello", "<start_of_turn>", "<end_of_turn>", "user", "model"],
+        tokens: [
+          "<unk>",
+          "hello",
+          "<start_of_turn>",
+          "<end_of_turn>",
+          "user",
+          "model",
+          "system",
+          "assistant"
+        ],
         extra_metadata: [
           kv_string("tokenizer.ggml.model", "llama"),
           kv_string("tokenizer.ggml.pre", "llama-bpe"),
@@ -7717,8 +7726,25 @@ defmodule LlamexTest do
           kv_u32("tokenizer.ggml.eos_token_id", 3)
         ],
         tensors: [
-          {"token_embd.weight", [2, 6],
-           [1.0, 0.0, 0.0, 1.0, 0.5, 0.5, 0.25, 0.25, 0.2, 0.8, 0.0, 1.0]}
+          {"token_embd.weight", [2, 8],
+           [
+             1.0,
+             0.0,
+             0.0,
+             1.0,
+             0.5,
+             0.5,
+             0.25,
+             0.25,
+             0.2,
+             0.8,
+             0.0,
+             1.0,
+             0.6,
+             0.4,
+             0.4,
+             0.6
+           ]}
         ]
       )
 
@@ -8643,13 +8669,39 @@ defmodule LlamexTest do
         epsilon: 1.0e-5,
         rope_theta: 1_000_000.0,
         rope_dimension_count: 2,
-        tokens: ["<unk>", "hello", "<start_of_turn>", "<end_of_turn>", "user", "model"],
+        tokens: [
+          "<unk>",
+          "hello",
+          "<start_of_turn>",
+          "<end_of_turn>",
+          "user",
+          "model",
+          "system",
+          "assistant"
+        ],
         extra_metadata: [
           kv_string("tokenizer.ggml.chat_template", gemma_turn_template())
         ],
         tensors: [
-          {"token_embd.weight", [2, 6],
-           [1.0, 0.0, 0.0, 1.0, 0.5, 0.5, 0.25, 0.25, 0.2, 0.8, 0.0, 1.0]}
+          {"token_embd.weight", [2, 8],
+           [
+             1.0,
+             0.0,
+             0.0,
+             1.0,
+             0.5,
+             0.5,
+             0.25,
+             0.25,
+             0.2,
+             0.8,
+             0.0,
+             1.0,
+             0.6,
+             0.4,
+             0.4,
+             0.6
+           ]}
         ]
       )
 
@@ -8700,6 +8752,25 @@ defmodule LlamexTest do
       assert chat_result.generated_tokens == [0]
       assert chat_result.generated_pieces == ["<unk>"]
       assert chat_result.text == "<unk>"
+
+      role_chat_result =
+        Llamex.generate_chat(
+          model,
+          [
+            %{role: "system", content: "hello"},
+            %{role: "user", content: "hello"},
+            %{role: "assistant", content: "hello"}
+          ],
+          %{
+            backend: Llamex.Backend.List,
+            max_new_tokens: 1,
+            sampler: :greedy
+          }
+        )
+
+      assert role_chat_result.generated_tokens == [0]
+      assert role_chat_result.generated_pieces == ["<unk>"]
+      assert role_chat_result.text == "<unk>"
 
       chat_chunks =
         model
