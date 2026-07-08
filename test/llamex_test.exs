@@ -93,6 +93,46 @@ defmodule LlamexTest do
     assert result.generated_pieces == ["world"]
   end
 
+  test "stream reports adjacent special token prompt pieces" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "<s>" => 1, "</s>" => 2, "hello" => 3, "world" => 4},
+        "<unk>",
+        special_tokens: %{
+          bos: %{id: 1, token: "<s>"},
+          eos: %{id: 2, token: "</s>"}
+        }
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 5, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0],
+          1 => [0.0],
+          2 => [1.0],
+          3 => [0.5],
+          4 => [0.0]
+        },
+        output: %{weight: [[0.0], [0.0], [0.0], [0.0], [2.0]]}
+      })
+
+    [chunk | _rest] =
+      model
+      |> Llamex.stream("<s>hello</s>", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: :greedy
+      })
+      |> Enum.to_list()
+
+    assert chunk.prompt_tokens == [1, 3, 2]
+    assert chunk.prompt_pieces == ["<s>", "hello", "</s>"]
+    assert chunk.generated_tokens == [4]
+    assert chunk.generated_pieces == ["world"]
+  end
+
   test "natural helpers unwrap prepared models" do
     tokenizer =
       Llamex.Tokenizer.whitespace(

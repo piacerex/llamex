@@ -440,6 +440,8 @@ defmodule Llamex.Generation do
       token: token,
       text: text,
       finish_reason: finish_reason,
+      prompt_tokens: state.prompt_tokens,
+      prompt_pieces: token_pieces(state.context.model, state.prompt_tokens),
       generated_tokens: Enum.reverse(state.generated_tokens),
       generated_pieces: token_pieces(state.context.model, Enum.reverse(state.generated_tokens)),
       sampler: display_sampler(state.sampler),
