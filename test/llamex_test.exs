@@ -6128,6 +6128,37 @@ defmodule LlamexTest do
     assert diagnostic.compatibility_issues == ["unsupported architecture runtime: gemma3"]
   end
 
+  test "normalizes gemma3 tensor names for model maps" do
+    assert Llamex.GGUF.TensorSchema.normalize_name(
+             "gemma3",
+             "blk.12.post_attention_norm.weight"
+           ) == "blk.12.ffn_norm.weight"
+
+    assert Llamex.GGUF.TensorSchema.normalize_name(
+             "llama",
+             "blk.12.post_attention_norm.weight"
+           ) == "blk.12.post_attention_norm.weight"
+
+    binary = tiny_gguf(:with_tensor_data)
+
+    parsed =
+      binary
+      |> Llamex.GGUF.Reader.read_binary()
+      |> put_in(
+        [Access.key!(:metadata), "general.architecture"],
+        %{type: :string, value: "gemma3"}
+      )
+      |> put_in([Access.key!(:metadata), "gemma3.embedding_length"], %{type: :uint32, value: 2})
+      |> update_in([Access.key!(:tensors)], fn [tensor] ->
+        [%{tensor | name: "blk.0.post_attention_norm.weight"}]
+      end)
+
+    model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
+
+    assert model_map["tensors"]["blk.0.ffn_norm.weight"]["data"] == [1.0, 0.0, 0.0, 1.0]
+    refute Map.has_key?(model_map["tensors"], "blk.0.post_attention_norm.weight")
+  end
+
   test "diagnoses gguf special tokens" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_special_token_gguf())
 

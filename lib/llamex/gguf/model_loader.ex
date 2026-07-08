@@ -19,8 +19,16 @@ defmodule Llamex.GGUF.ModelLoader do
     %{
       "config" => config_from_metadata(gguf.metadata),
       "tokenizer" => tokenizer_from_metadata(gguf.metadata),
-      "tensors" => Llamex.GGUF.Reader.read_tensor_data(gguf, binary)
+      "tensors" => tensors_from_reader(gguf, binary)
     }
+  end
+
+  defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary) do
+    architecture = metadata_value(gguf.metadata, "general.architecture", nil)
+
+    gguf
+    |> Llamex.GGUF.Reader.read_tensor_data(binary)
+    |> then(&Llamex.GGUF.TensorSchema.normalize_tensor_map(architecture, &1))
   end
 
   defp config_from_metadata(metadata) do
