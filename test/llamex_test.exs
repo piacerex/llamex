@@ -5800,6 +5800,18 @@ defmodule LlamexTest do
     assert tensor.data == dequantized_map["tensors"]["token_embd.weight"]["data"]
   end
 
+  test "fetches compact q4_0 tensors as dequantized matrices" do
+    binary = tiny_gguf(:with_q4_0_matrix_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+    compact_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+    dequantized_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
+
+    assert Llamex.TensorStore.fetch_dequantized_matrix(
+             compact_map["tensors"],
+             "token_embd.weight"
+           ) == Enum.chunk_every(dequantized_map["tensors"]["token_embd.weight"]["data"], 32)
+  end
+
   test "rejects compact tensor dequantization for unsupported compact types" do
     assert_raise ArgumentError, "compact tensor type Q8_0 cannot be dequantized yet", fn ->
       Llamex.TensorStore.dequantize_compact_tensor(%{
@@ -9840,6 +9852,7 @@ defmodule LlamexTest do
         :with_f16_tensor_data -> {[2, 2], 1, [0x3C00, 0x0000, 0x0000, 0xC000]}
         :with_bf16_tensor_data -> {[2, 2], 30, [0x3F80, 0x0000, 0x0000, 0xC000]}
         :with_q4_0_tensor_data -> {[32], 2, [0, 1, 8, 15 | List.duplicate(8, 28)]}
+        :with_q4_0_matrix_tensor_data -> {[32, 2], 2, [0, 1, 8, 15 | List.duplicate(8, 60)]}
         :with_unaligned_q4_0_tensor_data -> {[31], 2, [0, 1, 8, 15 | List.duplicate(8, 28)]}
         :with_q4_1_tensor_data -> {[32], 3, [0, 1, 8, 15 | List.duplicate(8, 28)]}
         :with_unaligned_q4_1_tensor_data -> {[31], 3, [0, 1, 8, 15 | List.duplicate(8, 28)]}
@@ -9918,6 +9931,9 @@ defmodule LlamexTest do
         with_aligned_bf16_tensor_data(without_data, values)
 
       :with_q4_0_tensor_data ->
+        with_aligned_q4_0_tensor_data(without_data, values)
+
+      :with_q4_0_matrix_tensor_data ->
         with_aligned_q4_0_tensor_data(without_data, values)
 
       :with_unaligned_q4_0_tensor_data ->
@@ -10068,7 +10084,13 @@ defmodule LlamexTest do
 
   defp with_aligned_q4_0_tensor_data(binary, values) do
     padding = rem(32 - rem(byte_size(binary), 32), 32)
-    tensor_data = [<<0x3C00::little-unsigned-integer-size(16)>>, q4_0_bytes(values)]
+
+    tensor_data =
+      values
+      |> Enum.chunk_every(32)
+      |> Enum.map(fn block ->
+        [<<0x3C00::little-unsigned-integer-size(16)>>, q4_0_bytes(block)]
+      end)
 
     IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
   end

@@ -799,6 +799,8 @@ explicit instead of failing as a malformed tensor.
 payload bytes without exposing compact backend code to the raw model-map shape.
 `Llamex.TensorStore.dequantize_compact_tensor/1` can currently expand compact
 Q4_0 payloads on demand, matching the eager dequantized reader path.
+`Llamex.TensorStore.fetch_dequantized_matrix/2` can lazily fetch a compact Q4_0
+matrix as the regular matrix value expected by existing backend code.
 Chat template support includes ChatML, role markers, Llama header markers,
 Gemma turn markers, and Mistral/Llama2-style `[INST]...[/INST]` markers.
 With `--json`, multiple GGUF paths can be inspected in one command for model

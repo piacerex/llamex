@@ -47,6 +47,13 @@ defmodule Llamex.TensorStore do
     }
   end
 
+  def fetch_dequantized_matrix(tensors, name) when is_map(tensors) and is_binary(name) do
+    tensors
+    |> fetch_compact_tensor(name)
+    |> dequantize_compact_tensor()
+    |> dequantized_tensor_value()
+  end
+
   def dequantize_compact_tensor(%{info: %{type_name: "Q4_0", shape: shape}, payload: payload})
       when is_list(shape) and is_binary(payload) do
     count = Enum.product(shape)
@@ -156,6 +163,8 @@ defmodule Llamex.TensorStore do
   defp to_value(_shape, _data) do
     raise ArgumentError, "only rank-1 and rank-2 tensors are supported"
   end
+
+  defp dequantized_tensor_value(%{shape: shape, data: data}), do: to_value(shape, data)
 
   defp read_q4_0_blocks(<<>>, values), do: values |> Enum.reverse() |> List.flatten()
 
