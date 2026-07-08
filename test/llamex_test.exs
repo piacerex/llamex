@@ -6990,6 +6990,7 @@ defmodule LlamexTest do
            end)
 
     assert diagnostic.tensor_schema_issues == []
+    assert diagnostic.tensor_shape_issues == []
 
     assert diagnostic.unsupported_tensor_features == [
              "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
@@ -7007,6 +7008,32 @@ defmodule LlamexTest do
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "compatibility issues: unsupported architecture runtime: gemma3; unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
+  end
+
+  test "reports gemma3 extra norm tensor shape mismatches" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
+
+    diagnostic =
+      parsed
+      |> put_in(
+        [Access.key!(:metadata), "general.architecture"],
+        %{type: :string, value: "gemma3"}
+      )
+      |> put_in([Access.key!(:metadata), "gemma3.embedding_length"], %{type: :uint32, value: 2})
+      |> update_in([Access.key!(:tensors)], fn tensors ->
+        [%{name: "blk.0.attn_q_norm.weight", dimensions: [3], type: 0, offset: 0} | tensors]
+      end)
+      |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert diagnostic.tensor_shape_issues == [
+             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected embedding length 2"
+           ]
+
+    assert diagnostic.compatibility_issue_groups.tensors == [
+             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected embedding length 2"
+           ]
+
+    assert diagnostic.blocking_issue_groups == [:runtime, :tensor_features, :tensors]
   end
 
   test "normalizes gemma3 tensor names for model maps" do

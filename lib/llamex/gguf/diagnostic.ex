@@ -886,25 +886,70 @@ defmodule Llamex.GGUF.Diagnostic do
   defp tensor_shape_issues(metadata, tensors) do
     architecture = metadata_value(metadata, "general.architecture")
 
-    case {metadata_value(metadata, metadata_key(metadata_prefix(metadata), "embedding_length")),
-          find_tensor(tensors, Llamex.GGUF.TensorSchema.token_embedding_name(architecture))} do
-      {embedding_length, %{dimensions: dimensions}} when is_integer(embedding_length) ->
+    embedding_length =
+      metadata_value(metadata, metadata_key(metadata_prefix(metadata), "embedding_length"))
+
+    []
+    |> add_token_embedding_shape_issue(architecture, embedding_length, tensors)
+    |> add_extra_norm_shape_issues(architecture, embedding_length, tensors)
+    |> Enum.reverse()
+  end
+
+  defp find_tensor(tensors, name), do: Enum.find(tensors, &(&1.name == name))
+
+  defp add_token_embedding_shape_issue(issues, _architecture, embedding_length, _tensors)
+       when not is_integer(embedding_length),
+       do: issues
+
+  defp add_token_embedding_shape_issue(issues, architecture, embedding_length, tensors) do
+    case find_tensor(tensors, Llamex.GGUF.TensorSchema.token_embedding_name(architecture)) do
+      %{dimensions: dimensions} ->
         case Llamex.GGUF.TensorSchema.schema_shape(dimensions) do
           [_vocab_size, ^embedding_length] ->
-            []
+            issues
 
           shape ->
             [
               "tensor shape mismatch: token_embd.weight schema #{inspect(shape)} expected embedding length #{embedding_length}"
+              | issues
             ]
         end
 
       _other ->
-        []
+        issues
     end
   end
 
-  defp find_tensor(tensors, name), do: Enum.find(tensors, &(&1.name == name))
+  defp add_extra_norm_shape_issues(issues, "gemma3", embedding_length, tensors)
+       when is_integer(embedding_length) do
+    [
+      "attn_q_norm",
+      "attn_k_norm",
+      "post_ffw_norm"
+    ]
+    |> Enum.reduce(issues, fn part, issues ->
+      name = "blk.0.#{part}.weight"
+
+      case find_tensor(tensors, name) do
+        %{dimensions: dimensions} ->
+          case Llamex.GGUF.TensorSchema.schema_shape(dimensions) do
+            [^embedding_length] ->
+              issues
+
+            shape ->
+              [
+                "tensor shape mismatch: #{name} schema #{inspect(shape)} expected embedding length #{embedding_length}"
+                | issues
+              ]
+          end
+
+        _other ->
+          issues
+      end
+    end)
+  end
+
+  defp add_extra_norm_shape_issues(issues, _architecture, _embedding_length, _tensors), do: issues
 
   defp eager_f32_bytes(tensors), do: tensor_element_count(tensors) * 4
 

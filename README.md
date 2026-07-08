@@ -173,7 +173,8 @@ internal `blk.N.ffn_norm.weight` schema for model-map inspection, while
 `blk.N.post_ffw_norm.weight` are reported as unsupported tensor features until
 the runtime implements those extra norms. The loader preserves these optional
 extra norm tensors on layer maps for runtime implementation work, but they still
-remain guarded by `extra_norm_tensors` until execution support is added.
+remain guarded by `extra_norm_tensors` until execution support is added. GGUF
+diagnostics also validate their vector length against the model embedding size.
 GGUF-loaded `Llamex.Model` structs preserve the detected `architecture`,
 `runtime_capability`, and `tensor_schema` so runtime-specific execution paths can
 be checked without re-reading checkpoint metadata.
