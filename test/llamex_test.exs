@@ -6100,6 +6100,34 @@ defmodule LlamexTest do
     assert formatted =~ "compatibility issues: unsupported architecture runtime: gemma3"
   end
 
+  test "uses gemma3 tensor schema names for diagnostics" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
+
+    diagnostic =
+      parsed
+      |> put_in(
+        [Access.key!(:metadata), "general.architecture"],
+        %{type: :string, value: "gemma3"}
+      )
+      |> put_in([Access.key!(:metadata), "gemma3.embedding_length"], %{type: :uint32, value: 2})
+      |> update_in([Access.key!(:tensors)], fn tensors ->
+        [
+          %{name: "blk.0.post_attention_norm.weight", dimensions: [2], type: 0, offset: 0}
+          | tensors
+        ]
+      end)
+      |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert Enum.map(diagnostic.tensor_shapes, & &1.name) == [
+             "blk.0.post_attention_norm.weight",
+             "token_embd.weight"
+           ]
+
+    assert diagnostic.missing_required_tensors == []
+    assert diagnostic.tensor_shape_issues == []
+    assert diagnostic.compatibility_issues == ["unsupported architecture runtime: gemma3"]
+  end
+
   test "diagnoses gguf special tokens" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_special_token_gguf())
 

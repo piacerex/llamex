@@ -19,7 +19,6 @@ defmodule Llamex.GGUF.Diagnostic do
     "rope.scaling.original_context_length"
   ]
   @required_metadata_suffixes ["embedding_length"]
-  @required_tensor_names ["token_embd.weight"]
   @summary_keys [
     :loadable?,
     :compatibility_issues,
@@ -175,13 +174,13 @@ defmodule Llamex.GGUF.Diagnostic do
       missing_chat_template_tokens: missing_chat_template_tokens,
       chat_template_issues: chat_template_issues(chat_template, missing_chat_template_tokens),
       tensor_element_count: tensor_element_count(gguf.tensors),
-      tensor_shapes: tensor_shapes(gguf.tensors),
+      tensor_shapes: tensor_shapes(gguf.metadata, gguf.tensors),
       eager_f32_bytes: eager_f32_bytes(gguf.tensors),
       gguf_payload_bytes: gguf_payload_bytes(gguf.tensors),
       eager_f32_expansion_ratio: eager_f32_expansion_ratio(gguf.tensors),
       tensor_payload_by_type: tensor_payload_by_type(gguf.tensors),
       top_tensor_payloads: top_tensor_payloads(gguf.tensors),
-      missing_required_tensors: missing_required_tensors(gguf.tensors),
+      missing_required_tensors: missing_required_tensors(gguf.metadata, gguf.tensors),
       tensor_shape_issues: tensor_shape_issues(gguf.metadata, gguf.tensors),
       supported_tensor_type_names: supported_tensor_type_names(),
       supported_tensor_type_ids: supported_tensor_type_ids(),
@@ -454,7 +453,7 @@ defmodule Llamex.GGUF.Diagnostic do
       tokenizer_model_supported?(metadata) and pre_tokenizer_supported?(metadata) and
       missing_required_metadata(metadata) == [] and
       unsupported_features(metadata) == [] and
-      missing_required_tensors(tensors) == [] and
+      missing_required_tensors(metadata, tensors) == [] and
       tensor_shape_issues(metadata, tensors) == [] and
       unsupported_tensors(tensors) == []
   end
@@ -467,7 +466,7 @@ defmodule Llamex.GGUF.Diagnostic do
     |> add_pre_tokenizer_issue(metadata)
     |> add_required_metadata_issues(metadata)
     |> add_unsupported_feature_issues(metadata)
-    |> add_required_tensor_issues(tensors)
+    |> add_required_tensor_issues(metadata, tensors)
     |> add_tensor_shape_issues(metadata, tensors)
     |> add_tensor_type_issues(tensors)
     |> Enum.reverse()
@@ -537,9 +536,9 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.reduce(issues, fn issue, issues -> [issue | issues] end)
   end
 
-  defp add_required_tensor_issues(issues, tensors) do
+  defp add_required_tensor_issues(issues, metadata, tensors) do
     tensors
-    |> missing_required_tensors()
+    |> then(&missing_required_tensors(metadata, &1))
     |> Enum.reduce(issues, fn name, issues ->
       ["missing required tensor: #{name}" | issues]
     end)
@@ -568,17 +567,22 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.sum()
   end
 
-  defp missing_required_tensors(tensors) do
+  defp missing_required_tensors(metadata, tensors) do
     tensor_names = MapSet.new(Enum.map(tensors, & &1.name))
+    architecture = metadata_value(metadata, "general.architecture")
 
-    Enum.reject(@required_tensor_names, &MapSet.member?(tensor_names, &1))
+    architecture
+    |> Llamex.GGUF.TensorSchema.required_tensor_names()
+    |> Enum.reject(&MapSet.member?(tensor_names, &1))
   end
 
   defp tensor_shape_issues(metadata, tensors) do
+    architecture = metadata_value(metadata, "general.architecture")
+
     case {metadata_value(metadata, metadata_key(metadata_prefix(metadata), "embedding_length")),
-          find_tensor(tensors, "token_embd.weight")} do
+          find_tensor(tensors, Llamex.GGUF.TensorSchema.token_embedding_name(architecture))} do
       {embedding_length, %{dimensions: dimensions}} when is_integer(embedding_length) ->
-        case schema_shape(dimensions) do
+        case Llamex.GGUF.TensorSchema.schema_shape(dimensions) do
           [_vocab_size, ^embedding_length] ->
             []
 
@@ -661,22 +665,13 @@ defmodule Llamex.GGUF.Diagnostic do
     }
   end
 
-  defp tensor_shapes(tensors) do
+  defp tensor_shapes(metadata, tensors) do
+    architecture = metadata_value(metadata, "general.architecture")
+
     interesting =
-      MapSet.new([
-        "token_embd.weight",
-        "output_norm.weight",
-        "output.weight",
-        "blk.0.attn_norm.weight",
-        "blk.0.attn_q.weight",
-        "blk.0.attn_k.weight",
-        "blk.0.attn_v.weight",
-        "blk.0.attn_output.weight",
-        "blk.0.ffn_norm.weight",
-        "blk.0.ffn_gate.weight",
-        "blk.0.ffn_up.weight",
-        "blk.0.ffn_down.weight"
-      ])
+      architecture
+      |> Llamex.GGUF.TensorSchema.interesting_tensor_names()
+      |> MapSet.new()
 
     tensors
     |> Enum.filter(&MapSet.member?(interesting, &1.name))
@@ -685,7 +680,7 @@ defmodule Llamex.GGUF.Diagnostic do
         name: tensor.name,
         type: tensor_type_name(tensor.type),
         dimensions: tensor.dimensions,
-        schema_shape: schema_shape(tensor.dimensions)
+        schema_shape: Llamex.GGUF.TensorSchema.schema_shape(tensor.dimensions)
       }
     end)
   end
@@ -1035,9 +1030,6 @@ defmodule Llamex.GGUF.Diagnostic do
 
     "unsupported tensors:\n" <> tensors
   end
-
-  defp schema_shape([columns, rows]), do: [rows, columns]
-  defp schema_shape(dimensions), do: dimensions
 
   defp format_dimensions(dimensions), do: inspect(dimensions, charlists: :as_lists)
 
