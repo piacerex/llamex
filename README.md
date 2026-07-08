@@ -726,9 +726,10 @@ that are normalized into Llamex's internal tensor schema, such as Gemma 3
 post-attention norms. Use `tensor_schema_issues: []` to confirm that no tensor
 names remain outside the current schema mapping, and
 `unsupported_tensor_features: []` to confirm that no recognized tensor names
-still require unsupported runtime behavior such as Gemma 3 extra norms.
-`extra_norm_tensor_layers` lists the layer indexes and tensor parts that still
-need extra norm execution support.
+still require unsupported runtime behavior. Gemma 3 q/k and post feed-forward
+extra norms are part of the supported text runtime path.
+`extra_norm_tensor_layers` lists the layer indexes and tensor parts detected for
+that runtime path.
 Supported chat templates currently cover ChatML, `<|user|>`/`<|assistant|>`
 role markers, and Llama header markers using `<|start_header_id|>`,
 `<|end_header_id|>`, and `<|eot_id|>`, including templates that start with
