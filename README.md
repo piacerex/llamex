@@ -805,6 +805,8 @@ matrix as the regular matrix value expected by existing backend code.
 embedding map from compact Q4_0 `token_embd.weight` on demand.
 `Llamex.ModelLoader.from_compact_map/1` can build a minimal model from a compact
 model map by lazily dequantizing compact Q4_0 token embeddings.
+That opt-in compact model path is smoke-tested through one-token generation on
+the List backend.
 Chat template support includes ChatML, role markers, Llama header markers,
 Gemma turn markers, and Mistral/Llama2-style `[INST]...[/INST]` markers.
 With `--json`, multiple GGUF paths can be inspected in one command for model

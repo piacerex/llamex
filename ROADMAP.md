@@ -180,6 +180,8 @@ GGUF モデル読み込み
   `token_embd.weight` から token id => embedding map を遅延構築できる。
 - `Llamex.ModelLoader.from_compact_map/1` で compact model map から最小 `Model` を
   opt-in で構築でき、compact Q4_0 token embeddings を遅延展開できる。
+- compact Q4_0 token embeddings から構築した最小 `Model` は List backend で
+  1 token generation smoke を通せる。
 - chat template は ChatML / role marker / Llama header / Gemma turn marker に加え、
   Mistral・Llama2 系の `[INST]...[/INST]` marker を診断・適用できる。
 - `Llamex.Backend.FPGA.capabilities/0` で FPGA backend の fallback 状態、

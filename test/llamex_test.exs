@@ -5833,9 +5833,7 @@ defmodule LlamexTest do
     parsed = Llamex.GGUF.Reader.read_binary(binary)
 
     compact_map =
-      parsed
-      |> Llamex.GGUF.ModelLoader.to_model_map(binary, tensor_format: :compact)
-      |> put_in(["config", "embedding_size"], 32)
+      Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
 
     model = Llamex.ModelLoader.from_compact_map(compact_map)
 
@@ -5847,6 +5845,26 @@ defmodule LlamexTest do
 
     assert model.architecture == "llama"
     assert model.tensor_schema.architecture == "llama"
+  end
+
+  test "generates from compact q4_0 token embeddings" do
+    binary = tiny_gguf(:with_q4_0_matrix_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+
+    compact_map =
+      Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+
+    model = Llamex.ModelLoader.from_compact_map(compact_map)
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: :greedy
+      })
+
+    assert length(result.generated_tokens) == 1
+    assert is_binary(result.text)
   end
 
   test "rejects non-compact model maps in the compact loader path" do
@@ -9869,11 +9887,17 @@ defmodule LlamexTest do
           []
       end
 
+    embedding_length =
+      case mode do
+        :with_q4_0_matrix_tensor_data -> 32
+        _other -> 2
+      end
+
     metadata =
       [
         kv_string("general.architecture", architecture),
         kv_u32("general.alignment", 32),
-        kv_u32("llama.embedding_length", 2),
+        kv_u32("llama.embedding_length", embedding_length),
         kv_u32("llama.context_length", 16),
         kv_u32("llama.block_count", 1),
         kv_u32("llama.attention.head_count", 2),
