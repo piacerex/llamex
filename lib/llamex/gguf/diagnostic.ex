@@ -17,7 +17,7 @@ defmodule Llamex.GGUF.Diagnostic do
     "llama.rope.scaling.factor",
     "llama.rope.scaling.original_context_length"
   ]
-  @required_metadata_keys ["llama.embedding_length"]
+  @required_metadata_suffixes ["embedding_length"]
   @required_tensor_names ["token_embd.weight"]
   @supported_tensor_types %{
     0 => "F32",
@@ -294,21 +294,32 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp missing_required_metadata(metadata) do
-    Enum.reject(@required_metadata_keys, &Map.has_key?(metadata, &1))
+    prefix = metadata_prefix(metadata)
+
+    @required_metadata_suffixes
+    |> Enum.map(&metadata_key(prefix, &1))
+    |> Enum.reject(&Map.has_key?(metadata, &1))
   end
 
   defp model_config(metadata) do
+    prefix = metadata_prefix(metadata)
+
     %{
-      vocab_size: metadata_value(metadata, "llama.vocab_size") || tokenizer_token_count(metadata),
-      embedding_size: metadata_value(metadata, "llama.embedding_length"),
-      context_size: metadata_value(metadata, "llama.context_length"),
-      block_count: metadata_value(metadata, "llama.block_count"),
-      attention_head_count: metadata_value(metadata, "llama.attention.head_count"),
-      attention_head_count_kv: metadata_value(metadata, "llama.attention.head_count_kv"),
-      feed_forward_size: metadata_value(metadata, "llama.feed_forward_length"),
-      rope_theta: metadata_value(metadata, "llama.rope.freq_base"),
-      rope_dimension_count: metadata_value(metadata, "llama.rope.dimension_count"),
-      epsilon: metadata_value(metadata, "llama.attention.layer_norm_rms_epsilon")
+      vocab_size:
+        metadata_value(metadata, metadata_key(prefix, "vocab_size")) ||
+          tokenizer_token_count(metadata),
+      embedding_size: metadata_value(metadata, metadata_key(prefix, "embedding_length")),
+      context_size: metadata_value(metadata, metadata_key(prefix, "context_length")),
+      block_count: metadata_value(metadata, metadata_key(prefix, "block_count")),
+      attention_head_count:
+        metadata_value(metadata, metadata_key(prefix, "attention.head_count")),
+      attention_head_count_kv:
+        metadata_value(metadata, metadata_key(prefix, "attention.head_count_kv")),
+      feed_forward_size: metadata_value(metadata, metadata_key(prefix, "feed_forward_length")),
+      rope_theta: metadata_value(metadata, metadata_key(prefix, "rope.freq_base")),
+      rope_dimension_count:
+        metadata_value(metadata, metadata_key(prefix, "rope.dimension_count")),
+      epsilon: metadata_value(metadata, metadata_key(prefix, "attention.layer_norm_rms_epsilon"))
     }
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
     |> Map.new()
@@ -449,7 +460,7 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp tensor_shape_issues(metadata, tensors) do
-    case {metadata_value(metadata, "llama.embedding_length"),
+    case {metadata_value(metadata, metadata_key(metadata_prefix(metadata), "embedding_length")),
           find_tensor(tensors, "token_embd.weight")} do
       {embedding_length, %{dimensions: dimensions}} when is_integer(embedding_length) ->
         case schema_shape(dimensions) do
@@ -720,6 +731,22 @@ defmodule Llamex.GGUF.Diagnostic do
       :error -> nil
     end
   end
+
+  defp metadata_prefix(metadata) do
+    case metadata_value(metadata, "general.architecture") do
+      architecture when is_binary(architecture) ->
+        if Map.has_key?(metadata, metadata_key(architecture, "embedding_length")) do
+          architecture
+        else
+          "llama"
+        end
+
+      _other ->
+        "llama"
+    end
+  end
+
+  defp metadata_key(prefix, suffix), do: "#{prefix}.#{suffix}"
 
   defp format_missing_chat_template_tokens([]), do: "chat template missing tokens: none"
 

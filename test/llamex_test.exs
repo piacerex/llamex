@@ -5905,6 +5905,53 @@ defmodule LlamexTest do
     assert formatted =~ "compatibility issues: unsupported pre-tokenizer: qwen2"
   end
 
+  test "diagnoses gemma3-prefixed gguf model metadata separately from architecture support" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
+
+    diagnostic =
+      parsed
+      |> put_in(
+        [Access.key!(:metadata), "general.architecture"],
+        %{type: :string, value: "gemma3"}
+      )
+      |> put_in([Access.key!(:metadata), "gemma3.vocab_size"], %{type: :uint32, value: 2})
+      |> put_in([Access.key!(:metadata), "gemma3.embedding_length"], %{type: :uint32, value: 2})
+      |> put_in([Access.key!(:metadata), "gemma3.context_length"], %{type: :uint32, value: 32})
+      |> put_in([Access.key!(:metadata), "gemma3.block_count"], %{type: :uint32, value: 1})
+      |> put_in([Access.key!(:metadata), "gemma3.attention.head_count"], %{
+        type: :uint32,
+        value: 2
+      })
+      |> put_in([Access.key!(:metadata), "gemma3.attention.head_count_kv"], %{
+        type: :uint32,
+        value: 1
+      })
+      |> put_in([Access.key!(:metadata), "gemma3.feed_forward_length"], %{type: :uint32, value: 8})
+      |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert diagnostic.architecture == "gemma3"
+    assert diagnostic.architecture_supported? == false
+    assert diagnostic.missing_required_metadata == []
+    assert diagnostic.tensor_shape_issues == []
+    assert diagnostic.model_config.vocab_size == 2
+    assert diagnostic.model_config.embedding_size == 2
+    assert diagnostic.model_config.context_size == 32
+    assert diagnostic.model_config.block_count == 1
+    assert diagnostic.model_config.attention_head_count == 2
+    assert diagnostic.model_config.attention_head_count_kv == 1
+    assert diagnostic.model_config.feed_forward_size == 8
+    assert diagnostic.loadable? == false
+    assert diagnostic.compatibility_issues == ["unsupported architecture: gemma3"]
+
+    formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
+
+    assert formatted =~ "architecture: gemma3"
+    assert formatted =~ "architecture supported: false"
+    assert formatted =~ "missing required metadata: none"
+    assert formatted =~ "embedding_size=2"
+    assert formatted =~ "compatibility issues: unsupported architecture: gemma3"
+  end
+
   test "diagnoses gguf special tokens" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_special_token_gguf())
 

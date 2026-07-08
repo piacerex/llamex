@@ -214,8 +214,11 @@ Current GGUF load support is intentionally narrow:
   `Q4_K`, `Q5_0`, `Q5_1`, `Q5_K`, `Q6_K`, `Q8_0`, `Q8_1`, `Q8_K`
 
 GGUF files for other architectures such as Mistral, Qwen, Gemma, or Phi are
-not loadable yet. Llama checkpoints that require sliding-window attention or
-non-`none` RoPE scaling are also rejected by the compatibility check.
+not loadable yet. `gemma3.*` model metadata is still inspected separately from
+the unsupported architecture gate, so Gemma 3 checkpoints can show model config
+and tensor diagnostics before the architecture implementation exists. Llama
+checkpoints that require sliding-window attention or non-`none` RoPE scaling are
+also rejected by the compatibility check.
 
 F32, F16, BF16, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, and Q8_K tensor data can be read into Llamex's named tensor schema:
 
