@@ -791,6 +791,9 @@ memory-efficient boundary for quantized tensor backends.
 `Llamex.GGUF.ModelLoader.to_model_map/3` accepts
 `tensor_format: :compact` when you need a model map with compact GGUF payloads;
 omit the option or use `:dequantized` for the default inference-ready map.
+`Llamex.TensorStore` identifies compact tensor payloads and rejects them on the
+dequantized model-loader path, making the missing compact backend boundary
+explicit instead of failing as a malformed tensor.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 

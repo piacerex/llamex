@@ -5684,6 +5684,47 @@ defmodule LlamexTest do
     assert result.generated_tokens == [2]
   end
 
+  test "identifies compact tensor payloads" do
+    assert Llamex.TensorStore.compact_tensor?(%{
+             "shape" => [32],
+             "dtype" => "quantized",
+             "type_name" => "Q4_0",
+             "quantized?" => true,
+             "payload" => <<0::144>>,
+             "payload_bytes" => 18
+           })
+
+    refute Llamex.TensorStore.compact_tensor?(%{
+             "shape" => [2, 2],
+             "dtype" => "f32",
+             "data" => [1.0, 0.0, 0.0, 1.0]
+           })
+  end
+
+  test "rejects compact tensor payloads in the dequantized model loader path" do
+    attrs = %{
+      "config" => %{
+        "vocab_size" => 1,
+        "embedding_size" => 32
+      },
+      "tensors" => %{
+        "token_embd.weight" => %{
+          "shape" => [1, 32],
+          "dtype" => "quantized",
+          "type" => 2,
+          "type_name" => "Q4_0",
+          "quantized?" => true,
+          "payload" => <<0::144>>,
+          "payload_bytes" => 18
+        }
+      }
+    }
+
+    assert_raise ArgumentError,
+                 "tensor token_embd.weight is compact GGUF payload; dequantized tensor data is required",
+                 fn -> Llamex.ModelLoader.from_map(attrs) end
+  end
+
   test "loads transformer layer and output weights from named tensors" do
     model = Llamex.ModelLoader.load_json("priv/models/tiny_transformer_tensors.json")
 

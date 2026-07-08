@@ -11,6 +11,12 @@ defmodule Llamex.TensorStore do
     end)
   end
 
+  def compact_tensor?(%{"payload" => payload, "quantized?" => quantized?})
+      when is_binary(payload) and is_boolean(quantized?),
+      do: true
+
+  def compact_tensor?(_tensor), do: false
+
   def fetch_matrix(tensors, name) when is_map(tensors) and is_binary(name) do
     tensors
     |> Map.fetch!(name)
@@ -45,6 +51,15 @@ defmodule Llamex.TensorStore do
     validate_data_size!(name, shape, data)
 
     %{shape: shape, dtype: dtype, data: data, value: to_value(shape, data)}
+  end
+
+  defp decode_tensor(name, tensor) when is_binary(name) and is_map(tensor) do
+    if compact_tensor?(tensor) do
+      raise ArgumentError,
+            "tensor #{name} is compact GGUF payload; dequantized tensor data is required"
+    end
+
+    raise ArgumentError, "tensor #{name} must contain shape, dtype, and data"
   end
 
   defp decode_tensor(name, _tensor) do

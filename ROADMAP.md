@@ -162,6 +162,8 @@ GGUF モデル読み込み
 - `Llamex.GGUF.ModelLoader.to_model_map/3` は `tensor_format: :compact` で
   compact payload schema を返せるため、標準の dequantized 推論経路を保ったまま
   量子化 weight 保持形式を選択できる。
+- `Llamex.TensorStore` は compact tensor payload を識別し、標準の dequantized
+  model loader 経路では明示拒否するため、compact backend 境界が曖昧にならない。
 
 ## gemma3対応
 
