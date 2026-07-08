@@ -102,7 +102,15 @@ defmodule Llamex.GGUF.ModelLoader do
         |> Llamex.GGUF.Diagnostic.compatibility_issues()
         |> Enum.join("; ")
 
-      raise ArgumentError, "GGUF model is not loadable by Llamex: #{issues}"
+      blocking_groups =
+        gguf
+        |> Llamex.GGUF.Diagnostic.inspect_reader()
+        |> Map.fetch!(:blocking_issue_groups)
+        |> Enum.map(&Atom.to_string/1)
+        |> Enum.join(", ")
+
+      raise ArgumentError,
+            "GGUF model is not loadable by Llamex: #{issues} (blocking issue groups: #{blocking_groups})"
     end
   end
 

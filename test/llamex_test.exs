@@ -7433,7 +7433,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_unsupported_tensor_type))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported tensor type: type_99 (1)",
+                   "GGUF model is not loadable by Llamex: unsupported tensor type: type_99 (1) (blocking issue groups: tensors)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -7453,7 +7453,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_unsupported_pre_tokenizer_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported pre-tokenizer: qwen2",
+                   "GGUF model is not loadable by Llamex: unsupported pre-tokenizer: qwen2 (blocking issue groups: tokenizer)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -7473,7 +7473,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_unsupported_tokenizer_model_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported tokenizer model: sentencepiece",
+                   "GGUF model is not loadable by Llamex: unsupported tokenizer model: sentencepiece (blocking issue groups: tokenizer)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -7493,7 +7493,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_unsupported_architecture_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported architecture: mistral",
+                   "GGUF model is not loadable by Llamex: unsupported architecture: mistral (blocking issue groups: runtime)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -7525,7 +7525,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_unsupported_rope_scaling_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported RoPE scaling: linear",
+                   "GGUF model is not loadable by Llamex: unsupported RoPE scaling: linear (blocking issue groups: features)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -7545,7 +7545,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_sliding_window_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported attention variant: sliding_window",
+                   "GGUF model is not loadable by Llamex: unsupported attention variant: sliding_window (blocking issue groups: features)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -7565,7 +7565,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_missing_embedding_length_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: missing required metadata: llama.embedding_length",
+                   "GGUF model is not loadable by Llamex: missing required metadata: llama.embedding_length (blocking issue groups: metadata)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -7585,7 +7585,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_missing_tokenizer_tokens_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: missing tokenizer.ggml.tokens",
+                   "GGUF model is not loadable by Llamex: missing tokenizer.ggml.tokens (blocking issue groups: tokenizer)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -7605,7 +7605,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_missing_token_embeddings_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: missing required tensor: token_embd.weight; unmapped tensor schema: other.weight",
+                   "GGUF model is not loadable by Llamex: missing required tensor: token_embd.weight; unmapped tensor schema: other.weight (blocking issue groups: tensors)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -7625,7 +7625,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_token_embedding_shape_mismatch))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: tensor shape mismatch: token_embd.weight schema [2, 3] expected embedding length 2",
+                   "GGUF model is not loadable by Llamex: tensor shape mismatch: token_embd.weight schema [2, 3] expected embedding length 2 (blocking issue groups: tensors)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end

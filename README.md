@@ -708,7 +708,8 @@ as sliding-window size or RoPE scaling settings that caused the rejection. These
 feature checks follow the model architecture prefix, for example `llama.*` or
 `gemma3.*`.
 `Llamex.GGUF.ModelLoader.load/1` uses the same compatibility checks before
-loading tensor data.
+loading tensor data, and load failures include the compact blocking issue group
+list alongside the flat compatibility issue message.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 
