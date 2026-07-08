@@ -251,8 +251,9 @@ override must be a float in `[0.0, 1.0)`.
 Use `--profile` to inspect the model path, prompt, prompt token IDs/pieces,
 generation settings, generated token IDs/pieces/types, timings, and
 `finish_reason` (`stop` or `length`) for generation experiments. Profile output
-also includes `model_diagnostic` for GGUF models, with the same eager F32 payload
-expansion fields used by benchmark JSON. It splits prefill into `prompt_encode`,
+also includes `model_diagnostic` for GGUF models, with the same eager F32
+payload expansion, chat usability, and tokenizer metadata issue fields used by
+benchmark JSON. It splits prefill into `prompt_encode`,
 `backend_prepare`, and `prompt_eval` timings so backend setup cost is visible. Each generated step includes
 `eval_timings` with per-layer `attention_norm`, `attention`, `mlp`,
 `output_norm`, and `logits` timings. For List backend top-k sampling, the
@@ -306,8 +307,9 @@ and generated token pieces, so benchmark output can be matched back to tokenizer
 text fragments without a separate profile run. For GGUF models, JSON results
 also include `model_diagnostic` with payload expansion fields such as
 `gguf_payload_bytes`, `eager_f32_expansion_ratio`, `tensor_payload_by_type`, and
-`top_tensor_payloads`, so speed and eager F32 memory cost can be compared in the
-same artifact. When comparing backends, each
+`top_tensor_payloads`, plus chat usability and tokenizer metadata issue fields,
+so speed, eager F32 memory cost, and checkpoint metadata quality can be compared
+in the same artifact. When comparing backends, each
 result also includes `comparison_rank`, `comparison_fastest_backend`, and
 `mean_milliseconds_delta_from_fastest` for the same requested token count. It
 accepts backend comparison, EXLA, natural sampler, context window, stop-control,

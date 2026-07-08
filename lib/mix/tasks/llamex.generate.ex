@@ -281,6 +281,10 @@ defmodule Mix.Tasks.Llamex.Generate do
       |> Map.take([
         :loadable?,
         :compatibility_issues,
+        :chat_usable,
+        :chat_template_family,
+        :chat_template_issues,
+        :tokenizer_metadata_issues,
         :eager_f32_bytes,
         :gguf_payload_bytes,
         :eager_f32_expansion_ratio,

@@ -3451,6 +3451,10 @@ defmodule LlamexTest do
       assert profile["model_path"] == path
       assert profile["model_diagnostic"]["loadable?"] == true
       assert profile["model_diagnostic"]["compatibility_issues"] == []
+      assert profile["model_diagnostic"]["chat_usable"] == false
+      assert profile["model_diagnostic"]["chat_template_family"] == "none"
+      assert profile["model_diagnostic"]["chat_template_issues"] == []
+      assert profile["model_diagnostic"]["tokenizer_metadata_issues"] == []
       assert profile["model_diagnostic"]["eager_f32_bytes"] == 40
       assert profile["model_diagnostic"]["gguf_payload_bytes"] == 40
       assert profile["model_diagnostic"]["eager_f32_expansion_ratio"] == 1.0
@@ -3700,6 +3704,10 @@ defmodule LlamexTest do
 
       assert result["model_diagnostic"]["loadable?"] == true
       assert result["model_diagnostic"]["compatibility_issues"] == []
+      assert result["model_diagnostic"]["chat_usable"] == false
+      assert result["model_diagnostic"]["chat_template_family"] == "none"
+      assert result["model_diagnostic"]["chat_template_issues"] == []
+      assert result["model_diagnostic"]["tokenizer_metadata_issues"] == []
       assert result["model_diagnostic"]["eager_f32_bytes"] == 40
       assert result["model_diagnostic"]["gguf_payload_bytes"] == 40
       assert result["model_diagnostic"]["eager_f32_expansion_ratio"] == 1.0
