@@ -5895,6 +5895,65 @@ defmodule LlamexTest do
     end
   end
 
+  test "loads compact q4_0 output weights from compact model maps" do
+    binary = tiny_q4_0_embeddings_and_output_gguf()
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+
+    compact_map =
+      Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+
+    model = Llamex.ModelLoader.from_compact_map(compact_map)
+
+    assert model.config.vocab_size == 2
+    assert model.config.embedding_size == 32
+
+    assert model.output == %{
+             weight:
+               Llamex.TensorStore.fetch_dequantized_matrix(
+                 compact_map["tensors"],
+                 "output.weight"
+               )
+           }
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: :greedy
+      })
+
+    assert length(result.generated_tokens) == 1
+  end
+
+  test "loads compact q4_0 output weights through loader option" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-compact-q4-0-output-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_q4_0_embeddings_and_output_gguf())
+
+      model = Llamex.GGUF.ModelLoader.load(path, tensor_format: :compact)
+
+      assert model.config.vocab_size == 2
+      assert model.config.embedding_size == 32
+      assert is_map(model.output)
+
+      result =
+        Llamex.generate(model, "hello", %{
+          backend: Llamex.Backend.List,
+          max_new_tokens: 1,
+          sampler: :greedy
+        })
+
+      assert length(result.generated_tokens) == 1
+    after
+      File.rm(path)
+    end
+  end
+
   test "rejects non-compact model maps in the compact loader path" do
     binary = tiny_gguf(:with_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(binary)
@@ -10163,6 +10222,46 @@ defmodule LlamexTest do
     IO.iodata_to_binary([header, metadata, tensor_infos])
   end
 
+  defp tiny_q4_0_embeddings_and_output_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_u32("general.alignment", 32),
+      kv_u32("llama.embedding_length", 32),
+      kv_u32("llama.context_length", 16),
+      kv_u32("llama.block_count", 1),
+      kv_u32("llama.attention.head_count", 2),
+      kv_u32("llama.attention.head_count_kv", 1),
+      kv_u32("llama.feed_forward_length", 8),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"]),
+      kv_string("tokenizer.ggml.model", "llama")
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(2),
+      u64(length(metadata))
+    ]
+
+    tensor_infos = [
+      tensor_info("token_embd.weight", [32, 2], 2, 0),
+      tensor_info("output.weight", [32, 2], 2, 36)
+    ]
+
+    without_data = IO.iodata_to_binary([header, metadata, tensor_infos])
+    padding = rem(32 - rem(byte_size(without_data), 32), 32)
+
+    token_values = [0, 1, 8, 15 | List.duplicate(8, 60)]
+    output_values = [15, 8, 8, 8 | List.duplicate(8, 60)]
+
+    IO.iodata_to_binary([
+      without_data,
+      :binary.copy(<<0>>, padding),
+      q4_0_payload(token_values),
+      q4_0_payload(output_values)
+    ])
+  end
+
   defp with_aligned_f32_tensor_data(binary, values) do
     padding = rem(32 - rem(byte_size(binary), 32), 32)
     tensor_data = Enum.map(values, fn value -> <<value::little-float-size(32)>> end)
@@ -10184,14 +10283,15 @@ defmodule LlamexTest do
   defp with_aligned_q4_0_tensor_data(binary, values) do
     padding = rem(32 - rem(byte_size(binary), 32), 32)
 
-    tensor_data =
-      values
-      |> Enum.chunk_every(32)
-      |> Enum.map(fn block ->
-        [<<0x3C00::little-unsigned-integer-size(16)>>, q4_0_bytes(block)]
-      end)
+    IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), q4_0_payload(values)])
+  end
 
-    IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  defp q4_0_payload(values) do
+    values
+    |> Enum.chunk_every(32)
+    |> Enum.map(fn block ->
+      [<<0x3C00::little-unsigned-integer-size(16)>>, q4_0_bytes(block)]
+    end)
   end
 
   defp with_aligned_q4_1_tensor_data(binary, values) do
