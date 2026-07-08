@@ -38,7 +38,8 @@ commands default to the Nx backend, and backend selection is explicit:
 - `Llamex.Backend.Nx`: default Nx path, backed by `Llamex.Backend.NxEXLA`
 - `Llamex.Backend.List`: pure Elixir reference path
 - `Llamex.Backend.NxEXLA`: optional Nx/EXLA path for BEAM experiments
-- `Llamex.Backend.FPGA`: FPGA boundary, currently backed by the List fallback
+- `Llamex.Backend.FPGA`: FPGA boundary, currently backed by the List fallback;
+  `capabilities/0` reports the fallback status and AtomVM-oriented boundary
 
 Greedy and top-k sampled generation are regression-tested to agree across List,
 Nx, and NxEXLA on the same tiny model when Nx is available.

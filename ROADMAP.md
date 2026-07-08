@@ -166,6 +166,8 @@ GGUF モデル読み込み
   model loader 経路では明示拒否するため、compact backend 境界が曖昧にならない。
 - chat template は ChatML / role marker / Llama header / Gemma turn marker に加え、
   Mistral・Llama2 系の `[INST]...[/INST]` marker を診断・適用できる。
+- `Llamex.Backend.FPGA.capabilities/0` で FPGA backend の fallback 状態、
+  dequantized tensor 境界、AtomVM-oriented 境界を確認できる。
 
 ## gemma3対応
 

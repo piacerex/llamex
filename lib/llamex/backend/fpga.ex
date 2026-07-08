@@ -9,6 +9,20 @@ defmodule Llamex.Backend.FPGA do
 
   @behaviour Llamex.Backend
 
+  def target, do: :fpga
+
+  def fallback_backend, do: Llamex.Backend.List
+
+  def capabilities do
+    %{
+      target: target(),
+      status: :fallback,
+      fallback_backend: fallback_backend(),
+      tensor_format: :dequantized,
+      atomvm_oriented?: true
+    }
+  end
+
   defdelegate from_list(values), to: Llamex.Backend.List
   defdelegate prepare_model(model), to: Llamex.Backend.List
   defdelegate dot(left, right), to: Llamex.Backend.List

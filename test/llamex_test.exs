@@ -1153,6 +1153,17 @@ defmodule LlamexTest do
     left_rows = [[1.0, 0.0], [0.0, 1.0]]
     right_rows = [[2.0, 0.0], [0.0, 3.0]]
 
+    assert Llamex.Backend.FPGA.target() == :fpga
+    assert Llamex.Backend.FPGA.fallback_backend() == Llamex.Backend.List
+
+    assert Llamex.Backend.FPGA.capabilities() == %{
+             target: :fpga,
+             status: :fallback,
+             fallback_backend: Llamex.Backend.List,
+             tensor_format: :dequantized,
+             atomvm_oriented?: true
+           }
+
     assert Llamex.Backend.FPGA.matvec_pair(left_rows, right_rows, [1.0, 2.0]) ==
              {[1.0, 2.0], [2.0, 6.0]}
   end
