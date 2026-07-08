@@ -579,12 +579,12 @@ mix llamex.gguf.inspect first.gguf second.gguf --json
 ```
 
 The inspection output includes supported architecture/tokenizer/tensor type
-combinations, special tokens, chat template support, missing marker tokens,
-tokenizer model support/kind/merge counts, token type counts, mapped Llama model
-config, unsupported attention/RoPE feature metadata, plus representative raw
-GGUF dimensions and normalized schema shapes for key tensors. This is the fastest
-way to decide whether `--chat` is safe for a checkpoint and whether tensor
-layout looks plausible.
+combinations, special tokens, tokenizer `add_bos` / `add_eos` flags, chat
+template support, missing marker tokens, tokenizer model support/kind/merge
+counts, token type counts, mapped Llama model config, unsupported attention/RoPE
+feature metadata, plus representative raw GGUF dimensions and normalized schema
+shapes for key tensors. This is the fastest way to decide whether `--chat` is
+safe for a checkpoint and whether tensor layout looks plausible.
 Use `--supported` without a model path to print the current supported GGUF
 surface and explicitly unsupported feature metadata before choosing a checkpoint.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
@@ -592,7 +592,8 @@ Use `chat_template_issues: []` to confirm that the template is supported and all
 required marker tokens are present.
 Supported chat templates currently cover ChatML, `<|user|>`/`<|assistant|>`
 role markers, and Llama header markers using `<|start_header_id|>`,
-`<|end_header_id|>`, and `<|eot_id|>`.
+`<|end_header_id|>`, and `<|eot_id|>`, including templates that start with
+`<|begin_of_text|>`.
 Use `loadable: true` as the quick check that architecture, tokenizer metadata,
 tokenizer model metadata when present, required model metadata, required tensors,
 required tensor shapes, and tensor types are inside Llamex's current supported
