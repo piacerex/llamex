@@ -150,6 +150,9 @@ GGUF モデル読み込み
 - GGUF supported surface では Mistral / Qwen / Phi を known unsupported
   architecture として明示し、runtime 未実装 blocker を JSON / text 診断と
   load error で確認できる。
+- tokenizer metadata surface では SentencePiece tokenizer model と Qwen2
+  pre-tokenizer を known unsupported として明示し、対応済み tokenizer
+  metadata と未対応候補を分けて確認できる。
 
 ## gemma3対応
 

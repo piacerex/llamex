@@ -776,6 +776,10 @@ The supported surface currently treats Llama and Gemma3 as loadable runtime
 architectures, while Mistral, Qwen, and Phi are listed as known but blocked
 runtime candidates so unsupported model files fail with an explicit runtime
 blocker instead of an unknown-architecture diagnostic.
+Tokenizer metadata diagnostics also separate supported entries from known but
+unsupported candidates: `sentencepiece` tokenizer models and `qwen2`
+pre-tokenizers are visible in the supported surface but still rejected by the
+loader until their runtime paths are implemented.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 

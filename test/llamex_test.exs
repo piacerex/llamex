@@ -5841,8 +5841,21 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_supported? == true
 
     assert diagnostic.tokenizer_metadata == %{
+             known_tokenizer_models: ["llama", "gpt2", "sentencepiece"],
              tokenizer_models: ["llama", "gpt2"],
-             pre_tokenizers: ["default", "gpt2", "llama-bpe"]
+             tokenizer_model_status: %{
+               "llama" => "supported",
+               "gpt2" => "supported",
+               "sentencepiece" => "known_unsupported"
+             },
+             known_pre_tokenizers: ["default", "gpt2", "llama-bpe", "qwen2"],
+             pre_tokenizers: ["default", "gpt2", "llama-bpe"],
+             pre_tokenizer_status: %{
+               "default" => "supported",
+               "gpt2" => "supported",
+               "llama-bpe" => "supported",
+               "qwen2" => "known_unsupported"
+             }
            }
 
     assert diagnostic.tokenizer_model == "llama"
@@ -6973,8 +6986,18 @@ defmodule LlamexTest do
     assert output =~ "mistral=architecture_runtime:engine:architecture runtime not implemented"
 
     assert output =~ "supported tokenizers: whitespace, bpe"
+    assert output =~ "known tokenizer models: llama, gpt2, sentencepiece"
     assert output =~ "supported tokenizer models: llama, gpt2"
+
+    assert output =~
+             "tokenizer model status surface: gpt2=supported; llama=supported; sentencepiece=known_unsupported"
+
+    assert output =~ "known pre-tokenizers: default, gpt2, llama-bpe, qwen2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
+
+    assert output =~
+             "pre-tokenizer status surface: default=supported; gpt2=supported; llama-bpe=supported; qwen2=known_unsupported"
+
     assert output =~ "tokenizer metadata surface:"
     assert output =~ "gemma3=models:llama/gpt2, pre:default/gpt2/llama-bpe"
     assert output =~ "llama=models:llama/gpt2, pre:default/gpt2/llama-bpe"
@@ -7137,19 +7160,61 @@ defmodule LlamexTest do
            }
 
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
+    assert surface["known_tokenizer_models"] == ["llama", "gpt2", "sentencepiece"]
     assert surface["supported_tokenizer_models"] == ["llama", "gpt2"]
+
+    assert surface["tokenizer_model_status_surface"] == %{
+             "llama" => "supported",
+             "gpt2" => "supported",
+             "sentencepiece" => "known_unsupported"
+           }
+
+    assert surface["known_pre_tokenizers"] == ["default", "gpt2", "llama-bpe", "qwen2"]
     assert surface["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]
+
+    assert surface["pre_tokenizer_status_surface"] == %{
+             "default" => "supported",
+             "gpt2" => "supported",
+             "llama-bpe" => "supported",
+             "qwen2" => "known_unsupported"
+           }
 
     assert surface["tokenizer_metadata_surface"]["gemma3"]["tokenizer_models"] == [
              "llama",
              "gpt2"
            ]
 
+    assert surface["tokenizer_metadata_surface"]["gemma3"]["known_tokenizer_models"] == [
+             "llama",
+             "gpt2",
+             "sentencepiece"
+           ]
+
+    assert surface["tokenizer_metadata_surface"]["gemma3"]["tokenizer_model_status"] == %{
+             "llama" => "supported",
+             "gpt2" => "supported",
+             "sentencepiece" => "known_unsupported"
+           }
+
     assert surface["tokenizer_metadata_surface"]["gemma3"]["pre_tokenizers"] == [
              "default",
              "gpt2",
              "llama-bpe"
            ]
+
+    assert surface["tokenizer_metadata_surface"]["gemma3"]["known_pre_tokenizers"] == [
+             "default",
+             "gpt2",
+             "llama-bpe",
+             "qwen2"
+           ]
+
+    assert surface["tokenizer_metadata_surface"]["gemma3"]["pre_tokenizer_status"] == %{
+             "default" => "supported",
+             "gpt2" => "supported",
+             "llama-bpe" => "supported",
+             "qwen2" => "known_unsupported"
+           }
 
     assert surface["supported_chat_templates"] == [
              "chatml",
@@ -7372,8 +7437,21 @@ defmodule LlamexTest do
     assert diagnostic.pre_tokenizer_supported? == true
 
     assert diagnostic.tokenizer_metadata == %{
+             known_tokenizer_models: ["llama", "gpt2", "sentencepiece"],
              tokenizer_models: ["llama", "gpt2"],
-             pre_tokenizers: ["default", "gpt2", "llama-bpe"]
+             tokenizer_model_status: %{
+               "llama" => "supported",
+               "gpt2" => "supported",
+               "sentencepiece" => "known_unsupported"
+             },
+             known_pre_tokenizers: ["default", "gpt2", "llama-bpe", "qwen2"],
+             pre_tokenizers: ["default", "gpt2", "llama-bpe"],
+             pre_tokenizer_status: %{
+               "default" => "supported",
+               "gpt2" => "supported",
+               "llama-bpe" => "supported",
+               "qwen2" => "known_unsupported"
+             }
            }
 
     assert diagnostic.missing_required_metadata == []

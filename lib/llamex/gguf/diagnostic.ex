@@ -41,7 +41,9 @@ defmodule Llamex.GGUF.Diagnostic do
     }
   }
   @supported_tokenizers ["whitespace", "bpe"]
+  @known_tokenizer_models ["llama", "gpt2", "sentencepiece"]
   @supported_tokenizer_models ["llama", "gpt2"]
+  @known_pre_tokenizers ["default", "gpt2", "llama-bpe", "qwen2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
   @unsupported_feature_metadata [
     "*.attention.sliding_window",
@@ -130,7 +132,11 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def supported_tokenizers, do: @supported_tokenizers
 
+  def known_tokenizer_models, do: @known_tokenizer_models
+
   def supported_tokenizer_models, do: @supported_tokenizer_models
+
+  def known_pre_tokenizers, do: @known_pre_tokenizers
 
   def supported_pre_tokenizers, do: @supported_pre_tokenizers
 
@@ -228,10 +234,40 @@ defmodule Llamex.GGUF.Diagnostic do
       {
         architecture,
         %{
+          known_tokenizer_models: known_tokenizer_models(),
           tokenizer_models: supported_tokenizer_models(),
-          pre_tokenizers: supported_pre_tokenizers()
+          tokenizer_model_status: tokenizer_model_status_surface(),
+          known_pre_tokenizers: known_pre_tokenizers(),
+          pre_tokenizers: supported_pre_tokenizers(),
+          pre_tokenizer_status: pre_tokenizer_status_surface()
         }
       }
+    end)
+  end
+
+  def tokenizer_model_status_surface do
+    Map.new(known_tokenizer_models(), fn model ->
+      status =
+        if model in supported_tokenizer_models() do
+          "supported"
+        else
+          "known_unsupported"
+        end
+
+      {model, status}
+    end)
+  end
+
+  def pre_tokenizer_status_surface do
+    Map.new(known_pre_tokenizers(), fn pre_tokenizer ->
+      status =
+        if pre_tokenizer in supported_pre_tokenizers() do
+          "supported"
+        else
+          "known_unsupported"
+        end
+
+      {pre_tokenizer, status}
     end)
   end
 
@@ -245,8 +281,12 @@ defmodule Llamex.GGUF.Diagnostic do
       runtime_feature_status: runtime_feature_status(),
       runtime_feature_blockers: runtime_feature_blockers(),
       supported_tokenizers: supported_tokenizers(),
+      known_tokenizer_models: known_tokenizer_models(),
       supported_tokenizer_models: supported_tokenizer_models(),
+      tokenizer_model_status_surface: tokenizer_model_status_surface(),
+      known_pre_tokenizers: known_pre_tokenizers(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
+      pre_tokenizer_status_surface: pre_tokenizer_status_surface(),
       tokenizer_metadata_surface: tokenizer_metadata_surface(),
       supported_chat_templates: supported_chat_templates(),
       unsupported_feature_metadata: unsupported_feature_metadata(),
@@ -270,8 +310,12 @@ defmodule Llamex.GGUF.Diagnostic do
       "runtime feature status: #{format_runtime_feature_status(surface.runtime_feature_status)}",
       "runtime feature blockers: #{format_runtime_feature_blocker_surface(surface.runtime_feature_blockers)}",
       "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
+      "known tokenizer models: #{Enum.join(surface.known_tokenizer_models, ", ")}",
       "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
+      "tokenizer model status surface: #{format_status_surface(surface.tokenizer_model_status_surface)}",
+      "known pre-tokenizers: #{Enum.join(surface.known_pre_tokenizers, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
+      "pre-tokenizer status surface: #{format_status_surface(surface.pre_tokenizer_status_surface)}",
       "tokenizer metadata surface: #{format_tokenizer_metadata_surface(surface.tokenizer_metadata_surface)}",
       "supported chat templates: #{Enum.join(surface.supported_chat_templates, ", ")}",
       "unsupported feature metadata: #{Enum.join(surface.unsupported_feature_metadata, ", ")}",
@@ -1658,6 +1702,13 @@ defmodule Llamex.GGUF.Diagnostic do
     surface
     |> Enum.sort()
     |> Enum.map(fn {architecture, status} -> "#{architecture}=#{status}" end)
+    |> Enum.join("; ")
+  end
+
+  defp format_status_surface(surface) do
+    surface
+    |> Enum.sort()
+    |> Enum.map(fn {name, status} -> "#{name}=#{status}" end)
     |> Enum.join("; ")
   end
 
