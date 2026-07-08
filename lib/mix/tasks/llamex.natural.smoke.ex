@@ -62,12 +62,22 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     model = load_model(model_path)
     max_new_tokens = Map.get(options, :max_new_tokens, String.to_integer(max_new_tokens))
     prompts = prompts(options)
+    backend = backend(options)
     sampler = natural_sampler(model, options)
     stop_tokens = Llamex.Natural.control_stop_tokens(model)
-    settings = smoke_settings(max_new_tokens, stop_tokens, sampler, options)
+    settings = smoke_settings(max_new_tokens, stop_tokens, sampler, backend, options)
 
     results =
-      smoke_results!(model, prompts, max_new_tokens, stop_tokens, sampler, settings, options)
+      smoke_results!(
+        model,
+        prompts,
+        max_new_tokens,
+        stop_tokens,
+        sampler,
+        backend,
+        settings,
+        options
+      )
 
     print_results(results, options)
     maybe_fail_on_issue(results, options)
@@ -79,11 +89,20 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
     Mix.raise(~s(usage: mix llamex.natural.smoke MODEL [max_new_tokens] [--json] [--prompt TEXT]))
   end
 
-  defp smoke_results!(model, prompts, max_new_tokens, stop_tokens, sampler, settings, options) do
+  defp smoke_results!(
+         model,
+         prompts,
+         max_new_tokens,
+         stop_tokens,
+         sampler,
+         backend,
+         settings,
+         options
+       ) do
     Enum.map(prompts, fn prompt ->
       result =
         Llamex.generate(model, prompt, %{
-          backend: backend(options),
+          backend: backend,
           context_window: Map.get(options, :context_window),
           max_new_tokens: max_new_tokens,
           stop_tokens: stop_tokens,
@@ -97,6 +116,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
           result,
           sampler,
           stop_tokens,
+          backend,
           max_new_tokens,
           options
         )
@@ -137,8 +157,10 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
   defp min_words(_options), do: 1
 
-  defp smoke_settings(max_new_tokens, stop_tokens, sampler, options) do
+  defp smoke_settings(max_new_tokens, stop_tokens, sampler, backend, options) do
     %{
+      backend: inspect(backend),
+      exla: exla_settings(backend),
       max_new_tokens: max_new_tokens,
       min_words: min_words(options),
       reject_open_ending: Map.get(options, :reject_open_ending, false),
@@ -159,12 +181,19 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
   defp display_sampler(sampler), do: sampler
 
+  defp exla_settings(backend) when backend in [Llamex.Backend.Nx, Llamex.Backend.NxEXLA] do
+    Llamex.Backend.NxEXLA.configured()
+  end
+
+  defp exla_settings(_backend), do: nil
+
   defp maybe_complete_open_ending(
          model,
          prompt,
          result,
          sampler,
          stop_tokens,
+         backend,
          _max_new_tokens,
          options
        ) do
@@ -172,13 +201,33 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
     if extra_tokens > 0 and result.finish_reason == :length and
          Llamex.Natural.open_ending?(result.text) do
-      complete_open_ending(model, prompt, result, sampler, stop_tokens, options, extra_tokens, [])
+      complete_open_ending(
+        model,
+        prompt,
+        result,
+        sampler,
+        stop_tokens,
+        backend,
+        options,
+        extra_tokens,
+        []
+      )
     else
       Map.put(result, :completion_tokens, [])
     end
   end
 
-  defp complete_open_ending(_model, _prompt, result, _sampler, _stop_tokens, _options, 0, tokens) do
+  defp complete_open_ending(
+         _model,
+         _prompt,
+         result,
+         _sampler,
+         _stop_tokens,
+         _backend,
+         _options,
+         0,
+         tokens
+       ) do
     Map.put(result, :completion_tokens, Enum.reverse(tokens))
   end
 
@@ -188,6 +237,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
          result,
          sampler,
          stop_tokens,
+         backend,
          options,
          remaining,
          tokens
@@ -196,7 +246,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
 
     completion =
       Llamex.generate(model, continuation_prompt(prompt, result.text), %{
-        backend: backend(options),
+        backend: backend,
         context_window: Map.get(options, :context_window),
         max_new_tokens: chunk_tokens,
         stop_tokens: stop_tokens,
@@ -221,6 +271,7 @@ defmodule Mix.Tasks.Llamex.Natural.Smoke do
         result,
         sampler,
         stop_tokens,
+        backend,
         options,
         remaining,
         tokens
