@@ -628,11 +628,15 @@ The tensor schema summary can also be checked from IEx without reading tensor
 payloads:
 
 ```elixir
+Llamex.GGUF.Diagnostic.inspect_summary_file("model.gguf")
 Llamex.GGUF.ModelLoader.model_config_report_file("model.gguf")
 Llamex.GGUF.ModelLoader.model_config_summary_file("model.gguf")
 Llamex.GGUF.ModelLoader.tensor_schema_summary_file("model.gguf")
 ```
 
+`Llamex.GGUF.Diagnostic.inspect_summary_binary/1` and
+`inspect_summary_reader/1` provide the same compact diagnostic map for fixtures
+or already parsed `Llamex.GGUF.Reader` values.
 `model_config_report_file/1` includes the selected metadata prefix, such as
 `llama` or `gemma3`, alongside the config map and missing config metadata keys.
 `Llamex.GGUF.ModelLoader.model_config_summary/1` and
