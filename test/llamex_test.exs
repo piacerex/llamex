@@ -78,6 +78,15 @@ defmodule LlamexTest do
     assert Llamex.Natural.control_stop_tokens(prepared) == [1]
     assert Llamex.Natural.suppressed_token_ids(prepared) == [0, 1]
     assert Llamex.Natural.sampler(prepared).suppress_tokens == [0, 1]
+
+    model_without_tokenizer =
+      Llamex.new_model(%{
+        config: %{vocab_size: 1, embedding_size: 1},
+        token_embeddings: %{0 => [0.0]}
+      })
+
+    assert Llamex.Natural.control_stop_tokens(model_without_tokenizer) == []
+    assert Llamex.Natural.suppressed_token_ids(model_without_tokenizer) == []
   end
 
   test "natural sampler validates sampling options" do
