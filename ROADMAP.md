@@ -156,6 +156,9 @@ GGUF モデル読み込み
 - attention / RoPE variant surface では full attention / default RoPE と、
   sliding-window attention / linear・YaRN RoPE scaling の known unsupported
   status を分けて確認できる。
+- `Llamex.GGUF.Reader.read_compact_tensor_data/2` で GGUF tensor payload を
+  eager F32 展開せず named tensor schema として読めるため、量子化 tensor の
+  メモリ効率の良い保持形式へ進む足場がある。
 
 ## gemma3対応
 

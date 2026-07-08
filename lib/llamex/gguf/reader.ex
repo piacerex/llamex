@@ -3,6 +3,8 @@ defmodule Llamex.GGUF.Reader do
   Reads GGUF header, metadata, and tensor directory.
 
   Supported tensor payloads are decoded into Llamex's flat named tensor schema.
+  Compact tensor payloads can also be read without eager F32 dequantization for
+  diagnostics and future backends that can consume quantized GGUF blocks.
   """
 
   @default_alignment 32
@@ -41,6 +43,12 @@ defmodule Llamex.GGUF.Reader do
     binary = File.read!(path)
 
     read_tensor_data(read_binary(binary), binary)
+  end
+
+  def read_compact_tensor_data(%__MODULE__{} = gguf, binary) when is_binary(binary) do
+    Map.new(gguf.tensors, fn tensor ->
+      {tensor.name, tensor_to_compact_schema(gguf, tensor, binary)}
+    end)
   end
 
   def read_tensor_data(%__MODULE__{} = gguf, binary) when is_binary(binary) do
@@ -447,6 +455,22 @@ defmodule Llamex.GGUF.Reader do
     raise ArgumentError, "unsupported GGUF tensor type #{tensor.type} for #{tensor.name}"
   end
 
+  defp tensor_to_compact_schema(gguf, tensor, binary) do
+    byte_size = tensor_payload_bytes!(tensor)
+    offset = gguf.tensor_data_offset + tensor.offset
+    <<_prefix::binary-size(offset), payload::binary-size(byte_size), _rest::binary>> = binary
+
+    %{
+      "shape" => schema_shape(tensor.dimensions),
+      "dtype" => tensor_dtype(tensor.type),
+      "type" => tensor.type,
+      "type_name" => tensor_type_name(tensor.type),
+      "quantized?" => quantized_tensor_type?(tensor.type),
+      "payload" => payload,
+      "payload_bytes" => byte_size
+    }
+  end
+
   defp read_f32_tensor(binary, offset, count) do
     byte_size = count * 4
     <<_prefix::binary-size(offset), tensor_data::binary-size(byte_size), _rest::binary>> = binary
@@ -458,6 +482,86 @@ defmodule Llamex.GGUF.Reader do
   defp read_f32_values(<<value::little-float-size(32), rest::binary>>, values) do
     read_f32_values(rest, [value | values])
   end
+
+  defp tensor_payload_bytes!(%{type: 0, dimensions: dimensions}),
+    do: element_count(dimensions) * 4
+
+  defp tensor_payload_bytes!(%{type: 1, dimensions: dimensions}),
+    do: element_count(dimensions) * 2
+
+  defp tensor_payload_bytes!(%{type: 30, dimensions: dimensions}),
+    do: element_count(dimensions) * 2
+
+  defp tensor_payload_bytes!(%{type: type, dimensions: dimensions})
+       when type in [2, 3, 6, 7, 8, 9] do
+    {block_size, bytes_per_block} =
+      case type do
+        2 -> {@q4_0_block_size, 2 + div(@q4_0_block_size, 2)}
+        3 -> {@q4_1_block_size, 4 + div(@q4_1_block_size, 2)}
+        6 -> {@q5_0_block_size, 2 + 4 + div(@q5_0_block_size, 2)}
+        7 -> {@q5_1_block_size, 4 + 4 + div(@q5_1_block_size, 2)}
+        8 -> {@q8_0_block_size, 2 + @q8_0_block_size}
+        9 -> {@q8_1_block_size, 4 + @q8_1_block_size}
+      end
+
+    block_payload_bytes!(type, dimensions, block_size, bytes_per_block)
+  end
+
+  defp tensor_payload_bytes!(%{type: type, dimensions: dimensions})
+       when type in [10, 11, 12, 13, 14, 15] do
+    {block_size, bytes_per_block} =
+      case type do
+        10 -> {@q2_k_block_size, 16 + 64 + 4}
+        11 -> {@q3_k_block_size, 32 + 64 + 12 + 2}
+        12 -> {@q4_k_block_size, 4 + @q4_k_scale_size + div(@q4_k_block_size, 2)}
+        13 -> {@q5_k_block_size, 4 + 12 + div(@q5_k_block_size, 8) + div(@q5_k_block_size, 2)}
+        14 -> {@q6_k_block_size, 128 + 64 + 16 + 2}
+        15 -> {@q8_k_block_size, 4 + @q8_k_block_size + 32}
+      end
+
+    block_payload_bytes!(type, dimensions, block_size, bytes_per_block)
+  end
+
+  defp tensor_payload_bytes!(tensor) do
+    raise ArgumentError, "unsupported GGUF tensor type #{tensor.type} for #{tensor.name}"
+  end
+
+  defp block_payload_bytes!(type, dimensions, block_size, bytes_per_block) do
+    count = element_count(dimensions)
+
+    if rem(count, block_size) == 0 do
+      div(count, block_size) * bytes_per_block
+    else
+      raise ArgumentError,
+            "#{tensor_type_name(type)} tensor element count must be divisible by #{block_size}"
+    end
+  end
+
+  defp tensor_dtype(0), do: "f32"
+  defp tensor_dtype(1), do: "f16"
+  defp tensor_dtype(30), do: "bf16"
+  defp tensor_dtype(_type), do: "quantized"
+
+  defp quantized_tensor_type?(type), do: type not in [0, 1, 30]
+
+  defp tensor_type_name(0), do: "F32"
+  defp tensor_type_name(1), do: "F16"
+  defp tensor_type_name(2), do: "Q4_0"
+  defp tensor_type_name(3), do: "Q4_1"
+  defp tensor_type_name(6), do: "Q5_0"
+  defp tensor_type_name(7), do: "Q5_1"
+  defp tensor_type_name(8), do: "Q8_0"
+  defp tensor_type_name(9), do: "Q8_1"
+  defp tensor_type_name(10), do: "Q2_K"
+  defp tensor_type_name(11), do: "Q3_K"
+  defp tensor_type_name(12), do: "Q4_K"
+  defp tensor_type_name(13), do: "Q5_K"
+  defp tensor_type_name(14), do: "Q6_K"
+  defp tensor_type_name(15), do: "Q8_K"
+  defp tensor_type_name(30), do: "BF16"
+  defp tensor_type_name(type), do: "type_#{type}"
+
+  defp element_count(dimensions), do: Enum.product(dimensions)
 
   defp read_f16_tensor(binary, offset, count) do
     byte_size = count * 2

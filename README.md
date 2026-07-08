@@ -784,6 +784,10 @@ Attention and RoPE diagnostics expose variant status in the supported surface:
 `full` attention and default RoPE are supported, while sliding-window attention
 and linear / YaRN RoPE scaling are known unsupported variants with explicit
 feature blockers.
+`Llamex.GGUF.Reader.read_compact_tensor_data/2` can read named tensor payloads
+without eager F32 dequantization. The standard model loader still uses the
+dequantized schema for inference, while compact payloads provide the next
+memory-efficient boundary for quantized tensor backends.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 

@@ -8531,12 +8531,51 @@ defmodule LlamexTest do
     assert tensors["token_embd.weight"]["data"] |> Enum.drop(4) |> Enum.all?(&(&1 == 0.0))
   end
 
+  test "reads q4_0 gguf tensor data into compact named tensor schema" do
+    gguf = tiny_gguf(:with_q4_0_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_compact_tensor_data(parsed, gguf)
+
+    assert tensors["token_embd.weight"]["shape"] == [32]
+    assert tensors["token_embd.weight"]["dtype"] == "quantized"
+    assert tensors["token_embd.weight"]["type"] == 2
+    assert tensors["token_embd.weight"]["type_name"] == "Q4_0"
+    assert tensors["token_embd.weight"]["quantized?"] == true
+    assert tensors["token_embd.weight"]["payload_bytes"] == 18
+    assert byte_size(tensors["token_embd.weight"]["payload"]) == 18
+  end
+
+  test "reads f32 gguf tensor data into compact named tensor schema" do
+    gguf = tiny_gguf(:with_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_compact_tensor_data(parsed, gguf)
+
+    assert tensors["token_embd.weight"]["shape"] == [2, 2]
+    assert tensors["token_embd.weight"]["dtype"] == "f32"
+    assert tensors["token_embd.weight"]["type"] == 0
+    assert tensors["token_embd.weight"]["type_name"] == "F32"
+    assert tensors["token_embd.weight"]["quantized?"] == false
+    assert tensors["token_embd.weight"]["payload_bytes"] == 16
+    assert byte_size(tensors["token_embd.weight"]["payload"]) == 16
+  end
+
   test "rejects q4_0 tensors whose element count is not block-aligned" do
     gguf = tiny_gguf(:with_unaligned_q4_0_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(gguf)
 
     assert_raise ArgumentError, ~r/Q4_0 tensor element count/, fn ->
       Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+    end
+  end
+
+  test "rejects compact q4_0 tensors whose element count is not block-aligned" do
+    gguf = tiny_gguf(:with_unaligned_q4_0_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    assert_raise ArgumentError, ~r/Q4_0 tensor element count/, fn ->
+      Llamex.GGUF.Reader.read_compact_tensor_data(parsed, gguf)
     end
   end
 
