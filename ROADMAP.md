@@ -159,6 +159,9 @@ model config、tensor schema の診断出力を固定している。Gemma3 loade
 test で確認している。`mix llamex.natural.smoke` は `--include-japanese`
 でデフォルト英語 prompt suite に日本語 prompt を追加でき、Gemma3 GGUF
 fixture で英語 prompt と日本語 prompt の natural smoke を固定している。
+README は Gemma3 text-only/full-attention/default-RoPE の supported surface、
+未対応 feature blocker、inspect/load/generate/natural smoke の known-good
+コマンドを記載している。
 
 - 対象モデルを `unsloth/gemma-3-270m-it-GGUF` に固定する。
   - 最初は最小量子化 GGUF を使い、ロード可否と 1 token 生成を優先する。

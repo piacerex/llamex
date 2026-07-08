@@ -696,18 +696,15 @@ architecture-specific `unsupported_feature_metadata_surface` for exact keys such
 as `gemma3.rope.scaling.type`, plus the tensor schema surface for known
 architectures so Gemma 3 extra norm tensor names are visible before loading
 tensor data. `runtime_feature_status` shows which runtime features are already
-implemented per architecture; for Gemma 3 the extra norm paths are supported
-while the architecture runtime remains blocked. Attention and RoPE variants are
-also marked there, so sliding-window attention or RoPE scaling metadata shows up
-as a blocked runtime feature before loading. `runtime_feature_blockers` lists the
+implemented per architecture; for Gemma 3 the text runtime, q/k extra norm
+paths, post feed-forward extra norm path, full attention, and default RoPE are
+supported. Sliding-window attention or RoPE scaling metadata shows up as a
+blocked runtime feature before loading. `runtime_feature_blockers` lists the
 component-level blocker records available without a model file.
-`known_combinations` includes diagnostic-only architectures such as Gemma 3 with
-their runtime status, while `supported_combinations` remains limited to loadable
-runtime combinations.
-Use `architecture_runtime_blockers` to see the named runtime gaps that keep a
-known architecture, such as Gemma 3, out of the loadable runtime surface.
-Use `architecture_runtime_blocker_details` when an implementation task needs a
-stable blocker id and component.
+`known_combinations` and `supported_combinations` include the currently loadable
+Gemma 3 text-only surface.
+Use `architecture_runtime_blockers` and `architecture_runtime_blocker_details`
+to confirm whether a known architecture still has named runtime gaps.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `chat_template_issues: []` to confirm that the template is supported and all
 required marker tokens are present.
@@ -794,6 +791,24 @@ curl -L --fail \
 
 mix llamex.gguf.inspect /tmp/llamex-models/zephyr-smol_llama-100m-sft-full-Q2_K.gguf
 ```
+
+For a Gemma 3 text-only checkpoint such as `unsloth/gemma-3-270m-it-GGUF`,
+verify the supported surface before generation:
+
+```bash
+MODEL_GGUF=/tmp/llamex-models/gemma-3-270m-it.gguf
+
+mix llamex.gguf.inspect "$MODEL_GGUF" --json
+mix run -e 'model = Llamex.GGUF.ModelLoader.load(System.fetch_env!("MODEL_GGUF")); IO.inspect(%{architecture: model.architecture, vocab_size: model.config.vocab_size, context_size: model.config.context_size})'
+mix llamex.generate "$MODEL_GGUF" "The quick brown fox" 1 --backend list --natural
+mix llamex.natural.smoke "$MODEL_GGUF" 1 --backend list --include-japanese --json
+```
+
+Gemma 3 checkpoints are expected to be loadable only on the text-only path with
+full attention and default RoPE. Inspect output should show `architecture:
+gemma3`, `architecture runtime status: supported`, `loadable: true`, and
+`compatibility issues: none`; checkpoints that include sliding-window attention
+or RoPE scaling remain rejected with explicit feature blockers.
 
 This checkpoint is compatible with the current tensor loader:
 
