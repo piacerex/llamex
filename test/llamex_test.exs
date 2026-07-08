@@ -67,6 +67,18 @@ defmodule LlamexTest do
             "architecture runtime not implemented",
             "extra norm tensor execution not implemented"
           ],
+          runtime_blocker_details: [
+            %{
+              id: "architecture_runtime",
+              reason: "architecture runtime not implemented",
+              component: "engine"
+            },
+            %{
+              id: "extra_norm_tensors",
+              reason: "extra norm tensor execution not implemented",
+              component: "layers"
+            }
+          ],
           blocking_issue_groups: [:runtime],
           attention_variant: %{type: "full"},
           rope_variant: %{type: "default"}
@@ -5570,6 +5582,7 @@ defmodule LlamexTest do
              architecture: "llama",
              architecture_runtime_status: "supported",
              architecture_runtime_blockers: [],
+             architecture_runtime_blocker_details: [],
              model_combination: %{
                architecture: "llama",
                runtime_status: "supported",
@@ -5582,6 +5595,7 @@ defmodule LlamexTest do
                loadable?: true,
                runtime_status: "supported",
                runtime_blockers: [],
+               runtime_blocker_details: [],
                blocking_issue_groups: [],
                attention_variant: %{type: "full"},
                rope_variant: %{type: "default"}
@@ -6201,12 +6215,13 @@ defmodule LlamexTest do
       assert output =~ "architecture: llama"
       assert output =~ "architecture runtime status: supported"
       assert output =~ "architecture runtime blockers: none"
+      assert output =~ "architecture runtime blocker details: none"
 
       assert output =~
                "model combination: architecture=llama, runtime=supported, tokenizer=whitespace, model=llama, pre=default, tensor_types=type_99"
 
       assert output =~
-               "runtime capability: loadable=false, runtime=supported, runtime_blockers=none, blocking_groups=tensors"
+               "runtime capability: loadable=false, runtime=supported, runtime_blockers=none, runtime_blocker_details=none, blocking_groups=tensors"
 
       assert output =~ "attention variant: type=full"
       assert output =~ "RoPE variant: type=default"
@@ -6276,6 +6291,7 @@ defmodule LlamexTest do
       assert summary["architecture"] == "llama"
       assert summary["architecture_runtime_status"] == "supported"
       assert summary["architecture_runtime_blockers"] == []
+      assert summary["architecture_runtime_blocker_details"] == []
 
       assert summary["model_combination"] == %{
                "architecture" => "llama",
@@ -6290,6 +6306,7 @@ defmodule LlamexTest do
                "loadable?" => false,
                "runtime_status" => "supported",
                "runtime_blockers" => [],
+               "runtime_blocker_details" => [],
                "blocking_issue_groups" => ["tensors"],
                "attention_variant" => %{"type" => "full"},
                "rope_variant" => %{"type" => "default"}
@@ -6459,6 +6476,9 @@ defmodule LlamexTest do
     assert output =~ "gemma3=architecture runtime not implemented"
     assert output =~ "extra norm tensor execution not implemented"
     assert output =~ "llama=none"
+    assert output =~ "architecture runtime blocker details:"
+    assert output =~ "gemma3=architecture_runtime:engine:architecture runtime not implemented"
+    assert output =~ "extra_norm_tensors:layers:extra norm tensor execution not implemented"
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
@@ -6520,6 +6540,22 @@ defmodule LlamexTest do
              "gemma3" => [
                "architecture runtime not implemented",
                "extra norm tensor execution not implemented"
+             ],
+             "llama" => []
+           }
+
+    assert surface["architecture_runtime_blocker_details"] == %{
+             "gemma3" => [
+               %{
+                 "id" => "architecture_runtime",
+                 "reason" => "architecture runtime not implemented",
+                 "component" => "engine"
+               },
+               %{
+                 "id" => "extra_norm_tensors",
+                 "reason" => "extra norm tensor execution not implemented",
+                 "component" => "layers"
+               }
              ],
              "llama" => []
            }
@@ -6719,6 +6755,18 @@ defmodule LlamexTest do
              runtime_blockers: [
                "architecture runtime not implemented",
                "extra norm tensor execution not implemented"
+             ],
+             runtime_blocker_details: [
+               %{
+                 id: "architecture_runtime",
+                 reason: "architecture runtime not implemented",
+                 component: "engine"
+               },
+               %{
+                 id: "extra_norm_tensors",
+                 reason: "extra norm tensor execution not implemented",
+                 component: "layers"
+               }
              ],
              blocking_issue_groups: [:runtime],
              attention_variant: %{type: "full"},
@@ -6927,6 +6975,18 @@ defmodule LlamexTest do
                "architecture runtime not implemented",
                "extra norm tensor execution not implemented"
              ],
+             runtime_blocker_details: [
+               %{
+                 id: "architecture_runtime",
+                 reason: "architecture runtime not implemented",
+                 component: "engine"
+               },
+               %{
+                 id: "extra_norm_tensors",
+                 reason: "extra norm tensor execution not implemented",
+                 component: "layers"
+               }
+             ],
              blocking_issue_groups: [:runtime, :tensors],
              attention_variant: %{type: "full"},
              rope_variant: %{type: "default"}
@@ -7001,6 +7061,18 @@ defmodule LlamexTest do
                runtime_blockers: [
                  "architecture runtime not implemented",
                  "extra norm tensor execution not implemented"
+               ],
+               runtime_blocker_details: [
+                 %{
+                   id: "architecture_runtime",
+                   reason: "architecture runtime not implemented",
+                   component: "engine"
+                 },
+                 %{
+                   id: "extra_norm_tensors",
+                   reason: "extra norm tensor execution not implemented",
+                   component: "layers"
+                 }
                ],
                blocking_issue_groups: [:runtime],
                attention_variant: %{type: "full"},

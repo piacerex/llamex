@@ -153,6 +153,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "architecture: #{summary.architecture || "unknown"}",
       "architecture runtime status: #{summary.architecture_runtime_status}",
       "architecture runtime blockers: #{format_list(summary.architecture_runtime_blockers)}",
+      "architecture runtime blocker details: #{format_blocker_details(summary.architecture_runtime_blocker_details)}",
       "model combination: #{format_model_combination(summary.model_combination)}",
       "runtime capability: #{format_runtime_capability(summary.runtime_capability)}",
       "attention variant: #{format_variant(summary.attention_variant)}",
@@ -266,6 +267,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "loadable=#{capability.loadable?}",
       "runtime=#{capability.runtime_status}",
       "runtime_blockers=#{format_list(capability.runtime_blockers)}",
+      "runtime_blocker_details=#{format_blocker_details(capability.runtime_blocker_details)}",
       "blocking_groups=#{format_atoms(capability.blocking_issue_groups)}",
       "attention=#{format_variant(capability.attention_variant)}",
       "rope=#{format_variant(capability.rope_variant)}"
@@ -277,6 +279,14 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     variant
     |> Enum.sort()
     |> Enum.map_join(", ", fn {key, value} -> "#{key}=#{value}" end)
+  end
+
+  defp format_blocker_details([]), do: "none"
+
+  defp format_blocker_details(details) do
+    details
+    |> Enum.map(fn detail -> "#{detail.id}:#{detail.component}:#{detail.reason}" end)
+    |> Enum.join("/")
   end
 
   defp format_list([]), do: "none"

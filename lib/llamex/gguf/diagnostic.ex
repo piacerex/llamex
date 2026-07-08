@@ -11,6 +11,20 @@ defmodule Llamex.GGUF.Diagnostic do
       "extra norm tensor execution not implemented"
     ]
   }
+  @architecture_runtime_blocker_details %{
+    "gemma3" => [
+      %{
+        id: "architecture_runtime",
+        reason: "architecture runtime not implemented",
+        component: "engine"
+      },
+      %{
+        id: "extra_norm_tensors",
+        reason: "extra norm tensor execution not implemented",
+        component: "layers"
+      }
+    ]
+  }
   @supported_tokenizers ["whitespace", "bpe"]
   @supported_tokenizer_models ["llama", "gpt2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
@@ -29,6 +43,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :architecture,
     :architecture_runtime_status,
     :architecture_runtime_blockers,
+    :architecture_runtime_blocker_details,
     :model_combination,
     :runtime_capability,
     :attention_variant,
@@ -171,6 +186,12 @@ defmodule Llamex.GGUF.Diagnostic do
     end)
   end
 
+  def architecture_runtime_blocker_details do
+    Map.new(known_architectures(), fn architecture ->
+      {architecture, Map.get(@architecture_runtime_blocker_details, architecture, [])}
+    end)
+  end
+
   def tokenizer_metadata_surface do
     Map.new(known_architectures(), fn architecture ->
       {
@@ -189,6 +210,7 @@ defmodule Llamex.GGUF.Diagnostic do
       known_architectures: known_architectures(),
       architecture_runtime_surface: architecture_runtime_surface(),
       architecture_runtime_blockers: architecture_runtime_blockers(),
+      architecture_runtime_blocker_details: architecture_runtime_blocker_details(),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
@@ -211,6 +233,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "known architectures: #{Enum.join(surface.known_architectures, ", ")}",
       "architecture runtime surface: #{format_architecture_runtime_surface(surface.architecture_runtime_surface)}",
       "architecture runtime blockers: #{format_architecture_runtime_blockers(surface.architecture_runtime_blockers)}",
+      "architecture runtime blocker details: #{format_architecture_runtime_blocker_details(surface.architecture_runtime_blocker_details)}",
       "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
       "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
@@ -274,6 +297,7 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_supported?: architecture_supported?(gguf.metadata),
       architecture_runtime_status: architecture_runtime_status(gguf.metadata),
       architecture_runtime_blockers: architecture_runtime_blockers(gguf.metadata),
+      architecture_runtime_blocker_details: architecture_runtime_blocker_details(gguf.metadata),
       model_combination: model_combination(gguf.metadata, gguf.tensors),
       runtime_capability: runtime_capability(gguf.metadata, gguf.tensors),
       attention_variant: attention_variant(gguf.metadata),
@@ -354,6 +378,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture supported: #{diagnostic.architecture_supported?}",
       "architecture runtime status: #{diagnostic.architecture_runtime_status}",
       "architecture runtime blockers: #{format_list(diagnostic.architecture_runtime_blockers)}",
+      "architecture runtime blocker details: #{format_blocker_details(diagnostic.architecture_runtime_blocker_details)}",
       "model combination: #{format_model_combination(diagnostic.model_combination)}",
       "runtime capability: #{format_runtime_capability(diagnostic.runtime_capability)}",
       "attention variant: #{format_variant(diagnostic.attention_variant)}",
@@ -443,6 +468,7 @@ defmodule Llamex.GGUF.Diagnostic do
       loadable?: loadable?(metadata, tensors),
       runtime_status: architecture_runtime_status(metadata),
       runtime_blockers: architecture_runtime_blockers(metadata),
+      runtime_blocker_details: architecture_runtime_blocker_details(metadata),
       blocking_issue_groups: blocking_issue_groups(groups),
       attention_variant: attention_variant(metadata),
       rope_variant: rope_variant(metadata)
@@ -507,6 +533,12 @@ defmodule Llamex.GGUF.Diagnostic do
     metadata
     |> metadata_value("general.architecture")
     |> then(&Map.get(@architecture_runtime_blockers, &1, []))
+  end
+
+  defp architecture_runtime_blocker_details(metadata) do
+    metadata
+    |> metadata_value("general.architecture")
+    |> then(&Map.get(@architecture_runtime_blocker_details, &1, []))
   end
 
   defp tokenizer_supported?(metadata) do
@@ -1212,6 +1244,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "loadable=#{capability.loadable?}",
       "runtime=#{capability.runtime_status}",
       "runtime_blockers=#{format_list(capability.runtime_blockers)}",
+      "runtime_blocker_details=#{format_blocker_details(capability.runtime_blocker_details)}",
       "blocking_groups=#{format_blocking_issue_groups(capability.blocking_issue_groups)}",
       "attention=#{format_variant(capability.attention_variant)}",
       "rope=#{format_variant(capability.rope_variant)}"
@@ -1257,6 +1290,23 @@ defmodule Llamex.GGUF.Diagnostic do
       "#{architecture}=#{format_list(blockers)}"
     end)
     |> Enum.join("; ")
+  end
+
+  defp format_architecture_runtime_blocker_details(surface) do
+    surface
+    |> Enum.sort()
+    |> Enum.map(fn {architecture, details} ->
+      "#{architecture}=#{format_blocker_details(details)}"
+    end)
+    |> Enum.join("; ")
+  end
+
+  defp format_blocker_details([]), do: "none"
+
+  defp format_blocker_details(details) do
+    details
+    |> Enum.map(fn detail -> "#{detail.id}:#{detail.component}:#{detail.reason}" end)
+    |> Enum.join("/")
   end
 
   defp format_list([]), do: "none"

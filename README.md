@@ -665,8 +665,8 @@ checkpoint and whether tensor layout looks plausible.
 type mix for the inspected checkpoint, which makes it easier to compare a real
 GGUF file with `known_combinations` and `supported_combinations`.
 `runtime_capability` summarizes the loadable flag, runtime blockers, blocking
-issue groups, and attention/RoPE variants in one compact map for fixture and
-checkpoint comparisons.
+issue groups, structured runtime blocker details, and attention/RoPE variants in
+one compact map for fixture and checkpoint comparisons.
 Per-model diagnostics include the tokenizer metadata surface selected for that
 checkpoint's architecture, so unsupported tokenizer model or pre-tokenizer
 values can be compared with the accepted values directly.
@@ -683,6 +683,8 @@ their runtime status, while `supported_combinations` remains limited to loadable
 runtime combinations.
 Use `architecture_runtime_blockers` to see the named runtime gaps that keep a
 known architecture, such as Gemma 3, out of the loadable runtime surface.
+Use `architecture_runtime_blocker_details` when an implementation task needs a
+stable blocker id and component, such as `extra_norm_tensors` in `layers`.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `chat_template_issues: []` to confirm that the template is supported and all
 required marker tokens are present.
