@@ -147,6 +147,9 @@ GGUF モデル読み込み
   possible savings、expansion ratio をまとめて確認できる。
 - generate profile、benchmark、natural smoke の GGUF JSON artifact で
   `compact_weight_estimate` を確認できることをテストで固定している。
+- GGUF supported surface では Mistral / Qwen / Phi を known unsupported
+  architecture として明示し、runtime 未実装 blocker を JSON / text 診断と
+  load error で確認できる。
 
 ## gemma3対応
 

@@ -772,6 +772,10 @@ loading tensor data, and load failures include the compact blocking issue group
 list alongside the flat compatibility issue message. When an architecture is
 known but not loadable yet, the error also includes `architecture runtime
 blockers`.
+The supported surface currently treats Llama and Gemma3 as loadable runtime
+architectures, while Mistral, Qwen, and Phi are listed as known but blocked
+runtime candidates so unsupported model files fail with an explicit runtime
+blocker instead of an unknown-architecture diagnostic.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 

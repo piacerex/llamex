@@ -5802,7 +5802,7 @@ defmodule LlamexTest do
     assert diagnostic.tensor_count == 1
     assert diagnostic.tensor_element_count == 4
     assert diagnostic.architecture == "llama"
-    assert diagnostic.known_architectures == ["llama", "gemma3"]
+    assert diagnostic.known_architectures == ["llama", "gemma3", "mistral", "qwen", "phi"]
     assert diagnostic.supported_architectures == ["llama", "gemma3"]
 
     assert diagnostic.supported_combinations == [
@@ -5919,7 +5919,10 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture runtime status: supported"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture runtime blockers: none"
-    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "known architectures: llama, gemma3"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "known architectures: llama, gemma3, mistral, qwen, phi"
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported architectures: llama"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
@@ -6943,19 +6946,31 @@ defmodule LlamexTest do
       end)
 
     assert output =~ "supported architectures: llama, gemma3"
-    assert output =~ "known architectures: llama, gemma3"
-    assert output =~ "architecture runtime surface: gemma3=supported; llama=supported"
+    assert output =~ "known architectures: llama, gemma3, mistral, qwen, phi"
+    assert output =~ "architecture runtime surface:"
+    assert output =~ "gemma3=supported"
+    assert output =~ "llama=supported"
+    assert output =~ "mistral=known_unsupported"
+    assert output =~ "qwen=known_unsupported"
+    assert output =~ "phi=known_unsupported"
     assert output =~ "architecture runtime blockers:"
     assert output =~ "gemma3=none"
     assert output =~ "llama=none"
+    assert output =~ "mistral=architecture runtime not implemented"
+    assert output =~ "qwen=architecture runtime not implemented"
+    assert output =~ "phi=architecture runtime not implemented"
     assert output =~ "architecture runtime blocker details:"
     assert output =~ "gemma3=none"
+    assert output =~ "mistral=architecture_runtime:engine:architecture runtime not implemented"
     assert output =~ "runtime feature status:"
     assert output =~ "attention_qk_extra_norm:supported"
     assert output =~ "post_feed_forward_extra_norm:supported"
     assert output =~ "runtime feature blockers:"
 
-    assert output =~ "runtime feature blockers: gemma3=none; llama=none"
+    assert output =~ "runtime feature blockers:"
+    assert output =~ "gemma3=none"
+    assert output =~ "llama=none"
+    assert output =~ "mistral=architecture_runtime:engine:architecture runtime not implemented"
 
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
@@ -6963,6 +6978,7 @@ defmodule LlamexTest do
     assert output =~ "tokenizer metadata surface:"
     assert output =~ "gemma3=models:llama/gpt2, pre:default/gpt2/llama-bpe"
     assert output =~ "llama=models:llama/gpt2, pre:default/gpt2/llama-bpe"
+    assert output =~ "mistral=models:llama/gpt2, pre:default/gpt2/llama-bpe"
 
     assert output =~
              "supported chat templates: chatml, role_markers, llama_header_markers, gemma_turn_markers"
@@ -6974,10 +6990,12 @@ defmodule LlamexTest do
     assert output =~ "gemma3=gemma3.attention.sliding_window/gemma3.rope.scaling.type"
     assert output =~ "gemma3.rope.scaling.factor/gemma3.rope.scaling.original_context_length"
     assert output =~ "llama=llama.attention.sliding_window/llama.rope.scaling.type"
+    assert output =~ "mistral=mistral.attention.sliding_window/mistral.rope.scaling.type"
 
     assert output =~ "model config surface:"
     assert output =~ "llama=vocab_size/embedding_size/context_size"
     assert output =~ "gemma3=vocab_size/embedding_size/context_size"
+    assert output =~ "mistral=vocab_size/embedding_size/context_size"
 
     assert output =~ "tensor schema surface:"
     assert output =~ "llama=interesting:12, unsupported_features:none"
@@ -6993,6 +7011,8 @@ defmodule LlamexTest do
     assert output =~ "known combinations:"
     assert output =~ "gemma3+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
     assert output =~ "+supported"
+    assert output =~ "mistral+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
+    assert output =~ "+known_unsupported"
 
     assert output =~
              "supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
@@ -7010,21 +7030,48 @@ defmodule LlamexTest do
     surface = JSON.decode!(String.trim(output))
 
     assert surface["supported_architectures"] == ["llama", "gemma3"]
-    assert surface["known_architectures"] == ["llama", "gemma3"]
+    assert surface["known_architectures"] == ["llama", "gemma3", "mistral", "qwen", "phi"]
 
     assert surface["architecture_runtime_surface"] == %{
              "gemma3" => "supported",
-             "llama" => "supported"
+             "llama" => "supported",
+             "mistral" => "known_unsupported",
+             "qwen" => "known_unsupported",
+             "phi" => "known_unsupported"
            }
 
     assert surface["architecture_runtime_blockers"] == %{
              "gemma3" => [],
-             "llama" => []
+             "llama" => [],
+             "mistral" => ["architecture runtime not implemented"],
+             "qwen" => ["architecture runtime not implemented"],
+             "phi" => ["architecture runtime not implemented"]
            }
 
     assert surface["architecture_runtime_blocker_details"] == %{
              "gemma3" => [],
-             "llama" => []
+             "llama" => [],
+             "mistral" => [
+               %{
+                 "id" => "architecture_runtime",
+                 "component" => "engine",
+                 "reason" => "architecture runtime not implemented"
+               }
+             ],
+             "qwen" => [
+               %{
+                 "id" => "architecture_runtime",
+                 "component" => "engine",
+                 "reason" => "architecture runtime not implemented"
+               }
+             ],
+             "phi" => [
+               %{
+                 "id" => "architecture_runtime",
+                 "component" => "engine",
+                 "reason" => "architecture runtime not implemented"
+               }
+             ]
            }
 
     assert surface["runtime_feature_status"] == %{
@@ -7039,12 +7086,54 @@ defmodule LlamexTest do
                "architecture_runtime" => "supported",
                "attention_variant" => "supported",
                "rope_variant" => "supported"
+             },
+             "mistral" => %{
+               "architecture_runtime" => "blocked",
+               "attention_variant" => "supported",
+               "rope_variant" => "supported"
+             },
+             "qwen" => %{
+               "architecture_runtime" => "blocked",
+               "attention_variant" => "supported",
+               "rope_variant" => "supported"
+             },
+             "phi" => %{
+               "architecture_runtime" => "blocked",
+               "attention_variant" => "supported",
+               "rope_variant" => "supported"
              }
            }
 
     assert surface["runtime_feature_blockers"] == %{
              "gemma3" => [],
-             "llama" => []
+             "llama" => [],
+             "mistral" => [
+               %{
+                 "feature" => "architecture_runtime",
+                 "component" => "engine",
+                 "reason" => "architecture runtime not implemented",
+                 "issue" => "unsupported architecture runtime: mistral",
+                 "value" => "mistral"
+               }
+             ],
+             "qwen" => [
+               %{
+                 "feature" => "architecture_runtime",
+                 "component" => "engine",
+                 "reason" => "architecture runtime not implemented",
+                 "issue" => "unsupported architecture runtime: qwen",
+                 "value" => "qwen"
+               }
+             ],
+             "phi" => [
+               %{
+                 "feature" => "architecture_runtime",
+                 "component" => "engine",
+                 "reason" => "architecture runtime not implemented",
+                 "issue" => "unsupported architecture runtime: phi",
+                 "value" => "phi"
+               }
+             ]
            }
 
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
@@ -7088,6 +7177,13 @@ defmodule LlamexTest do
              "llama.rope.scaling.type",
              "llama.rope.scaling.factor",
              "llama.rope.scaling.original_context_length"
+           ]
+
+    assert surface["unsupported_feature_metadata_surface"]["mistral"] == [
+             "mistral.attention.sliding_window",
+             "mistral.rope.scaling.type",
+             "mistral.rope.scaling.factor",
+             "mistral.rope.scaling.original_context_length"
            ]
 
     assert %{
@@ -7136,6 +7232,10 @@ defmodule LlamexTest do
     assert Enum.find(surface["known_combinations"], &(&1["architecture"] == "llama"))[
              "runtime_status"
            ] == "supported"
+
+    assert Enum.find(surface["known_combinations"], &(&1["architecture"] == "mistral"))[
+             "runtime_status"
+           ] == "known_unsupported"
 
     assert surface["supported_combinations"] == [
              %{
@@ -8682,7 +8782,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_unsupported_architecture_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported architecture: mistral (blocking issue groups: runtime) (blocked runtime features: architecture_runtime)",
+                   "GGUF model is not loadable by Llamex: unsupported architecture runtime: mistral (blocking issue groups: runtime) (architecture runtime blockers: architecture runtime not implemented) (blocked runtime features: architecture_runtime)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
@@ -8888,11 +8988,11 @@ defmodule LlamexTest do
 
   test "diagnoses unknown architecture runtime status" do
     diagnostic =
-      :with_unsupported_architecture_tensor_data
+      :with_unknown_architecture_tensor_data
       |> tiny_gguf()
       |> Llamex.GGUF.Diagnostic.inspect_binary()
 
-    assert diagnostic.architecture == "mistral"
+    assert diagnostic.architecture == "unknownllm"
     assert diagnostic.architecture_known? == false
     assert diagnostic.architecture_supported? == false
     assert diagnostic.architecture_runtime_status == "unknown"
@@ -9328,6 +9428,7 @@ defmodule LlamexTest do
     architecture =
       case mode do
         :with_unsupported_architecture_tensor_data -> "mistral"
+        :with_unknown_architecture_tensor_data -> "unknownllm"
         _other -> "llama"
       end
 
@@ -9425,6 +9526,9 @@ defmodule LlamexTest do
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_unsupported_architecture_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_unknown_architecture_tensor_data ->
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_unsupported_rope_scaling_tensor_data ->
