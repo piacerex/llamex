@@ -2507,6 +2507,35 @@ defmodule LlamexTest do
     assert Enum.map(profile.steps, & &1.timing.label) == ["prefill_1"]
   end
 
+  test "generation profile rejects invalid sampler options" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "sampler must be :greedy or a map, got: :beam", fn ->
+      Llamex.Profile.generation_step(model, "hello", %{
+        backend: Llamex.Backend.List,
+        sampler: :beam
+      })
+    end
+
+    assert_raise ArgumentError, "top_k must be a positive integer", fn ->
+      Llamex.Profile.generation_steps(model, "hello", %{
+        backend: Llamex.Backend.List,
+        sampler: %{temperature: 1.0, top_k: 0, seed: 1}
+      })
+    end
+  end
+
   test "profiles multiple generation steps" do
     tokenizer =
       Llamex.Tokenizer.whitespace(

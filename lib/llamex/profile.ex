@@ -16,7 +16,7 @@ defmodule Llamex.Profile do
     backend = profile_backend(model, opts)
     display_model = profile_model(model)
     reset_profile_caches(backend)
-    sampler = Map.get(opts, :sampler, :greedy)
+    sampler = sampler(opts)
     candidate_count = Map.get(opts, :candidate_count, 0)
 
     {prefill_time, {state, prefill_timings}} = timed_prefill(model, prompt, backend, opts)
@@ -97,7 +97,7 @@ defmodule Llamex.Profile do
     backend = profile_backend(model, opts)
     display_model = profile_model(model)
     reset_profile_caches(backend)
-    sampler = Map.get(opts, :sampler, :greedy)
+    sampler = sampler(opts)
     max_new_tokens = Llamex.MaxNewTokens.get(opts, 1)
     stop_tokens = stop_tokens(opts)
     stop_sequences = stop_sequences(opts)
@@ -444,8 +444,16 @@ defmodule Llamex.Profile do
   defp seed_token([]), do: raise(ArgumentError, "prompt must encode to at least one token")
   defp seed_token(prompt_tokens), do: List.last(prompt_tokens)
 
+  defp sampler(opts) do
+    case Map.get(opts, :sampler, :greedy) do
+      :greedy -> :greedy
+      sampler when is_map(sampler) -> Llamex.Sampler.validate_options!(sampler)
+      sampler -> raise ArgumentError, "sampler must be :greedy or a map, got: #{inspect(sampler)}"
+    end
+  end
+
   defp timed_step(context, current_token, opts) do
-    sampler = Map.get(opts, :sampler, :greedy)
+    sampler = sampler(opts)
     history = Map.get(opts, :history, context.tokens)
     sampler_state = Map.get(opts, :sampler_state) || new_sampler_state(sampler)
     candidate_count = Map.get(opts, :candidate_count, 0)
