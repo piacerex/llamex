@@ -8338,6 +8338,18 @@ defmodule LlamexTest do
       assert chat_result.generated_tokens == [0]
       assert chat_result.generated_pieces == ["<unk>"]
       assert chat_result.text == "<unk>"
+
+      chat_chunks =
+        model
+        |> Llamex.stream_chat([%{role: "user", content: "hello"}], %{
+          backend: Llamex.Backend.List,
+          max_new_tokens: 1,
+          sampler: :greedy
+        })
+        |> Enum.to_list()
+
+      assert Enum.map(chat_chunks, & &1.generated_tokens) == [[0], [0]]
+      assert Enum.map(chat_chunks, & &1.generated_pieces) == [["<unk>"], ["<unk>"]]
     after
       File.rm(path)
     end
