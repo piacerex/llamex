@@ -460,6 +460,7 @@ defmodule Llamex.GGUF.Diagnostic do
       missing_required_metadata(metadata) == [] and
       unsupported_features(metadata) == [] and
       missing_required_tensors(metadata, tensors) == [] and
+      tensor_schema_issues(metadata, tensors) == [] and
       tensor_shape_issues(metadata, tensors) == [] and
       unsupported_tensors(tensors) == []
   end
@@ -473,6 +474,7 @@ defmodule Llamex.GGUF.Diagnostic do
     |> add_required_metadata_issues(metadata)
     |> add_unsupported_feature_issues(metadata)
     |> add_required_tensor_issues(metadata, tensors)
+    |> add_tensor_schema_issues(metadata, tensors)
     |> add_tensor_shape_issues(metadata, tensors)
     |> add_tensor_type_issues(tensors)
     |> Enum.reverse()
@@ -553,6 +555,14 @@ defmodule Llamex.GGUF.Diagnostic do
   defp add_tensor_shape_issues(issues, metadata, tensors) do
     metadata
     |> tensor_shape_issues(tensors)
+    |> Enum.reduce(issues, fn issue, issues ->
+      [issue | issues]
+    end)
+  end
+
+  defp add_tensor_schema_issues(issues, metadata, tensors) do
+    metadata
+    |> tensor_schema_issues(tensors)
     |> Enum.reduce(issues, fn issue, issues ->
       [issue | issues]
     end)

@@ -5790,12 +5790,18 @@ defmodule LlamexTest do
 
     assert diagnostic.missing_required_tensors == ["token_embd.weight"]
     assert diagnostic.loadable? == false
-    assert diagnostic.compatibility_issues == ["missing required tensor: token_embd.weight"]
+
+    assert diagnostic.compatibility_issues == [
+             "missing required tensor: token_embd.weight",
+             "unmapped tensor schema: other.weight"
+           ]
 
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~ "missing required tensors: token_embd.weight"
-    assert formatted =~ "compatibility issues: missing required tensor: token_embd.weight"
+
+    assert formatted =~
+             "compatibility issues: missing required tensor: token_embd.weight; unmapped tensor schema: other.weight"
   end
 
   test "diagnoses gguf token embedding shape mismatch" do
@@ -6160,8 +6166,18 @@ defmodule LlamexTest do
              "unmapped tensor schema: blk.0.post_ffw_norm.weight"
            ]
 
+    assert diagnostic.loadable? == false
+
+    assert diagnostic.compatibility_issues == [
+             "unsupported architecture runtime: gemma3",
+             "unmapped tensor schema: blk.0.post_ffw_norm.weight"
+           ]
+
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "tensor schema issues: unmapped tensor schema: blk.0.post_ffw_norm.weight"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "compatibility issues: unsupported architecture runtime: gemma3; unmapped tensor schema: blk.0.post_ffw_norm.weight"
   end
 
   test "normalizes gemma3 tensor names for model maps" do
@@ -7118,7 +7134,7 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_missing_token_embeddings_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: missing required tensor: token_embd.weight",
+                   "GGUF model is not loadable by Llamex: missing required tensor: token_embd.weight; unmapped tensor schema: other.weight",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
