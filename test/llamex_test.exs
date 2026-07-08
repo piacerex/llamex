@@ -5531,6 +5531,9 @@ defmodule LlamexTest do
              "unsupported feature metadata: llama.attention.sliding_window, llama.rope.scaling.type"
 
     assert output =~ "supported tensor type names:"
+    assert output =~ "supported tensor type ids: 0:F32, 1:F16, 2:Q4_0"
+    assert output =~ "10:Q2_K, 11:Q3_K, 12:Q4_K, 13:Q5_K, 14:Q6_K, 15:Q8_K"
+    assert output =~ "30:BF16"
 
     assert output =~
              "supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
