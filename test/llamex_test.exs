@@ -4850,6 +4850,7 @@ defmodule LlamexTest do
       assert diagnostic["chat_template"] == "none"
       assert diagnostic["chat_usable"] == false
       assert diagnostic["chat_template_issues"] == []
+      assert diagnostic["unsupported_features"] == []
       assert diagnostic["architecture_supported?"] == true
 
       assert diagnostic["supported_combinations"] == [
