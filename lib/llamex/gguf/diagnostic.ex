@@ -208,7 +208,19 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def inspect_summary_file(path) when is_binary(path) do
     path
-    |> inspect_file()
+    |> File.read!()
+    |> inspect_summary_binary()
+  end
+
+  def inspect_summary_binary(binary) when is_binary(binary) do
+    binary
+    |> inspect_binary()
+    |> summary()
+  end
+
+  def inspect_summary_reader(%Llamex.GGUF.Reader{} = gguf) do
+    gguf
+    |> inspect_reader()
     |> summary()
   end
 

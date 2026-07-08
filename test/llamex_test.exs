@@ -5596,6 +5596,16 @@ defmodule LlamexTest do
            }
   end
 
+  test "summarizes gguf diagnostics from binary and reader inputs" do
+    binary = tiny_gguf(:without_tensor_data)
+    reader = Llamex.GGUF.Reader.read_binary(binary)
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_reader(reader)
+    summary = Llamex.GGUF.Diagnostic.summary(diagnostic)
+
+    assert Llamex.GGUF.Diagnostic.inspect_summary_binary(binary) == summary
+    assert Llamex.GGUF.Diagnostic.inspect_summary_reader(reader) == summary
+  end
+
   test "diagnoses supported quantized gguf tensor types without reading tensor data" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:with_q4_0_tensor_data))
 
