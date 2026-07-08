@@ -71,12 +71,28 @@ defmodule Llamex.Tokenizer.BPE do
 
   defp split_special_tokens(tokenizer, text) do
     special_tokens =
-      tokenizer.token_to_id
-      |> Map.keys()
-      |> Enum.filter(&String.starts_with?(&1, "<|"))
+      tokenizer
+      |> special_token_strings()
       |> Enum.sort_by(&byte_size/1, :desc)
 
     split_special_tokens(text, special_tokens, [])
+  end
+
+  defp special_token_strings(tokenizer) do
+    marker_tokens =
+      tokenizer.token_to_id
+      |> Map.keys()
+      |> Enum.filter(&String.starts_with?(&1, "<|"))
+
+    configured_tokens =
+      tokenizer.special_tokens
+      |> Map.values()
+      |> Enum.flat_map(fn
+        %{token: token} when is_binary(token) -> [token]
+        _other -> []
+      end)
+
+    Enum.uniq(marker_tokens ++ configured_tokens)
   end
 
   defp split_special_tokens("", _special_tokens, parts), do: Enum.reverse(parts)

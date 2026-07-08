@@ -164,6 +164,33 @@ defmodule LlamexTest do
     assert Llamex.Tokenizer.decode(tokenizer, [5]) == "low"
   end
 
+  test "adds configured bos and eos tokens while bpe encoding" do
+    tokenizer =
+      Llamex.Tokenizer.bpe(
+        %{
+          "<unk>" => 0,
+          "<s>" => 1,
+          "</s>" => 2,
+          "l" => 3,
+          "o" => 4,
+          "w" => 5,
+          "lo" => 6,
+          "low" => 7
+        },
+        [["l", "o"], ["lo", "w"]],
+        "<unk>",
+        special_tokens: %{
+          bos: %{id: 1, token: "<s>"},
+          eos: %{id: 2, token: "</s>"},
+          add_bos: true,
+          add_eos: true
+        }
+      )
+
+    assert Llamex.Tokenizer.encode(tokenizer, "low") == [1, 7, 2]
+    assert Llamex.Tokenizer.encode(tokenizer, "<s> low </s>") == [1, 7, 2]
+  end
+
   test "encodes sentencepiece word starts when available" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
