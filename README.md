@@ -178,6 +178,9 @@ be checked without re-reading checkpoint metadata.
 Models whose `runtime_capability.loadable?` is false are rejected by
 `prepare_model`, `prefill`, `generate`, and streaming entry points before backend
 execution starts.
+Use `Llamex.RuntimeCapability.loadable?/1`, `blocker_ids/1`, and
+`blockers_by_component/1` to inspect those runtime gaps from either a model or a
+runtime capability map.
 
 Supported tokenizer types:
 

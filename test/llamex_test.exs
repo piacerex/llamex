@@ -15,6 +15,9 @@ defmodule LlamexTest do
 
     context = Llamex.new_context(model, Llamex.Backend.List)
 
+    assert Llamex.RuntimeCapability.loadable?(model) == true
+    assert Llamex.RuntimeCapability.blocker_ids(model) == []
+    assert Llamex.RuntimeCapability.blockers_by_component(model) == %{}
     {context, next_token} = Llamex.next_token(context, 0)
 
     assert context.tokens == [0]
@@ -90,6 +93,30 @@ defmodule LlamexTest do
           2 => [2.0, 0.0]
         }
       })
+
+    assert Llamex.RuntimeCapability.loadable?(model) == false
+
+    assert Llamex.RuntimeCapability.blocker_ids(model) == [
+             "architecture_runtime",
+             "extra_norm_tensors"
+           ]
+
+    assert Llamex.RuntimeCapability.blockers_by_component(model) == %{
+             "engine" => [
+               %{
+                 id: "architecture_runtime",
+                 reason: "architecture runtime not implemented",
+                 component: "engine"
+               }
+             ],
+             "layers" => [
+               %{
+                 id: "extra_norm_tensors",
+                 reason: "extra norm tensor execution not implemented",
+                 component: "layers"
+               }
+             ]
+           }
 
     assert_raise ArgumentError,
                  ~r/model runtime is not loadable; architecture=gemma3; runtime=known_unsupported/,

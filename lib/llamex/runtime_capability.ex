@@ -3,6 +3,26 @@ defmodule Llamex.RuntimeCapability do
   Runtime loadability guard for models that carry GGUF diagnostic metadata.
   """
 
+  def loadable?(model_or_capability)
+
+  def loadable?(%{runtime_capability: capability}) when is_map(capability),
+    do: loadable?(capability)
+
+  def loadable?(%{loadable?: loadable?}), do: loadable?
+  def loadable?(_model_or_capability), do: true
+
+  def blocker_ids(model_or_capability) do
+    model_or_capability
+    |> runtime_blocker_details()
+    |> Enum.map(& &1.id)
+  end
+
+  def blockers_by_component(model_or_capability) do
+    model_or_capability
+    |> runtime_blocker_details()
+    |> Enum.group_by(& &1.component)
+  end
+
   def validate!(model) do
     case Map.get(model, :runtime_capability) do
       nil ->
@@ -27,6 +47,16 @@ defmodule Llamex.RuntimeCapability do
     ]
     |> Enum.join("; ")
   end
+
+  defp runtime_blocker_details(%{runtime_capability: capability}) when is_map(capability) do
+    runtime_blocker_details(capability)
+  end
+
+  defp runtime_blocker_details(%{runtime_blocker_details: details}) when is_list(details) do
+    details
+  end
+
+  defp runtime_blocker_details(_model_or_capability), do: []
 
   defp format_atoms([]), do: "none"
   defp format_atoms(values), do: values |> Enum.map(&Atom.to_string/1) |> Enum.join(", ")
