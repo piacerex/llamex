@@ -5304,6 +5304,19 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported tensor type names:"
   end
 
+  test "diagnoses supported quantized gguf tensor types without reading tensor data" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:with_q4_0_tensor_data))
+
+    assert diagnostic.supported_tensor_types == %{"Q4_0" => 1}
+    assert diagnostic.unsupported_tensor_types == %{}
+    assert diagnostic.unsupported_tensors == []
+
+    formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
+
+    assert formatted =~ "supported tensor types: Q4_0=1"
+    assert formatted =~ "unsupported tensor types: none"
+  end
+
   test "diagnoses loadable gguf capability summary" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:without_tensor_data))
 
