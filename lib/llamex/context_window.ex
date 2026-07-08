@@ -4,17 +4,27 @@ defmodule Llamex.ContextWindow do
   """
 
   def resolve(%{config: %{context_size: context_size}}, opts) when is_map(opts) do
-    Map.get(opts, :context_window) || context_size
+    opts
+    |> Map.get(:context_window, context_size)
+    |> validate()
   end
 
   def apply(tokens, nil) when is_list(tokens), do: tokens
 
-  def apply(tokens, context_window) when is_list(tokens) and is_integer(context_window) do
-    if context_window <= 0 do
-      raise ArgumentError, "context_window must be positive"
-    end
-
+  def apply(tokens, context_window) when is_list(tokens) do
+    context_window = validate(context_window)
     Enum.take(tokens, -context_window)
+  end
+
+  def validate(nil), do: nil
+
+  def validate(context_window) when is_integer(context_window) and context_window > 0 do
+    context_window
+  end
+
+  def validate(context_window) do
+    raise ArgumentError,
+          "context_window must be a positive integer, got: #{inspect(context_window)}"
   end
 
   def generation_budget(max_new_tokens, _prompt_token_count, nil)

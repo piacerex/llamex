@@ -1418,6 +1418,28 @@ defmodule LlamexTest do
     assert state.prompt_truncated?
   end
 
+  test "prefill rejects invalid context windows" do
+    tokenizer = Llamex.Tokenizer.new(%{"A" => 0, "B" => 1}, "A")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 2, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [1.0, 0.0],
+          1 => [0.0, 1.0]
+        }
+      })
+
+    assert_raise ArgumentError, "context_window must be a positive integer, got: 0", fn ->
+      Llamex.prefill(model, "A B", %{backend: Llamex.Backend.List, context_window: 0})
+    end
+
+    assert_raise ArgumentError, "context_window must be a positive integer, got: \"2\"", fn ->
+      Llamex.prefill(model, "A B", %{backend: Llamex.Backend.List, context_window: "2"})
+    end
+  end
+
   test "generation stops before exceeding the context window" do
     tokenizer = Llamex.Tokenizer.new(%{"A" => 0, "B" => 1, "C" => 2}, "A")
 
@@ -2438,6 +2460,29 @@ defmodule LlamexTest do
       Llamex.Profile.generation_steps(model, "hello", %{
         backend: Llamex.Backend.List,
         max_new_tokens: -1
+      })
+    end
+  end
+
+  test "generation profile rejects invalid context windows" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    assert_raise ArgumentError, "context_window must be a positive integer, got: -1", fn ->
+      Llamex.Profile.generation_steps(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        context_window: -1
       })
     end
   end
