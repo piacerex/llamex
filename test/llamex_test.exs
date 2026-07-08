@@ -4235,6 +4235,7 @@ defmodule LlamexTest do
     assert diagnostic.supported_tensor_types == %{}
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
     assert diagnostic.missing_required_tensors == []
+    assert diagnostic.tensor_shape_issues == []
     assert diagnostic.chat_template == "none"
     assert diagnostic.chat_usable == false
     assert diagnostic.special_tokens == %{}
@@ -4267,6 +4268,7 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer: unknown"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required metadata: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required tensors: none"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tensor shape issues: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: llama"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: whitespace"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 0"
@@ -4297,6 +4299,7 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.unsupported_tensor_types == %{}
     assert diagnostic.missing_required_tensors == []
+    assert diagnostic.tensor_shape_issues == []
     assert diagnostic.loadable? == true
     assert diagnostic.compatibility_issues == []
 
@@ -4310,6 +4313,7 @@ defmodule LlamexTest do
     assert formatted =~ "tokenizer merges: 0"
     assert formatted =~ "missing required metadata: none"
     assert formatted =~ "missing required tensors: none"
+    assert formatted =~ "tensor shape issues: none"
     assert formatted =~ "loadable: true"
     assert formatted =~ "compatibility issues: none"
   end
@@ -4348,6 +4352,27 @@ defmodule LlamexTest do
 
     assert formatted =~ "missing required tensors: token_embd.weight"
     assert formatted =~ "compatibility issues: missing required tensor: token_embd.weight"
+  end
+
+  test "diagnoses gguf token embedding shape mismatch" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:with_token_embedding_shape_mismatch))
+
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_reader(parsed)
+
+    assert diagnostic.tensor_shape_issues == [
+             "tensor shape mismatch: token_embd.weight schema [2, 3] expected embedding length 2"
+           ]
+
+    assert diagnostic.loadable? == false
+
+    assert diagnostic.compatibility_issues == [
+             "tensor shape mismatch: token_embd.weight schema [2, 3] expected embedding length 2"
+           ]
+
+    formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
+
+    assert formatted =~
+             "tensor shape issues: tensor shape mismatch: token_embd.weight schema [2, 3] expected embedding length 2"
   end
 
   test "gguf inspect task can print json diagnostics" do
@@ -4409,6 +4434,7 @@ defmodule LlamexTest do
       assert diagnostic["special_tokens"] == %{}
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
       assert diagnostic["missing_required_tensors"] == []
+      assert diagnostic["tensor_shape_issues"] == []
     after
       File.rm(path)
     end
@@ -5117,6 +5143,26 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects gguf models with token embedding shape mismatch before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-shape-mismatch-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_token_embedding_shape_mismatch))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: tensor shape mismatch: token_embd.weight schema [2, 3] expected embedding length 2",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "loads gguf output norm and output tensors" do
     path =
       Path.join(
@@ -5276,6 +5322,7 @@ defmodule LlamexTest do
 
     {dimensions, tensor_type, values} =
       case mode do
+        :with_token_embedding_shape_mismatch -> {[3, 2], 0, [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]}
         :with_rectangular_tensor_data -> {[3, 2], 0, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}
         :with_f16_tensor_data -> {[2, 2], 1, [0x3C00, 0x0000, 0x0000, 0xC000]}
         :with_bf16_tensor_data -> {[2, 2], 30, [0x3F80, 0x0000, 0x0000, 0xC000]}
@@ -5325,6 +5372,9 @@ defmodule LlamexTest do
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_missing_token_embeddings_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_token_embedding_shape_mismatch ->
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_rectangular_tensor_data ->
