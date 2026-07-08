@@ -561,12 +561,20 @@ defmodule Llamex.GGUF.Diagnostic do
     metadata
     |> metadata_value("general.architecture")
     |> runtime_feature_status()
+    |> Map.put(:attention_variant, attention_variant_runtime_status(metadata))
+    |> Map.put(:rope_variant, rope_variant_runtime_status(metadata))
   end
 
   defp runtime_feature_status(architecture) do
-    Map.get(@runtime_feature_status, architecture, %{
-      architecture_runtime: architecture_runtime_status_for_surface(architecture)
-    })
+    default = %{
+      architecture_runtime: architecture_runtime_status_for_surface(architecture),
+      attention_variant: "supported",
+      rope_variant: "supported"
+    }
+
+    @runtime_feature_status
+    |> Map.get(architecture, %{})
+    |> then(&Map.merge(default, &1))
   end
 
   defp architecture_runtime_status_for_surface(architecture)
@@ -574,6 +582,20 @@ defmodule Llamex.GGUF.Diagnostic do
        do: "supported"
 
   defp architecture_runtime_status_for_surface(_architecture), do: "blocked"
+
+  defp attention_variant_runtime_status(metadata) do
+    case attention_variant(metadata) do
+      %{type: "full"} -> "supported"
+      _variant -> "blocked"
+    end
+  end
+
+  defp rope_variant_runtime_status(metadata) do
+    case rope_variant(metadata) do
+      %{type: "default"} -> "supported"
+      _variant -> "blocked"
+    end
+  end
 
   defp tokenizer_supported?(metadata) do
     match?(%{values: [_first | _rest]}, metadata_value(metadata, "tokenizer.ggml.tokens"))

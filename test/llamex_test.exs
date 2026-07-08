@@ -5735,7 +5735,11 @@ defmodule LlamexTest do
              architecture_runtime_status: "supported",
              architecture_runtime_blockers: [],
              architecture_runtime_blocker_details: [],
-             runtime_feature_status: %{architecture_runtime: "supported"},
+             runtime_feature_status: %{
+               architecture_runtime: "supported",
+               attention_variant: "supported",
+               rope_variant: "supported"
+             },
              model_combination: %{
                architecture: "llama",
                runtime_status: "supported",
@@ -5749,7 +5753,11 @@ defmodule LlamexTest do
                runtime_status: "supported",
                runtime_blockers: [],
                runtime_blocker_details: [],
-               runtime_feature_status: %{architecture_runtime: "supported"},
+               runtime_feature_status: %{
+                 architecture_runtime: "supported",
+                 attention_variant: "supported",
+                 rope_variant: "supported"
+               },
                blocking_issue_groups: [],
                attention_variant: %{type: "full"},
                rope_variant: %{type: "default"}
@@ -6148,6 +6156,14 @@ defmodule LlamexTest do
              "gemma3.rope.scaling.type" => "linear"
            }
 
+    assert diagnostic.runtime_feature_status == %{
+             architecture_runtime: "blocked",
+             attention_qk_extra_norm: "supported",
+             attention_variant: "blocked",
+             post_feed_forward_extra_norm: "supported",
+             rope_variant: "blocked"
+           }
+
     assert diagnostic.compatibility_issues == [
              "unsupported architecture runtime: gemma3",
              "unsupported attention variant: sliding_window",
@@ -6448,7 +6464,12 @@ defmodule LlamexTest do
       assert summary["architecture_runtime_status"] == "supported"
       assert summary["architecture_runtime_blockers"] == []
       assert summary["architecture_runtime_blocker_details"] == []
-      assert summary["runtime_feature_status"] == %{"architecture_runtime" => "supported"}
+
+      assert summary["runtime_feature_status"] == %{
+               "architecture_runtime" => "supported",
+               "attention_variant" => "supported",
+               "rope_variant" => "supported"
+             }
 
       assert summary["model_combination"] == %{
                "architecture" => "llama",
@@ -6464,7 +6485,11 @@ defmodule LlamexTest do
                "runtime_status" => "supported",
                "runtime_blockers" => [],
                "runtime_blocker_details" => [],
-               "runtime_feature_status" => %{"architecture_runtime" => "supported"},
+               "runtime_feature_status" => %{
+                 "architecture_runtime" => "supported",
+                 "attention_variant" => "supported",
+                 "rope_variant" => "supported"
+               },
                "blocking_issue_groups" => ["tensors"],
                "attention_variant" => %{"type" => "full"},
                "rope_variant" => %{"type" => "default"}
@@ -6716,10 +6741,16 @@ defmodule LlamexTest do
     assert surface["runtime_feature_status"] == %{
              "gemma3" => %{
                "architecture_runtime" => "blocked",
+               "attention_variant" => "supported",
                "attention_qk_extra_norm" => "supported",
-               "post_feed_forward_extra_norm" => "supported"
+               "post_feed_forward_extra_norm" => "supported",
+               "rope_variant" => "supported"
              },
-             "llama" => %{"architecture_runtime" => "supported"}
+             "llama" => %{
+               "architecture_runtime" => "supported",
+               "attention_variant" => "supported",
+               "rope_variant" => "supported"
+             }
            }
 
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
@@ -6908,8 +6939,10 @@ defmodule LlamexTest do
 
     assert diagnostic.runtime_feature_status == %{
              architecture_runtime: "blocked",
+             attention_variant: "supported",
              attention_qk_extra_norm: "supported",
-             post_feed_forward_extra_norm: "supported"
+             post_feed_forward_extra_norm: "supported",
+             rope_variant: "supported"
            }
 
     assert diagnostic.runtime_capability == %{
@@ -6927,8 +6960,10 @@ defmodule LlamexTest do
              ],
              runtime_feature_status: %{
                architecture_runtime: "blocked",
+               attention_variant: "supported",
                attention_qk_extra_norm: "supported",
-               post_feed_forward_extra_norm: "supported"
+               post_feed_forward_extra_norm: "supported",
+               rope_variant: "supported"
              },
              blocking_issue_groups: [:runtime],
              attention_variant: %{type: "full"},
@@ -7181,8 +7216,10 @@ defmodule LlamexTest do
              ],
              runtime_feature_status: %{
                architecture_runtime: "blocked",
+               attention_variant: "supported",
                attention_qk_extra_norm: "supported",
-               post_feed_forward_extra_norm: "supported"
+               post_feed_forward_extra_norm: "supported",
+               rope_variant: "supported"
              },
              blocking_issue_groups: [:runtime, :tensors],
              attention_variant: %{type: "full"},
@@ -7267,8 +7304,10 @@ defmodule LlamexTest do
                ],
                runtime_feature_status: %{
                  architecture_runtime: "blocked",
+                 attention_variant: "supported",
                  attention_qk_extra_norm: "supported",
-                 post_feed_forward_extra_norm: "supported"
+                 post_feed_forward_extra_norm: "supported",
+                 rope_variant: "supported"
                },
                blocking_issue_groups: [:runtime],
                attention_variant: %{type: "full"},
