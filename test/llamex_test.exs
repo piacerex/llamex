@@ -3557,6 +3557,67 @@ defmodule LlamexTest do
            )
   end
 
+  test "benchmark task prints adjacent special token prompt pieces" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-benchmark-special-#{System.unique_integer([:positive])}.json"
+      )
+
+    model = %{
+      "config" => %{"vocab_size" => 5, "embedding_size" => 1},
+      "tokenizer" => %{
+        "type" => "whitespace",
+        "unknown_token" => "<unk>",
+        "special_tokens" => %{
+          "bos" => %{"id" => 1, "token" => "<s>"},
+          "eos" => %{"id" => 2, "token" => "</s>"}
+        },
+        "vocab" => %{"<unk>" => 0, "<s>" => 1, "</s>" => 2, "hello" => 3, "world" => 4}
+      },
+      "token_embeddings" => %{
+        "0" => [0.0],
+        "1" => [0.0],
+        "2" => [1.0],
+        "3" => [0.5],
+        "4" => [0.0]
+      },
+      "output" => %{"weight" => [[0.0], [0.0], [0.0], [0.0], [2.0]]}
+    }
+
+    try do
+      File.write!(path, JSON.encode!(model))
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Benchmark.run([
+            path,
+            "--json",
+            "--prompt",
+            "<s>hello</s>",
+            "--tokens",
+            "1",
+            "--backends",
+            "list",
+            "--repeat",
+            "1",
+            "--warmup",
+            "0"
+          ])
+        end)
+
+      [result] = JSON.decode!(String.trim(output))
+      [run] = result["runs"]
+
+      assert run["prompt_tokens"] == 3
+      assert run["prompt_pieces"] == ["<s>", "hello", "</s>"]
+      assert run["generated_token_ids"] == [4]
+      assert run["generated_pieces"] == ["world"]
+    after
+      File.rm(path)
+    end
+  end
+
   test "benchmark task JSON reports context window limits" do
     output =
       capture_io(fn ->
