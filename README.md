@@ -642,8 +642,9 @@ dimensions and normalized schema shapes for key tensors. This is the fastest way
 to decide whether `--chat` is safe for a checkpoint and whether tensor layout
 looks plausible.
 Use `--supported` without a model path to print the current supported GGUF
-surface, model config metadata mapping, supported tensor type ID/name pairs, and
-explicitly unsupported feature metadata before choosing a checkpoint. It also
+surface, architecture runtime status, model config metadata mapping, supported
+tensor type ID/name pairs, and explicitly unsupported feature metadata before
+choosing a checkpoint. It also
 includes the tensor schema surface for known architectures so Gemma 3 extra norm
 tensor names are visible before loading tensor data.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.

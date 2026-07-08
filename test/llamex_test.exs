@@ -6079,6 +6079,7 @@ defmodule LlamexTest do
 
     assert output =~ "supported architectures: llama"
     assert output =~ "known architectures: llama, gemma3"
+    assert output =~ "architecture runtime surface: gemma3=known_unsupported; llama=supported"
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
@@ -6118,6 +6119,12 @@ defmodule LlamexTest do
 
     assert surface["supported_architectures"] == ["llama"]
     assert surface["known_architectures"] == ["llama", "gemma3"]
+
+    assert surface["architecture_runtime_surface"] == %{
+             "gemma3" => "known_unsupported",
+             "llama" => "supported"
+           }
+
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
     assert surface["supported_tokenizer_models"] == ["llama", "gpt2"]
     assert surface["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]

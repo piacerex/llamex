@@ -91,10 +91,24 @@ defmodule Llamex.GGUF.Diagnostic do
     ]
   end
 
+  def architecture_runtime_surface do
+    Map.new(known_architectures(), fn architecture ->
+      status =
+        if architecture in supported_architectures() do
+          "supported"
+        else
+          "known_unsupported"
+        end
+
+      {architecture, status}
+    end)
+  end
+
   def supported_surface do
     %{
       supported_architectures: supported_architectures(),
       known_architectures: known_architectures(),
+      architecture_runtime_surface: architecture_runtime_surface(),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
@@ -112,6 +126,7 @@ defmodule Llamex.GGUF.Diagnostic do
     [
       "supported architectures: #{Enum.join(surface.supported_architectures, ", ")}",
       "known architectures: #{Enum.join(surface.known_architectures, ", ")}",
+      "architecture runtime surface: #{format_architecture_runtime_surface(surface.architecture_runtime_surface)}",
       "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
       "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
@@ -952,6 +967,13 @@ defmodule Llamex.GGUF.Diagnostic do
 
       "#{architecture}=interesting:#{length(schema.interesting_tensor_names)}, unsupported_features:#{unsupported}"
     end)
+    |> Enum.join("; ")
+  end
+
+  defp format_architecture_runtime_surface(surface) do
+    surface
+    |> Enum.sort()
+    |> Enum.map(fn {architecture, status} -> "#{architecture}=#{status}" end)
     |> Enum.join("; ")
   end
 
