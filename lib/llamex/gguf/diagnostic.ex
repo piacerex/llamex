@@ -138,6 +138,7 @@ defmodule Llamex.GGUF.Diagnostic do
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
       tokenizer_merge_count: tokenizer_merge_count(gguf.metadata),
       tokenizer_score_count: tokenizer_score_count(gguf.metadata),
+      tokenizer_metadata_issues: tokenizer_metadata_issues(gguf.metadata),
       tokenizer_token_types: tokenizer_token_types(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
       unsupported_features: unsupported_features(gguf.metadata),
@@ -200,6 +201,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
       "tokenizer merges: #{diagnostic.tokenizer_merge_count}",
       "tokenizer scores: #{diagnostic.tokenizer_score_count}",
+      "tokenizer metadata issues: #{format_tokenizer_metadata_issues(diagnostic.tokenizer_metadata_issues)}",
       "tokenizer token types: #{format_type_counts(diagnostic.tokenizer_token_types)}",
       "special tokens: #{format_special_tokens(diagnostic.special_tokens)}",
       "unsupported features: #{format_unsupported_features(diagnostic.unsupported_features)}",
@@ -345,6 +347,26 @@ defmodule Llamex.GGUF.Diagnostic do
     case metadata_value(metadata, "tokenizer.ggml.scores") do
       %{values: values} -> length(values)
       _other -> 0
+    end
+  end
+
+  defp tokenizer_metadata_issues(metadata) do
+    []
+    |> add_tokenizer_scores_issue(metadata)
+    |> Enum.reverse()
+  end
+
+  defp add_tokenizer_scores_issue(issues, metadata) do
+    case {metadata_value(metadata, "tokenizer.ggml.tokens"),
+          metadata_value(metadata, "tokenizer.ggml.scores")} do
+      {%{values: tokens}, %{values: scores}} when length(tokens) != length(scores) ->
+        [
+          "tokenizer score count mismatch: tokens=#{length(tokens)} scores=#{length(scores)}"
+          | issues
+        ]
+
+      _other ->
+        issues
     end
   end
 
@@ -825,6 +847,10 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_chat_template_issues([]), do: "none"
 
   defp format_chat_template_issues(issues), do: Enum.join(issues, "; ")
+
+  defp format_tokenizer_metadata_issues([]), do: "none"
+
+  defp format_tokenizer_metadata_issues(issues), do: Enum.join(issues, "; ")
 
   defp format_special_tokens(tokens) when map_size(tokens) == 0, do: "none"
 

@@ -5821,6 +5821,7 @@ defmodule LlamexTest do
       assert diagnostic["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]
       assert diagnostic["tokenizer_merge_count"] == 0
       assert diagnostic["tokenizer_score_count"] == 0
+      assert diagnostic["tokenizer_metadata_issues"] == []
       assert diagnostic["tokenizer_token_types"] == %{}
       assert diagnostic["loadable?"] == false
       assert diagnostic["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
@@ -6367,11 +6368,27 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_model_supported? == true
     assert diagnostic.tokenizer_merge_count == 2
     assert diagnostic.tokenizer_score_count == 6
+    assert diagnostic.tokenizer_metadata_issues == []
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: gpt2"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: bpe"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 2"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer scores: 6"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer metadata issues: none"
+  end
+
+  test "diagnoses tokenizer score count mismatches" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_bpe_score_mismatch_gguf())
+
+    assert diagnostic.tokenizer_token_count == 6
+    assert diagnostic.tokenizer_score_count == 2
+
+    assert diagnostic.tokenizer_metadata_issues == [
+             "tokenizer score count mismatch: tokens=6 scores=2"
+           ]
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "tokenizer metadata issues: tokenizer score count mismatch: tokens=6 scores=2"
   end
 
   test "builds a bpe tokenizer with gguf special token metadata" do
@@ -7866,6 +7883,26 @@ defmodule LlamexTest do
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "l", "o", "w", "lo", "low"]),
       kv_array_string("tokenizer.ggml.merges", ["l o", "lo w"]),
       kv_array_f32("tokenizer.ggml.scores", [0.0, -1.0, -1.1, -1.2, -0.5, -0.1]),
+      kv_u32("tokenizer.ggml.unknown_token_id", 0)
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_bpe_score_mismatch_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_string("tokenizer.ggml.model", "gpt2"),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "l", "o", "w", "lo", "low"]),
+      kv_array_string("tokenizer.ggml.merges", ["l o", "lo w"]),
+      kv_array_f32("tokenizer.ggml.scores", [0.0, -1.0]),
       kv_u32("tokenizer.ggml.unknown_token_id", 0)
     ]
 
