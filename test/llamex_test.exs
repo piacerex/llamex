@@ -5366,6 +5366,7 @@ defmodule LlamexTest do
     assert diagnostic.supported_combinations == [
              %{
                architecture: "llama",
+               runtime_status: "supported",
                tokenizers: ["whitespace", "bpe"],
                tokenizer_models: ["llama", "gpt2"],
                pre_tokenizers: ["default", "gpt2", "llama-bpe"],
@@ -5876,6 +5877,7 @@ defmodule LlamexTest do
       assert diagnostic["supported_combinations"] == [
                %{
                  "architecture" => "llama",
+                 "runtime_status" => "supported",
                  "tokenizers" => ["whitespace", "bpe"],
                  "tokenizer_models" => ["llama", "gpt2"],
                  "pre_tokenizers" => ["default", "gpt2", "llama-bpe"],
@@ -6105,6 +6107,10 @@ defmodule LlamexTest do
     assert output =~ "10:Q2_K, 11:Q3_K, 12:Q4_K, 13:Q5_K, 14:Q6_K, 15:Q8_K"
     assert output =~ "30:BF16"
 
+    assert output =~ "known combinations:"
+    assert output =~ "gemma3+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
+    assert output =~ "+known_unsupported"
+
     assert output =~
              "supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
   end
@@ -6186,9 +6192,18 @@ defmodule LlamexTest do
              "30" => "BF16"
            }
 
+    assert Enum.find(surface["known_combinations"], &(&1["architecture"] == "gemma3"))[
+             "runtime_status"
+           ] == "known_unsupported"
+
+    assert Enum.find(surface["known_combinations"], &(&1["architecture"] == "llama"))[
+             "runtime_status"
+           ] == "supported"
+
     assert surface["supported_combinations"] == [
              %{
                "architecture" => "llama",
+               "runtime_status" => "supported",
                "tokenizers" => ["whitespace", "bpe"],
                "tokenizer_models" => ["llama", "gpt2"],
                "pre_tokenizers" => ["default", "gpt2", "llama-bpe"],

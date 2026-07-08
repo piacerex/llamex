@@ -83,12 +83,28 @@ defmodule Llamex.GGUF.Diagnostic do
     [
       %{
         architecture: "llama",
+        runtime_status: "supported",
         tokenizers: supported_tokenizers(),
         tokenizer_models: supported_tokenizer_models(),
         pre_tokenizers: supported_pre_tokenizers(),
         tensor_types: supported_tensor_type_names()
       }
     ]
+  end
+
+  def known_combinations do
+    runtime_surface = architecture_runtime_surface()
+
+    Enum.map(known_architectures(), fn architecture ->
+      %{
+        architecture: architecture,
+        runtime_status: Map.fetch!(runtime_surface, architecture),
+        tokenizers: supported_tokenizers(),
+        tokenizer_models: supported_tokenizer_models(),
+        pre_tokenizers: supported_pre_tokenizers(),
+        tensor_types: supported_tensor_type_names()
+      }
+    end)
   end
 
   def architecture_runtime_surface do
@@ -118,6 +134,7 @@ defmodule Llamex.GGUF.Diagnostic do
       tensor_schema_surface: Llamex.GGUF.TensorSchema.surface(known_architectures()),
       supported_tensor_type_names: supported_tensor_type_names(),
       supported_tensor_type_ids: supported_tensor_type_ids(),
+      known_combinations: known_combinations(),
       supported_combinations: supported_combinations()
     }
   end
@@ -136,6 +153,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tensor schema surface: #{format_tensor_schema_surface(surface.tensor_schema_surface)}",
       "supported tensor type names: #{Enum.join(surface.supported_tensor_type_names, ", ")}",
       "supported tensor type ids: #{format_supported_tensor_type_ids(surface.supported_tensor_type_ids)}",
+      "known combinations: #{format_supported_combinations(surface.known_combinations, runtime_status?: true)}",
       "supported combinations: #{format_supported_combinations(surface.supported_combinations)}"
     ]
     |> Enum.join("\n")
@@ -939,15 +957,16 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.join(", ")
   end
 
-  defp format_supported_combinations(combinations) do
+  defp format_supported_combinations(combinations, opts \\ []) do
     combinations
     |> Enum.map(fn combination ->
       tokenizers = Enum.join(combination.tokenizers, "/")
       tokenizer_models = Enum.join(combination.tokenizer_models, "/")
       pre_tokenizers = Enum.join(combination.pre_tokenizers, "/")
       tensor_types = Enum.join(combination.tensor_types, "/")
+      runtime_status = if opts[:runtime_status?], do: "+#{combination.runtime_status}", else: ""
 
-      "#{combination.architecture}+#{tokenizers}+#{tokenizer_models}+#{pre_tokenizers}+#{tensor_types}"
+      "#{combination.architecture}+#{tokenizers}+#{tokenizer_models}+#{pre_tokenizers}+#{tensor_types}#{runtime_status}"
     end)
     |> Enum.join("; ")
   end
