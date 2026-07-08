@@ -17,15 +17,21 @@ defmodule Llamex.GGUF.ModelLoader do
 
   def to_model_map(%Llamex.GGUF.Reader{} = gguf, binary) when is_binary(binary) do
     architecture = metadata_value(gguf.metadata, "general.architecture", nil)
-    tensor_names = Enum.map(gguf.tensors, & &1.name)
     tensors = tensors_from_reader(gguf, binary, architecture)
 
     %{
       "config" => config_from_metadata(gguf.metadata),
       "tokenizer" => tokenizer_from_metadata(gguf.metadata),
-      "tensor_schema" => Llamex.GGUF.TensorSchema.summary(architecture, tensor_names),
+      "tensor_schema" => tensor_schema_summary(gguf),
       "tensors" => tensors
     }
+  end
+
+  def tensor_schema_summary(%Llamex.GGUF.Reader{} = gguf) do
+    architecture = metadata_value(gguf.metadata, "general.architecture", nil)
+    tensor_names = Enum.map(gguf.tensors, & &1.name)
+
+    Llamex.GGUF.TensorSchema.summary(architecture, tensor_names)
   end
 
   defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary, architecture) do

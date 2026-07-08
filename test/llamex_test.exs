@@ -6256,6 +6256,15 @@ defmodule LlamexTest do
         [%{tensor | name: "blk.0.post_attention_norm.weight"}]
       end)
 
+    assert Llamex.GGUF.ModelLoader.tensor_schema_summary(parsed) == %{
+             "architecture" => "gemma3",
+             "issues" => [],
+             "mappings" => [
+               %{name: "blk.0.post_attention_norm.weight", schema_name: "blk.0.ffn_norm.weight"}
+             ],
+             "unsupported_features" => []
+           }
+
     model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
 
     assert model_map["tensor_schema"] == %{
