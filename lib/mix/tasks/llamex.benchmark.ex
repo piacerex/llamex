@@ -203,6 +203,8 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       prepared?: profile.prepared?,
       sampler: profile.sampler,
       generated_tokens: generated_count,
+      generated_token_ids: profile.generated_tokens,
+      generated_pieces: profile.generated_pieces,
       finish_reason: profile.finish_reason,
       text: text,
       total_milliseconds: total_milliseconds,
