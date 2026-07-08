@@ -5612,6 +5612,46 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects gguf models with unsupported tokenizer models before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-incompatible-tokenizer-model-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_unsupported_tokenizer_model_tensor_data))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: unsupported tokenizer model: sentencepiece",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
+  test "rejects gguf models with unsupported architectures before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-incompatible-architecture-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_unsupported_architecture_tensor_data))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: unsupported architecture: mistral",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "rejects gguf models with unsupported rope scaling before loading tensor data" do
     path =
       Path.join(
@@ -5840,6 +5880,12 @@ defmodule LlamexTest do
   end
 
   defp tiny_gguf(mode) do
+    architecture =
+      case mode do
+        :with_unsupported_architecture_tensor_data -> "mistral"
+        _other -> "llama"
+      end
+
     extra_metadata =
       case mode do
         :with_unsupported_pre_tokenizer_tensor_data ->
@@ -5857,8 +5903,7 @@ defmodule LlamexTest do
 
     metadata =
       [
-        kv_string("general.architecture", "llama"),
-        kv_string("tokenizer.ggml.model", "llama"),
+        kv_string("general.architecture", architecture),
         kv_u32("general.alignment", 32),
         kv_u32("llama.embedding_length", 2),
         kv_u32("llama.context_length", 16),
@@ -5868,6 +5913,7 @@ defmodule LlamexTest do
         kv_u32("llama.feed_forward_length", 8),
         kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
       ]
+      |> maybe_put_tokenizer_model(mode)
       |> maybe_delete_metadata(mode)
       |> Kernel.++(extra_metadata)
 
@@ -5924,6 +5970,12 @@ defmodule LlamexTest do
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_unsupported_pre_tokenizer_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_unsupported_tokenizer_model_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_unsupported_architecture_tensor_data ->
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_unsupported_rope_scaling_tensor_data ->
@@ -6032,6 +6084,14 @@ defmodule LlamexTest do
   end
 
   defp maybe_delete_metadata(metadata, _mode), do: metadata
+
+  defp maybe_put_tokenizer_model(metadata, :with_unsupported_tokenizer_model_tensor_data) do
+    [kv_string("tokenizer.ggml.model", "sentencepiece") | metadata]
+  end
+
+  defp maybe_put_tokenizer_model(metadata, _mode) do
+    [kv_string("tokenizer.ggml.model", "llama") | metadata]
+  end
 
   defp tiny_gguf_tensor_name(:with_missing_token_embeddings_tensor_data), do: "other.weight"
   defp tiny_gguf_tensor_name(_mode), do: "token_embd.weight"
