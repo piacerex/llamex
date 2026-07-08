@@ -4198,6 +4198,7 @@ defmodule LlamexTest do
                architecture: "llama",
                tokenizers: ["whitespace", "bpe"],
                tokenizer_models: ["llama", "gpt2"],
+               pre_tokenizers: ["default", "gpt2", "llama-bpe"],
                tensor_types: diagnostic.supported_tensor_type_names
              }
            ]
@@ -4206,9 +4207,12 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_supported? == true
     assert diagnostic.tokenizer_model == "llama"
     assert diagnostic.tokenizer_model_supported? == true
+    assert diagnostic.pre_tokenizer == nil
+    assert diagnostic.pre_tokenizer_supported? == true
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.supported_tokenizers == ["whitespace", "bpe"]
     assert diagnostic.supported_tokenizer_models == ["llama", "gpt2"]
+    assert diagnostic.supported_pre_tokenizers == ["default", "gpt2", "llama-bpe"]
     assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.loadable? == false
     assert diagnostic.compatibility_issues == ["unsupported tensor type: type_99 (1)"]
@@ -4253,6 +4257,12 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported tokenizers: whitespace, bpe"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported tokenizer models: llama, gpt2"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model supported: true"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "supported pre-tokenizers: default, gpt2, llama-bpe"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer supported: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer: unknown"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: llama"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: whitespace"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 0"
@@ -4276,6 +4286,8 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_supported? == true
     assert diagnostic.tokenizer_model == "llama"
     assert diagnostic.tokenizer_model_supported? == true
+    assert diagnostic.pre_tokenizer == nil
+    assert diagnostic.pre_tokenizer_supported? == true
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.unsupported_tensor_types == %{}
@@ -4319,6 +4331,7 @@ defmodule LlamexTest do
                  "architecture" => "llama",
                  "tokenizers" => ["whitespace", "bpe"],
                  "tokenizer_models" => ["llama", "gpt2"],
+                 "pre_tokenizers" => ["default", "gpt2", "llama-bpe"],
                  "tensor_types" => diagnostic["supported_tensor_type_names"]
                }
              ]
@@ -4326,9 +4339,12 @@ defmodule LlamexTest do
       assert diagnostic["tokenizer_supported?"] == true
       assert diagnostic["tokenizer_model"] == "llama"
       assert diagnostic["tokenizer_model_supported?"] == true
+      assert diagnostic["pre_tokenizer"] == nil
+      assert diagnostic["pre_tokenizer_supported?"] == true
       assert diagnostic["tokenizer_kind"] == "whitespace"
       assert diagnostic["supported_tokenizers"] == ["whitespace", "bpe"]
       assert diagnostic["supported_tokenizer_models"] == ["llama", "gpt2"]
+      assert diagnostic["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]
       assert diagnostic["tokenizer_merge_count"] == 0
       assert diagnostic["loadable?"] == false
       assert diagnostic["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
@@ -4372,6 +4388,29 @@ defmodule LlamexTest do
 
     assert formatted =~ "tokenizer model supported: false"
     assert formatted =~ "compatibility issues: unsupported tokenizer model: sentencepiece"
+  end
+
+  test "diagnoses unsupported gguf pre-tokenizer metadata" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
+
+    diagnostic =
+      parsed
+      |> put_in(
+        [Access.key!(:metadata), "tokenizer.ggml.pre"],
+        %{type: :string, value: "qwen2"}
+      )
+      |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert diagnostic.pre_tokenizer == "qwen2"
+    assert diagnostic.pre_tokenizer_supported? == false
+    assert diagnostic.loadable? == false
+    assert diagnostic.compatibility_issues == ["unsupported pre-tokenizer: qwen2"]
+
+    formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
+
+    assert formatted =~ "pre-tokenizer: qwen2"
+    assert formatted =~ "pre-tokenizer supported: false"
+    assert formatted =~ "compatibility issues: unsupported pre-tokenizer: qwen2"
   end
 
   test "diagnoses gguf special tokens" do

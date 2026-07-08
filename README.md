@@ -614,15 +614,18 @@ This checkpoint is compatible with the current tensor loader:
 ```text
 architecture: llama
 supported architectures: llama
-supported combinations: llama+whitespace/bpe+llama/gpt2+BF16/F16/F32/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K
+supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+BF16/F16/F32/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K
 architecture supported: true
 supported tokenizers: whitespace, bpe
 tokenizer supported: true
 supported tokenizer models: llama, gpt2
 tokenizer model supported: true
+supported pre-tokenizers: default, gpt2, llama-bpe
+pre-tokenizer supported: true
 loadable: true
 compatibility issues: none
 tokenizer model: unknown
+pre-tokenizer: unknown
 tokenizer kind: whitespace
 tokenizer tokens: 32128
 tokenizer merges: 0

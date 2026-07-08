@@ -6,6 +6,7 @@ defmodule Llamex.GGUF.Diagnostic do
   @supported_architectures ["llama"]
   @supported_tokenizers ["whitespace", "bpe"]
   @supported_tokenizer_models ["llama", "gpt2"]
+  @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
   @supported_tensor_types %{
     0 => "F32",
     1 => "F16",
@@ -30,6 +31,8 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def supported_tokenizer_models, do: @supported_tokenizer_models
 
+  def supported_pre_tokenizers, do: @supported_pre_tokenizers
+
   def supported_tensor_type_names do
     @supported_tensor_types
     |> Map.values()
@@ -46,6 +49,7 @@ defmodule Llamex.GGUF.Diagnostic do
         architecture: "llama",
         tokenizers: supported_tokenizers(),
         tokenizer_models: supported_tokenizer_models(),
+        pre_tokenizers: supported_pre_tokenizers(),
         tensor_types: supported_tensor_type_names()
       }
     ]
@@ -77,9 +81,12 @@ defmodule Llamex.GGUF.Diagnostic do
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_model: tokenizer_model(gguf.metadata),
       tokenizer_model_supported?: tokenizer_model_supported?(gguf.metadata),
+      pre_tokenizer: pre_tokenizer(gguf.metadata),
+      pre_tokenizer_supported?: pre_tokenizer_supported?(gguf.metadata),
       tokenizer_kind: tokenizer_kind(gguf.metadata),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
+      supported_pre_tokenizers: supported_pre_tokenizers(),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
       tokenizer_merge_count: tokenizer_merge_count(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
@@ -118,11 +125,14 @@ defmodule Llamex.GGUF.Diagnostic do
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
       "supported tokenizer models: #{Enum.join(diagnostic.supported_tokenizer_models, ", ")}",
       "tokenizer model supported: #{diagnostic.tokenizer_model_supported?}",
+      "supported pre-tokenizers: #{Enum.join(diagnostic.supported_pre_tokenizers, ", ")}",
+      "pre-tokenizer supported: #{diagnostic.pre_tokenizer_supported?}",
       "loadable: #{diagnostic.loadable?}",
       "compatibility issues: #{format_compatibility_issues(diagnostic.compatibility_issues)}",
       "metadata: #{diagnostic.metadata_count}",
       "tensors: #{diagnostic.tensor_count}",
       "tokenizer model: #{diagnostic.tokenizer_model || "unknown"}",
+      "pre-tokenizer: #{diagnostic.pre_tokenizer || "unknown"}",
       "tokenizer kind: #{diagnostic.tokenizer_kind}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
       "tokenizer merges: #{diagnostic.tokenizer_merge_count}",
@@ -187,6 +197,15 @@ defmodule Llamex.GGUF.Diagnostic do
     end
   end
 
+  defp pre_tokenizer(metadata), do: metadata_value(metadata, "tokenizer.ggml.pre")
+
+  defp pre_tokenizer_supported?(metadata) do
+    case pre_tokenizer(metadata) do
+      nil -> true
+      pre_tokenizer -> pre_tokenizer in @supported_pre_tokenizers
+    end
+  end
+
   defp tokenizer_kind(metadata) do
     case metadata_value(metadata, "tokenizer.ggml.merges") do
       %{values: [_first | _rest]} -> "bpe"
@@ -203,7 +222,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp loadable?(metadata, tensors) do
     architecture_supported?(metadata) and tokenizer_supported?(metadata) and
-      tokenizer_model_supported?(metadata) and
+      tokenizer_model_supported?(metadata) and pre_tokenizer_supported?(metadata) and
       unsupported_tensors(tensors) == []
   end
 
@@ -212,6 +231,7 @@ defmodule Llamex.GGUF.Diagnostic do
     |> add_architecture_issue(metadata)
     |> add_tokenizer_issue(metadata)
     |> add_tokenizer_model_issue(metadata)
+    |> add_pre_tokenizer_issue(metadata)
     |> add_tensor_type_issues(tensors)
     |> Enum.reverse()
   end
@@ -243,6 +263,20 @@ defmodule Llamex.GGUF.Diagnostic do
           issues
         else
           ["unsupported tokenizer model: #{model}" | issues]
+        end
+    end
+  end
+
+  defp add_pre_tokenizer_issue(issues, metadata) do
+    case pre_tokenizer(metadata) do
+      nil ->
+        issues
+
+      pre_tokenizer ->
+        if pre_tokenizer_supported?(metadata) do
+          issues
+        else
+          ["unsupported pre-tokenizer: #{pre_tokenizer}" | issues]
         end
     end
   end
@@ -386,8 +420,10 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.map(fn combination ->
       tokenizers = Enum.join(combination.tokenizers, "/")
       tokenizer_models = Enum.join(combination.tokenizer_models, "/")
+      pre_tokenizers = Enum.join(combination.pre_tokenizers, "/")
       tensor_types = Enum.join(combination.tensor_types, "/")
-      "#{combination.architecture}+#{tokenizers}+#{tokenizer_models}+#{tensor_types}"
+
+      "#{combination.architecture}+#{tokenizers}+#{tokenizer_models}+#{pre_tokenizers}+#{tensor_types}"
     end)
     |> Enum.join("; ")
   end
