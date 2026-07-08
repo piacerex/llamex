@@ -93,9 +93,14 @@ defmodule Llamex.GGUF.ModelLoader do
       "vocab" => tokenizer.token_to_id,
       "special_tokens" => tokenizer.special_tokens,
       "token_types" => tokenizer.token_types,
-      "chat_template" => tokenizer.chat_template
+      "chat_template" => chat_template_from_metadata(metadata) || tokenizer.chat_template
     }
     |> put_merges(tokenizer)
+  end
+
+  defp chat_template_from_metadata(metadata) do
+    metadata_value(metadata, "tokenizer.chat_template", nil) ||
+      metadata_value(metadata, "tokenizer.ggml.chat_template", nil)
   end
 
   defp tokenizer_type(%Llamex.Tokenizer.BPE{}), do: "bpe"

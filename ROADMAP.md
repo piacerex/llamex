@@ -142,7 +142,9 @@ GGUF モデル読み込み
 
 現時点では、Gemma 3 の text-only / full attention / default RoPE 経路を
 supported architecture として扱い、最小 GGUF fixture でロードと 1 token
-生成までをテストで固定している。
+生成までをテストで固定している。GGUF tokenizer は
+`tokenizer.chat_template` と `tokenizer.ggml.chat_template` の両方を読み、
+Gemma turn marker template を tokenizer に保持できる。
 
 - 対象モデルを `unsloth/gemma-3-270m-it-GGUF` に固定する。
   - 最初は最小量子化 GGUF を使い、ロード可否と 1 token 生成を優先する。

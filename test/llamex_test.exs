@@ -7364,6 +7364,7 @@ defmodule LlamexTest do
         architecture: "gemma3",
         block_count: 0,
         context_size: 32,
+        tokens: ["<unk>", "hello"],
         tensors: [
           {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
         ]
@@ -7688,6 +7689,17 @@ defmodule LlamexTest do
 
     assert Llamex.ChatTemplate.apply(tokenizer.chat_template, "Hello") ==
              "<|im_start|>user\nHello<|im_end|>\n<|im_start|>assistant\n"
+  end
+
+  test "builds a tokenizer with ggml chat template metadata" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_ggml_chat_template_gguf())
+
+    tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
+
+    assert tokenizer.chat_template == gemma_turn_template()
+
+    assert Llamex.ChatTemplate.apply(tokenizer.chat_template, "Hello", tokenizer) ==
+             "<start_of_turn>user\nHello<end_of_turn>\n<start_of_turn>model\n"
   end
 
   test "builds a tokenizer with gguf system role marker chat template metadata" do
@@ -9622,6 +9634,28 @@ defmodule LlamexTest do
       kv_string("general.architecture", "llama"),
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "Hello"]),
       kv_string("tokenizer.chat_template", chatml_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_ggml_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "gemma3"),
+      kv_array_string("tokenizer.ggml.tokens", [
+        "<unk>",
+        "<start_of_turn>",
+        "<end_of_turn>",
+        "Hello"
+      ]),
+      kv_string("tokenizer.ggml.chat_template", gemma_turn_template())
     ]
 
     header = [

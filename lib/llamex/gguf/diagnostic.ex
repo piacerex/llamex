@@ -812,7 +812,7 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp add_chat_marker_token_type_issues(issues, metadata) do
-    template = metadata_value(metadata, "tokenizer.chat_template")
+    template = chat_template(metadata)
 
     case {template, metadata_value(metadata, "tokenizer.ggml.tokens"),
           metadata_value(metadata, "tokenizer.ggml.token_type")} do
@@ -1222,7 +1222,7 @@ defmodule Llamex.GGUF.Diagnostic do
   defp tensor_type_name(type), do: Map.get(@supported_tensor_types, type, "type_#{type}")
 
   defp chat_template_status(metadata) do
-    case metadata_value(metadata, "tokenizer.chat_template") do
+    case chat_template(metadata) do
       nil ->
         "none"
 
@@ -1233,7 +1233,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp chat_template_family(metadata) do
     metadata
-    |> metadata_value("tokenizer.chat_template")
+    |> chat_template()
     |> Llamex.ChatTemplate.family()
   end
 
@@ -1251,7 +1251,7 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp missing_chat_template_tokens(metadata) do
-    template = metadata_value(metadata, "tokenizer.chat_template")
+    template = chat_template(metadata)
 
     tokens =
       case metadata_value(metadata, "tokenizer.ggml.tokens") do
@@ -1262,6 +1262,11 @@ defmodule Llamex.GGUF.Diagnostic do
     template
     |> Llamex.ChatTemplate.markers()
     |> Enum.reject(&MapSet.member?(tokens, &1))
+  end
+
+  defp chat_template(metadata) do
+    metadata_value(metadata, "tokenizer.chat_template") ||
+      metadata_value(metadata, "tokenizer.ggml.chat_template")
   end
 
   defp tokenizer_token_count(metadata) do
