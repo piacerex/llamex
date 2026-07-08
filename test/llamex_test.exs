@@ -3974,7 +3974,9 @@ defmodule LlamexTest do
 
     assert diagnostic.eager_f32_bytes == 16
     assert "Q2_K" in diagnostic.supported_tensor_type_names
+    assert "BF16" in diagnostic.supported_tensor_type_names
     assert diagnostic.supported_tensor_type_ids[10] == "Q2_K"
+    assert diagnostic.supported_tensor_type_ids[30] == "BF16"
     assert diagnostic.supported_tensor_types == %{}
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
     assert diagnostic.chat_template == "none"
@@ -4082,6 +4084,7 @@ defmodule LlamexTest do
       assert diagnostic["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
       assert "Q8_0" in diagnostic["supported_tensor_type_names"]
       assert diagnostic["supported_tensor_type_ids"]["8"] == "Q8_0"
+      assert diagnostic["supported_tensor_type_ids"]["30"] == "BF16"
 
       assert diagnostic["tensor_shapes"] == [
                %{
@@ -4308,6 +4311,21 @@ defmodule LlamexTest do
              "token_embd.weight" => %{
                "shape" => [2, 2],
                "dtype" => "f16",
+               "data" => [1.0, 0.0, 0.0, -2.0]
+             }
+           }
+  end
+
+  test "reads bf16 gguf tensor data into named tensor schema" do
+    gguf = tiny_gguf(:with_bf16_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(gguf)
+
+    tensors = Llamex.GGUF.Reader.read_tensor_data(parsed, gguf)
+
+    assert tensors == %{
+             "token_embd.weight" => %{
+               "shape" => [2, 2],
+               "dtype" => "bf16",
                "data" => [1.0, 0.0, 0.0, -2.0]
              }
            }
@@ -4784,6 +4802,7 @@ defmodule LlamexTest do
       case mode do
         :with_rectangular_tensor_data -> {[3, 2], 0, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}
         :with_f16_tensor_data -> {[2, 2], 1, [0x3C00, 0x0000, 0x0000, 0xC000]}
+        :with_bf16_tensor_data -> {[2, 2], 30, [0x3F80, 0x0000, 0x0000, 0xC000]}
         :with_q4_0_tensor_data -> {[32], 2, [0, 1, 8, 15 | List.duplicate(8, 28)]}
         :with_unaligned_q4_0_tensor_data -> {[31], 2, [0, 1, 8, 15 | List.duplicate(8, 28)]}
         :with_q4_1_tensor_data -> {[32], 3, [0, 1, 8, 15 | List.duplicate(8, 28)]}
@@ -4821,6 +4840,7 @@ defmodule LlamexTest do
       :with_tensor_data -> with_aligned_f32_tensor_data(without_data, values)
       :with_rectangular_tensor_data -> with_aligned_f32_tensor_data(without_data, values)
       :with_f16_tensor_data -> with_aligned_f16_tensor_data(without_data, values)
+      :with_bf16_tensor_data -> with_aligned_bf16_tensor_data(without_data, values)
       :with_q4_0_tensor_data -> with_aligned_q4_0_tensor_data(without_data, values)
       :with_unaligned_q4_0_tensor_data -> with_aligned_q4_0_tensor_data(without_data, values)
       :with_q4_1_tensor_data -> with_aligned_q4_1_tensor_data(without_data, values)
@@ -4861,6 +4881,10 @@ defmodule LlamexTest do
     tensor_data = Enum.map(values, fn value -> <<value::little-unsigned-integer-size(16)>> end)
 
     IO.iodata_to_binary([binary, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp with_aligned_bf16_tensor_data(binary, values) do
+    with_aligned_f16_tensor_data(binary, values)
   end
 
   defp with_aligned_q4_0_tensor_data(binary, values) do

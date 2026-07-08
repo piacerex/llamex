@@ -204,7 +204,7 @@ The metadata reader validates the `GGUF` magic, reads v3-style header counts,
 metadata values, tensor names, tensor dimensions, tensor types, and tensor data
 offsets.
 
-F32, F16, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, and Q8_K tensor data can be read into Llamex's named tensor schema:
+F32, F16, BF16, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, and Q8_K tensor data can be read into Llamex's named tensor schema:
 
 ```elixir
 Llamex.GGUF.Reader.read_tensors("model.gguf")
@@ -609,7 +609,7 @@ This checkpoint is compatible with the current tensor loader:
 ```text
 architecture: llama
 supported architectures: llama
-supported combinations: llama+whitespace/bpe+llama/gpt2+F16/F32/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K
+supported combinations: llama+whitespace/bpe+llama/gpt2+BF16/F16/F32/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K
 architecture supported: true
 supported tokenizers: whitespace, bpe
 tokenizer supported: true
@@ -621,7 +621,7 @@ tokenizer model: unknown
 tokenizer kind: whitespace
 tokenizer tokens: 32128
 tokenizer merges: 0
-supported tensor type names: F16, F32, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, Q8_K
+supported tensor type names: BF16, F16, F32, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, Q8_K
 supported tensor types: F32=13, Q2_K=25, Q3_K=18, Q6_K=1
 unsupported tensor types: none
 ```

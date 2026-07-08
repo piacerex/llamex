@@ -20,7 +20,8 @@ defmodule Llamex.GGUF.Diagnostic do
     12 => "Q4_K",
     13 => "Q5_K",
     14 => "Q6_K",
-    15 => "Q8_K"
+    15 => "Q8_K",
+    30 => "BF16"
   }
 
   def supported_architectures, do: @supported_architectures
