@@ -16,19 +16,33 @@ defmodule Llamex.GGUF.ModelLoader do
   end
 
   def to_model_map(%Llamex.GGUF.Reader{} = gguf, binary) when is_binary(binary) do
+    architecture = metadata_value(gguf.metadata, "general.architecture", nil)
+    tensor_names = Enum.map(gguf.tensors, & &1.name)
+    tensors = tensors_from_reader(gguf, binary, architecture)
+
     %{
       "config" => config_from_metadata(gguf.metadata),
       "tokenizer" => tokenizer_from_metadata(gguf.metadata),
-      "tensors" => tensors_from_reader(gguf, binary)
+      "tensor_schema" => tensor_schema_summary(architecture, tensor_names),
+      "tensors" => tensors
     }
   end
 
-  defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary) do
-    architecture = metadata_value(gguf.metadata, "general.architecture", nil)
-
+  defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary, architecture) do
     gguf
     |> Llamex.GGUF.Reader.read_tensor_data(binary)
     |> then(&Llamex.GGUF.TensorSchema.normalize_tensor_map(architecture, &1))
+  end
+
+  defp tensor_schema_summary(architecture, tensor_names) do
+    %{
+      "architecture" => architecture,
+      "mappings" => Llamex.GGUF.TensorSchema.mappings(architecture, tensor_names),
+      "issues" =>
+        architecture
+        |> Llamex.GGUF.TensorSchema.unmapped_names(tensor_names)
+        |> Enum.map(&"unmapped tensor schema: #{&1}")
+    }
   end
 
   defp config_from_metadata(metadata) do

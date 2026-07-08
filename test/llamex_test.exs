@@ -6207,6 +6207,14 @@ defmodule LlamexTest do
 
     model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
 
+    assert model_map["tensor_schema"] == %{
+             "architecture" => "gemma3",
+             "issues" => [],
+             "mappings" => [
+               %{name: "blk.0.post_attention_norm.weight", schema_name: "blk.0.ffn_norm.weight"}
+             ]
+           }
+
     assert model_map["tensors"]["blk.0.ffn_norm.weight"]["data"] == [1.0, 0.0, 0.0, 1.0]
     refute Map.has_key?(model_map["tensors"], "blk.0.post_attention_norm.weight")
   end
@@ -7205,6 +7213,12 @@ defmodule LlamexTest do
 
     parsed = Llamex.GGUF.Reader.read_binary(gguf)
     model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, gguf)
+
+    assert model_map["tensor_schema"] == %{
+             "architecture" => "gemma3",
+             "issues" => [],
+             "mappings" => []
+           }
 
     assert model_map["config"]["vocab_size"] == 2
     assert model_map["config"]["embedding_size"] == 2
