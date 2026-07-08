@@ -3084,6 +3084,11 @@ defmodule LlamexTest do
 
     assert Enum.all?(
              results,
+             &Enum.all?(&1["runs"], fn run -> run["prompt_pieces"] == ["hello"] end)
+           )
+
+    assert Enum.all?(
+             results,
              &Enum.all?(&1["runs"], fn run -> is_list(run["generated_token_ids"]) end)
            )
 

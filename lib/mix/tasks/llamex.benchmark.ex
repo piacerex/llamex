@@ -197,6 +197,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       requested_max_new_tokens: max_new_tokens,
       effective_max_new_tokens: profile.effective_max_new_tokens,
       prompt_tokens: profile.prompt_tokens,
+      prompt_pieces: profile.prompt_pieces,
       original_prompt_token_count: profile.original_prompt_token_count,
       context_window: profile.context_window,
       prompt_truncated?: profile.prompt_truncated?,
