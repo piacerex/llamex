@@ -23,6 +23,20 @@ defmodule Llamex.RuntimeCapability do
     |> Enum.group_by(& &1.component)
   end
 
+  def feature_status(model_or_capability) do
+    model_or_capability
+    |> runtime_capability()
+    |> Map.get(:runtime_feature_status, %{})
+  end
+
+  def blocked_features(model_or_capability) do
+    model_or_capability
+    |> feature_status()
+    |> Enum.filter(fn {_feature, status} -> status == "blocked" end)
+    |> Enum.map(fn {feature, _status} -> feature end)
+    |> Enum.sort()
+  end
+
   def validate!(model) do
     case Map.get(model, :runtime_capability) do
       nil ->
@@ -43,10 +57,17 @@ defmodule Llamex.RuntimeCapability do
       "runtime=#{Map.get(capability, :runtime_status, "unknown")}",
       "blocking_groups=#{format_atoms(Map.get(capability, :blocking_issue_groups, []))}",
       "runtime_blockers=#{format_list(Map.get(capability, :runtime_blockers, []))}",
+      "blocked_features=#{format_atoms(blocked_features(capability))}",
       "runtime_blocker_details=#{format_blocker_details(Map.get(capability, :runtime_blocker_details, []))}"
     ]
     |> Enum.join("; ")
   end
+
+  defp runtime_capability(%{runtime_capability: capability}) when is_map(capability),
+    do: capability
+
+  defp runtime_capability(capability) when is_map(capability), do: capability
+  defp runtime_capability(_model_or_capability), do: %{}
 
   defp runtime_blocker_details(%{runtime_capability: capability}) when is_map(capability) do
     runtime_blocker_details(capability)

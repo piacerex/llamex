@@ -18,6 +18,8 @@ defmodule LlamexTest do
     assert Llamex.RuntimeCapability.loadable?(model) == true
     assert Llamex.RuntimeCapability.blocker_ids(model) == []
     assert Llamex.RuntimeCapability.blockers_by_component(model) == %{}
+    assert Llamex.RuntimeCapability.feature_status(model) == %{}
+    assert Llamex.RuntimeCapability.blocked_features(model) == []
     {context, next_token} = Llamex.next_token(context, 0)
 
     assert context.tokens == [0]
@@ -76,6 +78,11 @@ defmodule LlamexTest do
               component: "engine"
             }
           ],
+          runtime_feature_status: %{
+            architecture_runtime: "blocked",
+            attention_variant: "supported",
+            rope_variant: "supported"
+          },
           blocking_issue_groups: [:runtime],
           attention_variant: %{type: "full"},
           rope_variant: %{type: "default"}
@@ -104,8 +111,16 @@ defmodule LlamexTest do
              ]
            }
 
+    assert Llamex.RuntimeCapability.feature_status(model) == %{
+             architecture_runtime: "blocked",
+             attention_variant: "supported",
+             rope_variant: "supported"
+           }
+
+    assert Llamex.RuntimeCapability.blocked_features(model) == [:architecture_runtime]
+
     assert_raise ArgumentError,
-                 ~r/model runtime is not loadable; architecture=gemma3; runtime=known_unsupported/,
+                 ~r/blocked_features=architecture_runtime/,
                  fn ->
                    Llamex.prepare_model(model, Llamex.Backend.List)
                  end

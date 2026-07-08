@@ -184,7 +184,8 @@ Models whose `runtime_capability.loadable?` is false are rejected by
 execution starts.
 Use `Llamex.RuntimeCapability.loadable?/1`, `blocker_ids/1`, and
 `blockers_by_component/1` to inspect those runtime gaps from either a model or a
-runtime capability map.
+runtime capability map. `feature_status/1` and `blocked_features/1` expose the
+same feature-level status used in diagnostics and guard errors.
 
 Supported tokenizer types:
 
