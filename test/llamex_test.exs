@@ -19,6 +19,8 @@ defmodule LlamexTest do
     assert Llamex.RuntimeCapability.blocker_ids(model) == []
     assert Llamex.RuntimeCapability.blockers_by_component(model) == %{}
     assert Llamex.RuntimeCapability.feature_status(model) == %{}
+    assert Llamex.RuntimeCapability.feature_blockers(model) == []
+    assert Llamex.RuntimeCapability.feature_blockers_by_component(model) == %{}
     assert Llamex.RuntimeCapability.blocked_features(model) == []
     {context, next_token} = Llamex.next_token(context, 0)
 
@@ -83,6 +85,15 @@ defmodule LlamexTest do
             attention_variant: "supported",
             rope_variant: "supported"
           },
+          runtime_feature_blockers: [
+            %{
+              feature: :architecture_runtime,
+              component: "engine",
+              reason: "architecture runtime not implemented",
+              issue: "unsupported architecture runtime: gemma3",
+              value: "gemma3"
+            }
+          ],
           blocked_runtime_features: [:architecture_runtime],
           blocking_issue_groups: [:runtime],
           attention_variant: %{type: "full"},
@@ -116,6 +127,28 @@ defmodule LlamexTest do
              architecture_runtime: "blocked",
              attention_variant: "supported",
              rope_variant: "supported"
+           }
+
+    assert Llamex.RuntimeCapability.feature_blockers(model) == [
+             %{
+               feature: :architecture_runtime,
+               component: "engine",
+               reason: "architecture runtime not implemented",
+               issue: "unsupported architecture runtime: gemma3",
+               value: "gemma3"
+             }
+           ]
+
+    assert Llamex.RuntimeCapability.feature_blockers_by_component(model) == %{
+             "engine" => [
+               %{
+                 feature: :architecture_runtime,
+                 component: "engine",
+                 reason: "architecture runtime not implemented",
+                 issue: "unsupported architecture runtime: gemma3",
+                 value: "gemma3"
+               }
+             ]
            }
 
     assert Llamex.RuntimeCapability.blocked_features(model) == [:architecture_runtime]

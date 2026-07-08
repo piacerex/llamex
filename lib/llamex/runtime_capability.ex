@@ -29,6 +29,18 @@ defmodule Llamex.RuntimeCapability do
     |> Map.get(:runtime_feature_status, %{})
   end
 
+  def feature_blockers(model_or_capability) do
+    model_or_capability
+    |> runtime_capability()
+    |> Map.get(:runtime_feature_blockers, [])
+  end
+
+  def feature_blockers_by_component(model_or_capability) do
+    model_or_capability
+    |> feature_blockers()
+    |> Enum.group_by(& &1.component)
+  end
+
   def blocked_features(model_or_capability) do
     capability = runtime_capability(model_or_capability)
 
