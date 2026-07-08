@@ -3318,6 +3318,7 @@ defmodule LlamexTest do
     profile = JSON.decode!(String.trim(output))
 
     assert profile["model_path"] == "priv/models/tiny.json"
+    assert profile["model_diagnostic"] == nil
     assert profile["original_prompt"] == "hello"
     assert profile["prompt"] == "hello"
     assert profile["prompt_tokens"] == 1
@@ -3381,6 +3382,55 @@ defmodule LlamexTest do
 
     assert Enum.map(profile["steps"], & &1["piece"]) == ["world"]
     assert Enum.map(profile["timings"], & &1["label"]) == ["prefill", "step_1"]
+  end
+
+  test "generate task profile includes GGUF memory diagnostics" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-generate-diagnostic-profile-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf_with_output_tensors())
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Generate.run([
+            path,
+            "hello",
+            "1",
+            "--profile",
+            "--backend",
+            "list"
+          ])
+        end)
+
+      profile = JSON.decode!(String.trim(output))
+
+      assert profile["model_path"] == path
+      assert profile["model_diagnostic"]["loadable?"] == true
+      assert profile["model_diagnostic"]["compatibility_issues"] == []
+      assert profile["model_diagnostic"]["eager_f32_bytes"] == 40
+      assert profile["model_diagnostic"]["gguf_payload_bytes"] == 40
+      assert profile["model_diagnostic"]["eager_f32_expansion_ratio"] == 1.0
+
+      assert profile["model_diagnostic"]["tensor_payload_by_type"]["F32"] == %{
+               "tensors" => 3,
+               "elements" => 10,
+               "eager_f32_bytes" => 40,
+               "gguf_payload_bytes" => 40,
+               "eager_f32_expansion_ratio" => 1.0
+             }
+
+      assert Enum.map(profile["model_diagnostic"]["top_tensor_payloads"], & &1["name"]) == [
+               "output.weight",
+               "token_embd.weight",
+               "output_norm.weight"
+             ]
+    after
+      File.rm(path)
+    end
   end
 
   test "generate task profile prints adjacent special token prompt pieces" do

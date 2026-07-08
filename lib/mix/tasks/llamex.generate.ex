@@ -213,6 +213,7 @@ defmodule Mix.Tasks.Llamex.Generate do
         candidate_count: Map.get(options, :candidates, 0)
       })
       |> Map.put(:model_path, model_path)
+      |> Map.put(:model_diagnostic, model_diagnostic(model_path))
       |> Map.put(:original_prompt, original_prompt)
       |> Map.put(:prompt, prompt)
 
@@ -270,6 +271,22 @@ defmodule Mix.Tasks.Llamex.Generate do
       Llamex.GGUF.ModelLoader.load(model_path)
     else
       Llamex.ModelLoader.load_json(model_path)
+    end
+  end
+
+  defp model_diagnostic(model_path) do
+    if Path.extname(model_path) == ".gguf" do
+      model_path
+      |> Llamex.GGUF.Diagnostic.inspect_file()
+      |> Map.take([
+        :loadable?,
+        :compatibility_issues,
+        :eager_f32_bytes,
+        :gguf_payload_bytes,
+        :eager_f32_expansion_ratio,
+        :tensor_payload_by_type,
+        :top_tensor_payloads
+      ])
     end
   end
 

@@ -246,8 +246,9 @@ override must be a float in `[0.0, 1.0)`.
 Use `--profile` to inspect the model path, prompt, prompt token IDs/pieces,
 generation settings, generated token IDs/pieces/types, timings, and
 `finish_reason` (`stop` or `length`) for generation experiments. Profile output
-also splits prefill into `prompt_encode`, `backend_prepare`, and `prompt_eval`
-timings so backend setup cost is visible. Each generated step includes
+also includes `model_diagnostic` for GGUF models, with the same eager F32 payload
+expansion fields used by benchmark JSON. It splits prefill into `prompt_encode`,
+`backend_prepare`, and `prompt_eval` timings so backend setup cost is visible. Each generated step includes
 `eval_timings` with per-layer `attention_norm`, `attention`, `mlp`,
 `output_norm`, and `logits` timings. For List backend top-k sampling, the
 profile labels the shortened output projection as `top_k_logits`. `mlp` is
