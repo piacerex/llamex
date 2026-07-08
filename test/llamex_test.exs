@@ -3473,6 +3473,7 @@ defmodule LlamexTest do
            ]
 
     assert Enum.all?(results, &(&1["model_path"] == "priv/models/tiny.json"))
+    assert Enum.all?(results, &(&1["model_diagnostic"] == nil))
     assert Enum.all?(results, &(&1["prompt"] == "hello"))
     assert Enum.all?(results, &(&1["warmup_count"] == 1))
     assert Enum.all?(results, &(&1["repeat_count"] == 2))
@@ -3574,6 +3575,62 @@ defmodule LlamexTest do
              results,
              &Enum.all?(&1["runs"], fn run -> run["timing_top_layers"] == [] end)
            )
+  end
+
+  test "benchmark task JSON includes GGUF memory diagnostics" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-benchmark-diagnostic-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf_with_output_tensors())
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.Llamex.Benchmark.run([
+            path,
+            "--json",
+            "--prompt",
+            "hello",
+            "--tokens",
+            "1",
+            "--backends",
+            "list",
+            "--repeat",
+            "1",
+            "--warmup",
+            "0"
+          ])
+        end)
+
+      [result] = JSON.decode!(String.trim(output))
+      [run] = result["runs"]
+
+      assert result["model_diagnostic"]["loadable?"] == true
+      assert result["model_diagnostic"]["compatibility_issues"] == []
+      assert result["model_diagnostic"]["eager_f32_bytes"] == 40
+      assert result["model_diagnostic"]["gguf_payload_bytes"] == 40
+      assert result["model_diagnostic"]["eager_f32_expansion_ratio"] == 1.0
+      assert result["model_diagnostic"] == run["model_diagnostic"]
+
+      assert result["model_diagnostic"]["tensor_payload_by_type"]["F32"] == %{
+               "tensors" => 3,
+               "elements" => 10,
+               "eager_f32_bytes" => 40,
+               "gguf_payload_bytes" => 40,
+               "eager_f32_expansion_ratio" => 1.0
+             }
+
+      assert Enum.map(result["model_diagnostic"]["top_tensor_payloads"], & &1["name"]) == [
+               "output.weight",
+               "token_embd.weight",
+               "output_norm.weight"
+             ]
+    after
+      File.rm(path)
+    end
   end
 
   test "benchmark task prints adjacent special token prompt pieces" do

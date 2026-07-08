@@ -56,6 +56,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
     Mix.Task.run("app.start")
     configure_exla(options)
 
+    model_diagnostic = model_diagnostic(model_path)
     model = load_model(model_path)
     prompt = Map.get(options, :prompt, @default_prompt)
     token_counts = token_counts(options)
@@ -67,6 +68,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       benchmark_cases!(
         model,
         model_path,
+        model_diagnostic,
         prompt,
         token_counts,
         backends,
@@ -86,6 +88,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
   defp benchmark_cases!(
          model,
          model_path,
+         model_diagnostic,
          prompt,
          token_counts,
          backends,
@@ -97,6 +100,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       benchmark_case(
         model,
         model_path,
+        model_diagnostic,
         prompt,
         max_new_tokens,
         backend,
@@ -112,6 +116,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
   defp benchmark_case(
          model,
          model_path,
+         model_diagnostic,
          prompt,
          max_new_tokens,
          backend,
@@ -127,6 +132,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
         benchmark_once(
           prepared_model,
           model_path,
+          model_diagnostic,
           prompt,
           max_new_tokens,
           backend,
@@ -141,6 +147,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
         benchmark_once(
           prepared_model,
           model_path,
+          model_diagnostic,
           prompt,
           max_new_tokens,
           backend,
@@ -152,6 +159,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
 
     %{
       model_path: model_path,
+      model_diagnostic: model_diagnostic,
       backend: inspect(backend),
       prompt: prompt,
       requested_max_new_tokens: max_new_tokens,
@@ -167,6 +175,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
   defp benchmark_once(
          model,
          model_path,
+         model_diagnostic,
          prompt,
          max_new_tokens,
          backend,
@@ -190,6 +199,7 @@ defmodule Mix.Tasks.Llamex.Benchmark do
 
     %{
       model_path: model_path,
+      model_diagnostic: model_diagnostic,
       backend: inspect(backend),
       phase: phase,
       run_index: run_index,
@@ -517,6 +527,22 @@ defmodule Mix.Tasks.Llamex.Benchmark do
       Llamex.GGUF.ModelLoader.load(model_path)
     else
       Llamex.ModelLoader.load_json(model_path)
+    end
+  end
+
+  defp model_diagnostic(model_path) do
+    if Path.extname(model_path) == ".gguf" do
+      model_path
+      |> Llamex.GGUF.Diagnostic.inspect_file()
+      |> Map.take([
+        :loadable?,
+        :compatibility_issues,
+        :eager_f32_bytes,
+        :gguf_payload_bytes,
+        :eager_f32_expansion_ratio,
+        :tensor_payload_by_type,
+        :top_tensor_payloads
+      ])
     end
   end
 end

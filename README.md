@@ -297,7 +297,11 @@ tokens-per-second. It prepares the model once per backend before warmup and
 measured runs, reporting that one-time cost as `backend_prepare_milliseconds`
 in JSON and `backend_prepare_ms` in text output. Each JSON run includes prompt
 and generated token pieces, so benchmark output can be matched back to tokenizer
-text fragments without a separate profile run. When comparing backends, each
+text fragments without a separate profile run. For GGUF models, JSON results
+also include `model_diagnostic` with payload expansion fields such as
+`gguf_payload_bytes`, `eager_f32_expansion_ratio`, `tensor_payload_by_type`, and
+`top_tensor_payloads`, so speed and eager F32 memory cost can be compared in the
+same artifact. When comparing backends, each
 result also includes `comparison_rank`, `comparison_fastest_backend`, and
 `mean_milliseconds_delta_from_fastest` for the same requested token count. It
 accepts backend comparison, EXLA, natural sampler, context window, stop-control,
