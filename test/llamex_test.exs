@@ -694,6 +694,7 @@ defmodule LlamexTest do
 
     assert Llamex.Tokenizer.encode(tokenizer, "hello") == [1, 3, 2]
     assert Llamex.Tokenizer.encode(tokenizer, "<s> hello </s>") == [1, 3, 2]
+    assert Llamex.Tokenizer.encode(tokenizer, "<s>hello</s>") == [1, 3, 2]
   end
 
   test "decodes sentencepiece-style gguf tokens as plain text" do

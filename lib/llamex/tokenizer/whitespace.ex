@@ -72,10 +72,28 @@ defmodule Llamex.Tokenizer.Whitespace do
 
   defp split_special_tokens(tokenizer, text) do
     special_tokens =
+      tokenizer
+      |> special_token_strings()
+
+    split_special_tokens(text, special_tokens, [])
+  end
+
+  defp special_token_strings(tokenizer) do
+    marker_tokens =
       tokenizer.tokens_by_length
       |> Enum.filter(&String.starts_with?(&1, "<|"))
 
-    split_special_tokens(text, special_tokens, [])
+    configured_tokens =
+      tokenizer.special_tokens
+      |> Map.values()
+      |> Enum.flat_map(fn
+        %{token: token} when is_binary(token) -> [token]
+        _other -> []
+      end)
+
+    (marker_tokens ++ configured_tokens)
+    |> Enum.uniq()
+    |> Enum.sort_by(&byte_size/1, :desc)
   end
 
   defp split_special_tokens("", _special_tokens, parts), do: Enum.reverse(parts)
