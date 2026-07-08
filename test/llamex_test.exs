@@ -5317,6 +5317,21 @@ defmodule LlamexTest do
     assert formatted =~ "unsupported tensor types: none"
   end
 
+  test "diagnoses mixed supported quantized gguf tensor types without reading tensor data" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_mixed_quantized_gguf())
+
+    assert diagnostic.supported_tensor_types == %{"Q4_0" => 1, "Q8_0" => 1}
+    assert diagnostic.unsupported_tensor_types == %{}
+    assert diagnostic.unsupported_tensors == []
+
+    assert Enum.map(diagnostic.tensor_shapes, & &1.type) == ["Q4_0", "Q8_0"]
+
+    formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
+
+    assert formatted =~ "supported tensor types: Q4_0=1, Q8_0=1"
+    assert formatted =~ "unsupported tensor types: none"
+  end
+
   test "diagnoses loadable gguf capability summary" do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:without_tensor_data))
 
@@ -6885,6 +6900,35 @@ defmodule LlamexTest do
 
   defp tiny_gguf_tensor_name(:with_missing_token_embeddings_tensor_data), do: "other.weight"
   defp tiny_gguf_tensor_name(_mode), do: "token_embd.weight"
+
+  defp tiny_mixed_quantized_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_u32("general.alignment", 32),
+      kv_u32("llama.embedding_length", 2),
+      kv_u32("llama.context_length", 16),
+      kv_u32("llama.block_count", 1),
+      kv_u32("llama.attention.head_count", 2),
+      kv_u32("llama.attention.head_count_kv", 1),
+      kv_u32("llama.feed_forward_length", 8),
+      kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"]),
+      kv_string("tokenizer.ggml.model", "llama")
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(2),
+      u64(length(metadata))
+    ]
+
+    tensor_infos = [
+      tensor_info("token_embd.weight", [32], 2, 0),
+      tensor_info("output.weight", [32], 8, 18)
+    ]
+
+    IO.iodata_to_binary([header, metadata, tensor_infos])
+  end
 
   defp with_aligned_f32_tensor_data(binary, values) do
     padding = rem(32 - rem(byte_size(binary), 32), 32)
