@@ -8546,6 +8546,19 @@ defmodule LlamexTest do
 
       assert Enum.map(chat_chunks, & &1.generated_tokens) == [[0], [0]]
       assert Enum.map(chat_chunks, & &1.generated_pieces) == [["<unk>"], ["<unk>"]]
+
+      if Code.ensure_loaded?(Nx) do
+        nx_result =
+          Llamex.generate(model, "hello", %{
+            backend: Llamex.Backend.NxEXLA,
+            max_new_tokens: 1,
+            sampler: :greedy
+          })
+
+        assert nx_result.generated_tokens == result.generated_tokens
+        assert nx_result.generated_pieces == result.generated_pieces
+        assert nx_result.text == result.text
+      end
     after
       File.rm(path)
     end

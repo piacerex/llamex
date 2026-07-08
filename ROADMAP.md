@@ -154,7 +154,9 @@ config へ変換している。Gemma3 tensor schema は post attention norm の
 control token 除去、英語 encode、日本語 byte fallback decode を固定している。
 `mix llamex.gguf.inspect --json` の Gemma3 fixture では architecture、
 tokenizer model / pre-tokenizer、chat template、runtime capability、
-model config、tensor schema の診断出力を固定している。
+model config、tensor schema の診断出力を固定している。Gemma3 loaded model
+では List backend と NxEXLA backend の greedy 1 token 生成一致を smoke
+test で確認している。
 
 - 対象モデルを `unsloth/gemma-3-270m-it-GGUF` に固定する。
   - 最初は最小量子化 GGUF を使い、ロード可否と 1 token 生成を優先する。
