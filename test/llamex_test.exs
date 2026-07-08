@@ -6042,6 +6042,12 @@ defmodule LlamexTest do
       assert output =~ "loadable: false"
       assert output =~ "blocking issue groups: tensors"
       assert output =~ "compatibility issues: unsupported tensor type: type_99 (1)"
+      assert output =~ "model config metadata prefix: llama"
+
+      assert output =~
+               "missing model config metadata: epsilon: llama.attention.layer_norm_rms_epsilon"
+
+      assert output =~ "tensor schema mappings: none"
       assert output =~ "eager f32 lower bound: 16 B"
       assert output =~ "gguf payload bytes: 0 B"
     after

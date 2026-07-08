@@ -153,10 +153,13 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "loadable: #{summary.loadable?}",
       "blocking issue groups: #{format_atoms(summary.blocking_issue_groups)}",
       "compatibility issues: #{format_list(summary.compatibility_issues)}",
+      "model config metadata prefix: #{summary.model_config_metadata_prefix}",
+      "missing model config metadata: #{format_model_config_missing_metadata(summary.missing_model_config_metadata)}",
       "chat usable: #{summary.chat_usable}",
       "chat template family: #{summary.chat_template_family}",
       "tokenizer metadata issues: #{format_list(summary.tokenizer_metadata_issues)}",
       "unsupported tensor features: #{format_list(summary.unsupported_tensor_features)}",
+      "tensor schema mappings: #{format_mappings(summary.tensor_schema_mappings)}",
       "tensor schema issues: #{format_list(summary.tensor_schema_issues)}",
       "eager f32 lower bound: #{format_bytes(summary.eager_f32_bytes)}",
       "gguf payload bytes: #{format_bytes(summary.gguf_payload_bytes)}"
