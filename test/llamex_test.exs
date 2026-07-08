@@ -5566,6 +5566,7 @@ defmodule LlamexTest do
              missing_chat_template_tokens: [],
              chat_template_issues: [],
              tokenizer_metadata_issues: [],
+             missing_required_metadata: [],
              model_config_metadata_prefix: "llama",
              missing_model_config_metadata: [
                %{name: "epsilon", metadata_key: "llama.attention.layer_norm_rms_epsilon"},
@@ -5577,6 +5578,8 @@ defmodule LlamexTest do
              unsupported_tensor_features: [],
              tensor_schema_mappings: [],
              tensor_schema_issues: [],
+             missing_required_tensors: [],
+             tensor_shape_issues: [],
              eager_f32_bytes: 16,
              gguf_payload_bytes: 16,
              eager_f32_expansion_ratio: 1.0,
@@ -5943,6 +5946,11 @@ defmodule LlamexTest do
 
     assert formatted =~ "missing required tensors: token_embd.weight"
 
+    summary = Llamex.GGUF.Diagnostic.summary(diagnostic)
+
+    assert summary.missing_required_tensors == ["token_embd.weight"]
+    assert summary.tensor_schema_issues == ["unmapped tensor schema: other.weight"]
+
     assert formatted =~
              "compatibility issues: missing required tensor: token_embd.weight; unmapped tensor schema: other.weight"
   end
@@ -5966,6 +5974,10 @@ defmodule LlamexTest do
 
     assert formatted =~
              "tensor shape issues: tensor shape mismatch: token_embd.weight schema [2, 3] expected embedding length 2"
+
+    assert Llamex.GGUF.Diagnostic.summary(diagnostic).tensor_shape_issues == [
+             "tensor shape mismatch: token_embd.weight schema [2, 3] expected embedding length 2"
+           ]
   end
 
   test "gguf inspect task can print json diagnostics" do
@@ -6137,6 +6149,7 @@ defmodule LlamexTest do
       assert output =~ "tokenizer scores: 0"
       assert output =~ "tokenizer token types: none"
       assert output =~ "special tokens: none"
+      assert output =~ "missing required metadata: none"
       assert output =~ "model config metadata prefix: llama"
 
       assert output =~
@@ -6147,6 +6160,8 @@ defmodule LlamexTest do
       assert output =~ "unsupported features: none"
       assert output =~ "unsupported feature metadata values: none"
       assert output =~ "tensor schema mappings: none"
+      assert output =~ "missing required tensors: none"
+      assert output =~ "tensor shape issues: none"
       assert output =~ "eager f32 lower bound: 16 B"
       assert output =~ "gguf payload bytes: 0 B"
       assert output =~ "supported tensor types: none"
@@ -6201,10 +6216,13 @@ defmodule LlamexTest do
       assert summary["tokenizer_score_count"] == 0
       assert summary["tokenizer_token_types"] == %{}
       assert summary["special_tokens"] == %{}
+      assert summary["missing_required_metadata"] == []
       assert summary["chat_template"] == "none"
       assert summary["missing_chat_template_tokens"] == []
       assert summary["unsupported_features"] == []
       assert summary["unsupported_feature_metadata_values"] == %{}
+      assert summary["missing_required_tensors"] == []
+      assert summary["tensor_shape_issues"] == []
       assert summary["loadable?"] == false
       assert summary["blocking_issue_groups"] == ["tensors"]
       assert summary["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
