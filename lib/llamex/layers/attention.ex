@@ -62,7 +62,7 @@ defmodule Llamex.Layers.Attention do
   end
 
   defp qkv_heads(
-         %{w_qkv: weight, w_qkv_row_counts: counts},
+         %{w_qkv: weight, w_qkv_row_counts: counts} = layer,
          input,
          head_count,
          kv_head_count,
@@ -71,16 +71,29 @@ defmodule Llamex.Layers.Attention do
          rope_dimension_count,
          backend
        ) do
-    backend.qkv_heads(
-      weight,
-      counts,
-      input,
-      head_count,
-      kv_head_count,
-      position,
-      rope_theta,
-      rope_dimension_count
-    )
+    if extra_qk_norm?(layer) do
+      qkv_heads_with_optional_norms(
+        layer,
+        input,
+        head_count,
+        kv_head_count,
+        position,
+        rope_theta,
+        rope_dimension_count,
+        backend
+      )
+    else
+      backend.qkv_heads(
+        weight,
+        counts,
+        input,
+        head_count,
+        kv_head_count,
+        position,
+        rope_theta,
+        rope_dimension_count
+      )
+    end
   end
 
   defp qkv_heads(
@@ -93,7 +106,31 @@ defmodule Llamex.Layers.Attention do
          rope_dimension_count,
          backend
        ) do
+    qkv_heads_with_optional_norms(
+      layer,
+      input,
+      head_count,
+      kv_head_count,
+      position,
+      rope_theta,
+      rope_dimension_count,
+      backend
+    )
+  end
+
+  defp qkv_heads_with_optional_norms(
+         layer,
+         input,
+         head_count,
+         kv_head_count,
+         position,
+         rope_theta,
+         rope_dimension_count,
+         backend
+       ) do
     {query, key, value} = qkv_projection(layer, input, backend)
+    query = maybe_rms_norm(query, Map.get(layer, :attention_q_norm), backend)
+    key = maybe_rms_norm(key, Map.get(layer, :attention_k_norm), backend)
 
     query_heads =
       query
@@ -107,6 +144,13 @@ defmodule Llamex.Layers.Attention do
 
     {query_heads, key_heads, split_heads(value, kv_head_count)}
   end
+
+  defp extra_qk_norm?(layer) do
+    Map.has_key?(layer, :attention_q_norm) or Map.has_key?(layer, :attention_k_norm)
+  end
+
+  defp maybe_rms_norm(vector, nil, _backend), do: vector
+  defp maybe_rms_norm(vector, weight, backend), do: backend.rms_norm(vector, weight, 0.0)
 
   defp split_heads(vector, head_count) do
     Tensor.split_every(vector, div(length(vector), head_count))

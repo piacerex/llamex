@@ -975,6 +975,36 @@ defmodule LlamexTest do
     assert [{_key, _value}] = Llamex.KVCache.entries(context.kv_cache, 0)
   end
 
+  test "attention applies optional q and k extra norms before caching" do
+    layer = %{
+      attention_q_norm: [0.5, 0.5],
+      attention_k_norm: [0.25, 0.25],
+      wq: [[1.0, 0.0], [0.0, 1.0]],
+      wk: [[1.0, 0.0], [0.0, 1.0]],
+      wv: [[1.0, 0.0], [0.0, 1.0]],
+      wo: [[1.0, 0.0], [0.0, 1.0]]
+    }
+
+    {cache, _output} =
+      Llamex.Layers.Attention.forward(
+        [3.0, 4.0],
+        layer,
+        Llamex.KVCache.new(),
+        0,
+        0,
+        10_000.0,
+        nil,
+        Llamex.Backend.List
+      )
+
+    expected_key =
+      [
+        Llamex.Backend.List.rms_norm([3.0, 4.0], [0.25, 0.25], 0.0)
+      ]
+
+    assert [{^expected_key, _value_heads}] = Llamex.KVCache.entries(cache, 0)
+  end
+
   test "applies RoPE without changing vectors at position zero" do
     assert Llamex.Layers.RoPE.apply([1.0, 2.0], 0, 10_000.0) == [1.0, 2.0]
   end
@@ -6642,7 +6672,7 @@ defmodule LlamexTest do
     assert output =~ "llama=interesting:12, unsupported_features:none"
 
     assert output =~
-             "gemma3=interesting:15, unsupported_features:attn_q_norm/attn_k_norm/post_ffw_norm"
+             "gemma3=interesting:15, unsupported_features:post_ffw_norm"
 
     assert output =~ "supported tensor type names:"
     assert output =~ "supported tensor type ids: 0:F32, 1:F16, 2:Q4_0"
@@ -6753,8 +6783,6 @@ defmodule LlamexTest do
     assert surface["tensor_schema_surface"]["llama"]["unsupported_feature_parts"] == []
 
     assert surface["tensor_schema_surface"]["gemma3"]["unsupported_feature_parts"] == [
-             "attn_q_norm",
-             "attn_k_norm",
              "post_ffw_norm"
            ]
 
@@ -7093,7 +7121,7 @@ defmodule LlamexTest do
              "tensor shape mismatch: blk.12.attn_k_norm.weight schema [4] expected embedding length 2"
            ]
 
-    assert diagnostic.blocking_issue_groups == [:runtime, :tensor_features, :tensors]
+    assert diagnostic.blocking_issue_groups == [:runtime, :tensors]
   end
 
   test "normalizes gemma3 tensor names for model maps" do

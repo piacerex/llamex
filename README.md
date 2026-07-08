@@ -168,12 +168,13 @@ Recognized transformer tensor names:
 
 Gemma 3 diagnostics also recognize architecture-specific tensor names before
 runtime support is enabled. `blk.N.post_attention_norm.weight` is mapped to the
-internal `blk.N.ffn_norm.weight` schema for model-map inspection, while
-`blk.N.attn_q_norm.weight`, `blk.N.attn_k_norm.weight`, and
-`blk.N.post_ffw_norm.weight` are reported as unsupported tensor features until
-the runtime implements those extra norms. The loader preserves these optional
-extra norm tensors on layer maps for runtime implementation work, but they still
-remain guarded by `extra_norm_tensors` until execution support is added. GGUF
+internal `blk.N.ffn_norm.weight` schema for model-map inspection.
+`blk.N.attn_q_norm.weight` and `blk.N.attn_k_norm.weight` are applied inside
+attention projection, while `blk.N.post_ffw_norm.weight` remains reported as an
+unsupported tensor feature until the runtime implements that MLP extra norm. The
+loader preserves these optional extra norm tensors on layer maps for runtime
+implementation work, but Gemma 3 remains guarded by `extra_norm_tensors` until
+post-FFW execution support is added. GGUF
 diagnostics also validate their vector length against the model embedding size.
 GGUF-loaded `Llamex.Model` structs preserve the detected `architecture`,
 `runtime_capability`, and `tensor_schema` so runtime-specific execution paths can

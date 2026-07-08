@@ -39,7 +39,7 @@ defmodule Llamex.GGUF.TensorSchema do
   ]
 
   @unsupported_feature_parts %{
-    "gemma3" => ["attn_q_norm", "attn_k_norm", "post_ffw_norm"]
+    "gemma3" => ["post_ffw_norm"]
   }
 
   def surface(architectures) when is_list(architectures) do
@@ -138,7 +138,9 @@ defmodule Llamex.GGUF.TensorSchema do
         part in [
           "attn_norm",
           "attn_q",
+          "attn_q_norm",
           "attn_k",
+          "attn_k_norm",
           "attn_v",
           "attn_output",
           "ffn_norm",
