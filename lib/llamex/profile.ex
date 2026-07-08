@@ -42,6 +42,7 @@ defmodule Llamex.Profile do
       prompt_truncated?: state.prompt_truncated?,
       prepared?: state.prepared?,
       token: step.token,
+      token_info: token_info(display_model, step.token),
       text: step.text,
       candidates: token_candidates(display_model, step.candidates),
       eval_timings: step.eval_timings,
