@@ -48,6 +48,12 @@ defmodule Llamex.GGUF.ModelLoader do
     Llamex.GGUF.ModelConfig.report(gguf.metadata)
   end
 
+  def runtime_capability_summary(%Llamex.GGUF.Reader{} = gguf) do
+    gguf
+    |> Llamex.GGUF.Diagnostic.inspect_reader()
+    |> Map.fetch!(:runtime_capability)
+  end
+
   def model_config_summary_file(path) when is_binary(path) do
     path
     |> Llamex.GGUF.Reader.read_metadata()
@@ -58,6 +64,12 @@ defmodule Llamex.GGUF.ModelLoader do
     path
     |> Llamex.GGUF.Reader.read_metadata()
     |> model_config_report()
+  end
+
+  def runtime_capability_summary_file(path) when is_binary(path) do
+    path
+    |> Llamex.GGUF.Reader.read_metadata()
+    |> runtime_capability_summary()
   end
 
   defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary, architecture) do

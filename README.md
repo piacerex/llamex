@@ -633,6 +633,7 @@ payloads:
 Llamex.GGUF.Diagnostic.inspect_summary_file("model.gguf")
 Llamex.GGUF.ModelLoader.model_config_report_file("model.gguf")
 Llamex.GGUF.ModelLoader.model_config_summary_file("model.gguf")
+Llamex.GGUF.ModelLoader.runtime_capability_summary_file("model.gguf")
 Llamex.GGUF.ModelLoader.tensor_schema_summary_file("model.gguf")
 ```
 
@@ -641,9 +642,9 @@ Llamex.GGUF.ModelLoader.tensor_schema_summary_file("model.gguf")
 or already parsed `Llamex.GGUF.Reader` values.
 `model_config_report_file/1` includes the selected metadata prefix, such as
 `llama` or `gemma3`, alongside the config map and missing config metadata keys.
-`Llamex.GGUF.ModelLoader.model_config_summary/1` and
-`Llamex.GGUF.ModelLoader.tensor_schema_summary/1` accept an already parsed
-`Llamex.GGUF.Reader` when caller code wants to reuse metadata.
+`Llamex.GGUF.ModelLoader.model_config_summary/1`,
+`runtime_capability_summary/1`, and `tensor_schema_summary/1` accept an already
+parsed `Llamex.GGUF.Reader` when caller code wants to reuse metadata.
 
 The inspection output includes supported architecture/tokenizer/tensor type
 combinations, architecture runtime status, special tokens, tokenizer `add_bos` /

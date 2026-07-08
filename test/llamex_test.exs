@@ -6907,6 +6907,47 @@ defmodule LlamexTest do
              Llamex.GGUF.ModelLoader.tensor_schema_summary(parsed)
   end
 
+  test "summarizes runtime capability from gguf reader and file path" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-runtime-capability-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    gguf =
+      tiny_multi_tensor_gguf(
+        architecture: "gemma3",
+        block_count: 0,
+        context_size: 32,
+        tensors: [
+          {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+        ]
+      )
+
+    try do
+      File.write!(path, gguf)
+
+      parsed = Llamex.GGUF.Reader.read_metadata(path)
+
+      assert Llamex.GGUF.ModelLoader.runtime_capability_summary(parsed) == %{
+               loadable?: false,
+               runtime_status: "known_unsupported",
+               runtime_blockers: [
+                 "architecture runtime not implemented",
+                 "extra norm tensor execution not implemented"
+               ],
+               blocking_issue_groups: [:runtime],
+               attention_variant: %{type: "full"},
+               rope_variant: %{type: "default"}
+             }
+
+      assert Llamex.GGUF.ModelLoader.runtime_capability_summary_file(path) ==
+               Llamex.GGUF.ModelLoader.runtime_capability_summary(parsed)
+    after
+      File.rm(path)
+    end
+  end
+
   test "reports unsupported gemma3 tensor features in model maps" do
     binary = tiny_gguf(:with_tensor_data)
 
