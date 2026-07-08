@@ -4448,6 +4448,21 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
   end
 
+  test "diagnoses role marker chat templates with system markers as usable" do
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_system_role_chat_template_gguf())
+
+    assert diagnostic.chat_template == "supported"
+    assert diagnostic.chat_usable == true
+    assert diagnostic.missing_chat_template_tokens == []
+
+    assert diagnostic.special_tokens == %{
+             eos: %{id: 1, piece: "</s>"}
+           }
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "chat usable: true"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "special tokens: eos=1:</s>"
+  end
+
   test "builds a tokenizer with gguf chat template metadata" do
     parsed = Llamex.GGUF.Reader.read_binary(tiny_chat_template_gguf())
 
@@ -4457,6 +4472,21 @@ defmodule LlamexTest do
 
     assert Llamex.ChatTemplate.apply(tokenizer.chat_template, "Hello") ==
              "<|im_start|>user\nHello<|im_end|>\n<|im_start|>assistant\n"
+  end
+
+  test "builds a tokenizer with gguf system role marker chat template metadata" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_system_role_chat_template_gguf())
+
+    tokenizer = Llamex.GGUF.Tokenizer.from_metadata(parsed.metadata)
+
+    assert Llamex.ChatTemplate.apply(
+             tokenizer.chat_template,
+             [
+               %{role: "system", content: "Be concise."},
+               %{role: "user", content: "Hello"}
+             ],
+             tokenizer
+           ) == "<|system|>\nBe concise.</s><|user|>\nHello</s><|assistant|>"
   end
 
   test "decodes gguf byte tokens" do
@@ -5649,6 +5679,33 @@ defmodule LlamexTest do
       kv_string("general.architecture", "llama"),
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "<|im_start|>", "<|im_end|>"]),
       kv_string("tokenizer.chat_template", chatml_template())
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
+    ]
+
+    IO.iodata_to_binary([header, metadata])
+  end
+
+  defp tiny_system_role_chat_template_gguf do
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_array_string("tokenizer.ggml.tokens", [
+        "<unk>",
+        "</s>",
+        "<|system|>",
+        "<|user|>",
+        "<|assistant|>",
+        "Be",
+        "concise.",
+        "Hello"
+      ]),
+      kv_u32("tokenizer.ggml.eos_token_id", 1),
+      kv_string("tokenizer.chat_template", system_role_marker_template())
     ]
 
     header = [
