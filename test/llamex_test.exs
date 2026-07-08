@@ -6150,6 +6150,14 @@ defmodule LlamexTest do
   end
 
   test "reports unmapped gemma3 tensor schema names" do
+    assert "blk.0.attn_q_norm.weight" in Llamex.GGUF.TensorSchema.interesting_tensor_names(
+             "gemma3"
+           )
+
+    assert "blk.0.attn_k_norm.weight" in Llamex.GGUF.TensorSchema.interesting_tensor_names(
+             "gemma3"
+           )
+
     parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
 
     diagnostic =
@@ -6163,6 +6171,10 @@ defmodule LlamexTest do
         [%{name: "blk.0.post_ffw_norm.weight", dimensions: [2], type: 0, offset: 0} | tensors]
       end)
       |> Llamex.GGUF.Diagnostic.inspect_reader()
+
+    assert Enum.any?(diagnostic.tensor_shapes, fn tensor ->
+             tensor.name == "blk.0.post_ffw_norm.weight" and tensor.schema_shape == [2]
+           end)
 
     assert diagnostic.tensor_schema_issues == [
              "unmapped tensor schema: blk.0.post_ffw_norm.weight"

@@ -29,7 +29,10 @@ defmodule Llamex.GGUF.TensorSchema do
     "blk.0.attn_k.weight",
     "blk.0.attn_v.weight",
     "blk.0.attn_output.weight",
+    "blk.0.attn_q_norm.weight",
+    "blk.0.attn_k_norm.weight",
     "blk.0.post_attention_norm.weight",
+    "blk.0.post_ffw_norm.weight",
     "blk.0.ffn_gate.weight",
     "blk.0.ffn_up.weight",
     "blk.0.ffn_down.weight"
