@@ -436,6 +436,45 @@ defmodule LlamexTest do
     assert List.last(chunks).finish_reason == :length
   end
 
+  test "public chat stream API supports stop sequences with prepared models" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{
+          "<unk>" => 0,
+          "<|im_start|>" => 1,
+          "<|im_end|>" => 2,
+          "user" => 3,
+          "assistant" => 4,
+          "\n" => 5,
+          "Hello" => 6,
+          "world" => 7
+        },
+        "<unk>",
+        chat_template: chatml_template()
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 8, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: Map.new(0..7, &{&1, [&1 * 1.0]})
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    chunks =
+      prepared
+      |> Llamex.stream_chat("Hello", %{
+        max_new_tokens: 2,
+        stop_sequence: "world"
+      })
+      |> Enum.to_list()
+
+    assert Enum.map(chunks, & &1.text) == ["world"]
+    assert List.last(chunks).finish_reason == :stop_sequence
+    assert Enum.all?(chunks, & &1.prepared?)
+  end
+
   test "adds configured bos and eos tokens while encoding" do
     tokenizer =
       Llamex.Tokenizer.whitespace(
