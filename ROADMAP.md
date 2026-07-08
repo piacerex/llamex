@@ -168,6 +168,27 @@ README は Gemma3 text-only/full-attention/default-RoPE の supported surface、
 README の Gemma3 extra norm 説明は supported runtime と整合している。
 README の tensor schema 診断説明も Gemma3 extra norm supported path と整合している。
 
+完了証跡:
+
+- `gguf inspect task can print supported surface without a model file` と
+  `gguf inspect task can print supported surface as json without a model file`
+  で Gemma3 supported surface を固定している。
+- `diagnoses unsupported gemma3 attention and rope metadata by architecture prefix`
+  で sliding-window attention と RoPE scaling の feature blocker を固定している。
+- `gguf inspect task can print gemma3 json diagnostics` で Gemma3 metadata、
+  tokenizer、chat template、runtime capability、model config、tensor schema を固定している。
+- `loads gemma3 gguf models with supported text runtime variants` で load、
+  `generate/3`、`prefill/3`、`step/3`、`generate_chat/3`、`stream_chat/3`、
+  List / NxEXLA 一致を固定している。
+- `loads gemma3 gguf extra norm tensors into model layers` で q/k extra norm と
+  post feed-forward extra norm の loader 保持を固定している。
+- `builds a gemma3 tokenizer with special tokens and byte fallback metadata` で
+  special token、BOS、control token 除去、英語 encode、日本語 byte fallback decode を固定している。
+- `natural smoke task runs English and Japanese prompts against a gemma3 gguf`
+  で Gemma3 GGUF fixture の英語 / 日本語 natural smoke を固定している。
+- `exla info task reports unavailable GPU targets` と
+  `exla info task reports rocm target availability` で CUDA / ROCm availability JSON を固定している。
+
 - 対象モデルを `unsloth/gemma-3-270m-it-GGUF` に固定する。
   - 最初は最小量子化 GGUF を使い、ロード可否と 1 token 生成を優先する。
   - vision なしの text-only 経路だけを対象にする。
