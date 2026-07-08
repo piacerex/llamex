@@ -2546,6 +2546,30 @@ defmodule LlamexTest do
     assert Enum.map(profile.steps, & &1.timing.label) == ["prefill_1"]
   end
 
+  test "profiles prepared prefill tokens individually" do
+    tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 3, embedding_size: 2},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0, 0.0],
+          1 => [1.0, 0.0],
+          2 => [2.0, 0.0]
+        }
+      })
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+    profile = Llamex.Profile.prefill_steps(prepared, "hello world", %{})
+
+    assert profile.backend == Llamex.Backend.List
+    assert profile.prepared? == true
+    assert profile.prompt_tokens == [1, 2]
+    assert profile.prompt_pieces == ["hello", "world"]
+    assert profile.context_tokens == [1]
+  end
+
   test "generation profile rejects invalid sampler options" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
