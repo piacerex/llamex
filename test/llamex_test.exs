@@ -5249,6 +5249,7 @@ defmodule LlamexTest do
     assert diagnostic.supported_tensor_type_ids[10] == "Q2_K"
     assert diagnostic.supported_tensor_type_ids[30] == "BF16"
     assert diagnostic.supported_tensor_types == %{}
+    assert diagnostic.supported_tensors == []
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
     assert diagnostic.missing_required_tensors == []
     assert diagnostic.tensor_shape_issues == []
@@ -5308,12 +5309,18 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:with_q4_0_tensor_data))
 
     assert diagnostic.supported_tensor_types == %{"Q4_0" => 1}
+
+    assert diagnostic.supported_tensors == [
+             %{name: "token_embd.weight", type: 2, type_name: "Q4_0", dimensions: [32]}
+           ]
+
     assert diagnostic.unsupported_tensor_types == %{}
     assert diagnostic.unsupported_tensors == []
 
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~ "supported tensor types: Q4_0=1"
+    assert formatted =~ "supported tensors:\n- token_embd.weight: Q4_0 [32]"
     assert formatted =~ "unsupported tensor types: none"
   end
 
@@ -5321,6 +5328,12 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_mixed_quantized_gguf())
 
     assert diagnostic.supported_tensor_types == %{"Q4_0" => 1, "Q8_0" => 1}
+
+    assert diagnostic.supported_tensors == [
+             %{name: "token_embd.weight", type: 2, type_name: "Q4_0", dimensions: [32]},
+             %{name: "output.weight", type: 8, type_name: "Q8_0", dimensions: [32]}
+           ]
+
     assert diagnostic.unsupported_tensor_types == %{}
     assert diagnostic.unsupported_tensors == []
 
@@ -5329,6 +5342,8 @@ defmodule LlamexTest do
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~ "supported tensor types: Q4_0=1, Q8_0=1"
+    assert formatted =~ "supported tensors:\n- token_embd.weight: Q4_0 [32]"
+    assert formatted =~ "- output.weight: Q8_0 [32]"
     assert formatted =~ "unsupported tensor types: none"
   end
 
@@ -5535,6 +5550,7 @@ defmodule LlamexTest do
              ]
 
       assert diagnostic["special_tokens"] == %{}
+      assert diagnostic["supported_tensors"] == []
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
       assert diagnostic["missing_required_tensors"] == []
       assert diagnostic["tensor_shape_issues"] == []

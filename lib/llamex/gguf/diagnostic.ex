@@ -147,6 +147,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_tensor_type_names: supported_tensor_type_names(),
       supported_tensor_type_ids: supported_tensor_type_ids(),
       supported_tensor_types: supported_tensor_types(gguf.tensors),
+      supported_tensors: supported_tensors(gguf.tensors),
       unsupported_tensor_types: unsupported_tensor_types(gguf.tensors),
       unsupported_tensors: unsupported_tensors(gguf.tensors),
       compatibility_issues: compatibility_issues(gguf.metadata, gguf.tensors),
@@ -201,6 +202,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tensor shape issues: #{format_tensor_shape_issues(diagnostic.tensor_shape_issues)}",
       "supported tensor type names: #{Enum.join(diagnostic.supported_tensor_type_names, ", ")}",
       "supported tensor types: #{format_type_counts(diagnostic.supported_tensor_types)}",
+      format_supported_tensors(diagnostic.supported_tensors),
       "unsupported tensor types: #{format_type_counts(diagnostic.unsupported_tensor_types)}",
       format_unsupported_tensors(diagnostic.unsupported_tensors)
     ]
@@ -218,6 +220,19 @@ defmodule Llamex.GGUF.Diagnostic do
     tensors
     |> Enum.reject(&supported_tensor_type?/1)
     |> type_counts()
+  end
+
+  defp supported_tensors(tensors) do
+    tensors
+    |> Enum.filter(&supported_tensor_type?/1)
+    |> Enum.map(fn tensor ->
+      %{
+        name: tensor.name,
+        type: tensor.type,
+        type_name: tensor_type_name(tensor.type),
+        dimensions: tensor.dimensions
+      }
+    end)
   end
 
   defp unsupported_tensors(tensors) do
@@ -706,9 +721,22 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_tensor_shapes(tensors) do
     tensors
     |> Enum.map(fn tensor ->
-      "#{tensor.name}=#{tensor.type} gguf:#{inspect(tensor.dimensions)} schema:#{inspect(tensor.schema_shape)}"
+      "#{tensor.name}=#{tensor.type} gguf:#{format_dimensions(tensor.dimensions)} schema:#{format_dimensions(tensor.schema_shape)}"
     end)
     |> Enum.join(", ")
+  end
+
+  defp format_supported_tensors([]), do: "supported tensors: none"
+
+  defp format_supported_tensors(tensors) do
+    tensors =
+      tensors
+      |> Enum.map(fn tensor ->
+        "- #{tensor.name}: #{tensor.type_name} #{format_dimensions(tensor.dimensions)}"
+      end)
+      |> Enum.join("\n")
+
+    "supported tensors:\n" <> tensors
   end
 
   defp format_unsupported_tensors([]), do: ""
@@ -717,7 +745,7 @@ defmodule Llamex.GGUF.Diagnostic do
     tensors =
       tensors
       |> Enum.map(fn tensor ->
-        "- #{tensor.name}: type_#{tensor.type} #{inspect(tensor.dimensions)}"
+        "- #{tensor.name}: type_#{tensor.type} #{format_dimensions(tensor.dimensions)}"
       end)
       |> Enum.join("\n")
 
@@ -726,4 +754,6 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp schema_shape([columns, rows]), do: [rows, columns]
   defp schema_shape(dimensions), do: dimensions
+
+  defp format_dimensions(dimensions), do: inspect(dimensions, charlists: :as_lists)
 end

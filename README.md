@@ -204,6 +204,19 @@ The metadata reader validates the `GGUF` magic, reads v3-style header counts,
 metadata values, tensor names, tensor dimensions, tensor types, and tensor data
 offsets.
 
+Current GGUF load support is intentionally narrow:
+
+- Architecture: `llama`
+- Tokenizer kinds: `whitespace`, `bpe`
+- Tokenizer model metadata: `llama`, `gpt2`, or omitted
+- Pre-tokenizer metadata: `default`, `gpt2`, `llama-bpe`, or omitted
+- Tensor types: `F32`, `F16`, `BF16`, `Q2_K`, `Q3_K`, `Q4_0`, `Q4_1`,
+  `Q4_K`, `Q5_0`, `Q5_1`, `Q5_K`, `Q6_K`, `Q8_0`, `Q8_1`, `Q8_K`
+
+GGUF files for other architectures such as Mistral, Qwen, Gemma, or Phi are
+not loadable yet. Llama checkpoints that require sliding-window attention or
+non-`none` RoPE scaling are also rejected by the compatibility check.
+
 F32, F16, BF16, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, and Q8_K tensor data can be read into Llamex's named tensor schema:
 
 ```elixir
@@ -596,6 +609,9 @@ Use `chat_template_issues: []` to confirm that the template is supported and all
 required marker tokens are present.
 `loadable: true` and `chat_usable: true` are separate checks: a model can be
 loadable for plain prompt generation while still lacking a usable chat template.
+Use `supported_tensors` and `unsupported_tensors` in JSON output to see the
+per-tensor type, dimensions, and quantization mix behind the aggregate tensor
+type counts.
 Supported chat templates currently cover ChatML, `<|user|>`/`<|assistant|>`
 role markers, and Llama header markers using `<|start_header_id|>`,
 `<|end_header_id|>`, and `<|eot_id|>`, including templates that start with
@@ -660,6 +676,9 @@ tokenizer tokens: 32128
 tokenizer merges: 0
 supported tensor type names: BF16, F16, F32, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, Q8_K
 supported tensor types: F32=13, Q2_K=25, Q3_K=18, Q6_K=1
+supported tensors:
+- token_embd.weight: Q2_K [256, 32128]
+- ...
 unsupported tensor types: none
 ```
 
