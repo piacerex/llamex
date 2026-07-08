@@ -8634,6 +8634,13 @@ defmodule LlamexTest do
       assert result.generated_pieces == ["hello"]
       assert result.text == "hello"
 
+      state = Llamex.prefill(model, "hello", %{backend: Llamex.Backend.List})
+      step = Llamex.step(state.context, state.current_token, %{sampler: :greedy})
+
+      assert state.prompt_tokens == [1]
+      assert step.token == 1
+      assert step.text == "hello"
+
       chat_result =
         Llamex.generate_chat(model, [%{role: "user", content: "hello"}], %{
           backend: Llamex.Backend.List,
