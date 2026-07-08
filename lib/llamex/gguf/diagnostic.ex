@@ -120,6 +120,18 @@ defmodule Llamex.GGUF.Diagnostic do
     end)
   end
 
+  def tokenizer_metadata_surface do
+    Map.new(known_architectures(), fn architecture ->
+      {
+        architecture,
+        %{
+          tokenizer_models: supported_tokenizer_models(),
+          pre_tokenizers: supported_pre_tokenizers()
+        }
+      }
+    end)
+  end
+
   def supported_surface do
     %{
       supported_architectures: supported_architectures(),
@@ -128,6 +140,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
+      tokenizer_metadata_surface: tokenizer_metadata_surface(),
       supported_chat_templates: supported_chat_templates(),
       unsupported_feature_metadata: unsupported_feature_metadata(),
       model_config_surface: Llamex.GGUF.ModelConfig.surface(known_architectures()),
@@ -147,6 +160,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
       "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
+      "tokenizer metadata surface: #{format_tokenizer_metadata_surface(surface.tokenizer_metadata_surface)}",
       "supported chat templates: #{Enum.join(surface.supported_chat_templates, ", ")}",
       "unsupported feature metadata: #{Enum.join(surface.unsupported_feature_metadata, ", ")}",
       "model config surface: #{format_model_config_surface(surface.model_config_surface)}",
@@ -993,6 +1007,18 @@ defmodule Llamex.GGUF.Diagnostic do
     surface
     |> Enum.sort()
     |> Enum.map(fn {architecture, status} -> "#{architecture}=#{status}" end)
+    |> Enum.join("; ")
+  end
+
+  defp format_tokenizer_metadata_surface(surface) do
+    surface
+    |> Enum.sort()
+    |> Enum.map(fn {architecture, tokenizer} ->
+      models = Enum.join(tokenizer.tokenizer_models, "/")
+      pre_tokenizers = Enum.join(tokenizer.pre_tokenizers, "/")
+
+      "#{architecture}=models:#{models}, pre:#{pre_tokenizers}"
+    end)
     |> Enum.join("; ")
   end
 

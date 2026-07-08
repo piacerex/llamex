@@ -643,8 +643,8 @@ to decide whether `--chat` is safe for a checkpoint and whether tensor layout
 looks plausible.
 Use `--supported` without a model path to print the current supported GGUF
 surface, architecture runtime status, model config metadata mapping, supported
-tensor type ID/name pairs, and explicitly unsupported feature metadata before
-choosing a checkpoint. It also
+tokenizer metadata mapping, tensor type ID/name pairs, and explicitly
+unsupported feature metadata before choosing a checkpoint. It also
 includes the tensor schema surface for known architectures so Gemma 3 extra norm
 tensor names are visible before loading tensor data.
 `known_combinations` includes diagnostic-only architectures such as Gemma 3 with

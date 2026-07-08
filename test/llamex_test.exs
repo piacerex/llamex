@@ -6085,6 +6085,9 @@ defmodule LlamexTest do
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
+    assert output =~ "tokenizer metadata surface:"
+    assert output =~ "gemma3=models:llama/gpt2, pre:default/gpt2/llama-bpe"
+    assert output =~ "llama=models:llama/gpt2, pre:default/gpt2/llama-bpe"
 
     assert output =~
              "supported chat templates: chatml, role_markers, llama_header_markers, gemma_turn_markers"
@@ -6134,6 +6137,17 @@ defmodule LlamexTest do
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
     assert surface["supported_tokenizer_models"] == ["llama", "gpt2"]
     assert surface["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]
+
+    assert surface["tokenizer_metadata_surface"]["gemma3"]["tokenizer_models"] == [
+             "llama",
+             "gpt2"
+           ]
+
+    assert surface["tokenizer_metadata_surface"]["gemma3"]["pre_tokenizers"] == [
+             "default",
+             "gpt2",
+             "llama-bpe"
+           ]
 
     assert surface["supported_chat_templates"] == [
              "chatml",
