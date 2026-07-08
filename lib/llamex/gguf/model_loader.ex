@@ -38,6 +38,10 @@ defmodule Llamex.GGUF.ModelLoader do
     %{
       "architecture" => architecture,
       "mappings" => Llamex.GGUF.TensorSchema.mappings(architecture, tensor_names),
+      "unsupported_features" =>
+        architecture
+        |> Llamex.GGUF.TensorSchema.unsupported_feature_names(tensor_names)
+        |> Enum.map(&"unsupported tensor feature: extra_norm #{&1}"),
       "issues" =>
         architecture
         |> Llamex.GGUF.TensorSchema.unmapped_names(tensor_names)

@@ -6230,11 +6230,39 @@ defmodule LlamexTest do
              "issues" => [],
              "mappings" => [
                %{name: "blk.0.post_attention_norm.weight", schema_name: "blk.0.ffn_norm.weight"}
-             ]
+             ],
+             "unsupported_features" => []
            }
 
     assert model_map["tensors"]["blk.0.ffn_norm.weight"]["data"] == [1.0, 0.0, 0.0, 1.0]
     refute Map.has_key?(model_map["tensors"], "blk.0.post_attention_norm.weight")
+  end
+
+  test "reports unsupported gemma3 tensor features in model maps" do
+    binary = tiny_gguf(:with_tensor_data)
+
+    parsed =
+      binary
+      |> Llamex.GGUF.Reader.read_binary()
+      |> put_in(
+        [Access.key!(:metadata), "general.architecture"],
+        %{type: :string, value: "gemma3"}
+      )
+      |> put_in([Access.key!(:metadata), "gemma3.embedding_length"], %{type: :uint32, value: 2})
+      |> update_in([Access.key!(:tensors)], fn [tensor] ->
+        [%{tensor | name: "blk.0.post_ffw_norm.weight"}]
+      end)
+
+    model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
+
+    assert model_map["tensor_schema"] == %{
+             "architecture" => "gemma3",
+             "issues" => [],
+             "mappings" => [],
+             "unsupported_features" => [
+               "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
+             ]
+           }
   end
 
   test "diagnoses gguf special tokens" do
@@ -7235,7 +7263,8 @@ defmodule LlamexTest do
     assert model_map["tensor_schema"] == %{
              "architecture" => "gemma3",
              "issues" => [],
-             "mappings" => []
+             "mappings" => [],
+             "unsupported_features" => []
            }
 
     assert model_map["config"]["vocab_size"] == 2
