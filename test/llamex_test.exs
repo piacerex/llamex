@@ -5619,11 +5619,19 @@ defmodule LlamexTest do
     assert diagnostic.tensor_element_count == 4
     assert diagnostic.architecture == "llama"
     assert diagnostic.known_architectures == ["llama", "gemma3"]
-    assert diagnostic.supported_architectures == ["llama"]
+    assert diagnostic.supported_architectures == ["llama", "gemma3"]
 
     assert diagnostic.supported_combinations == [
              %{
                architecture: "llama",
+               runtime_status: "supported",
+               tokenizers: ["whitespace", "bpe"],
+               tokenizer_models: ["llama", "gpt2"],
+               pre_tokenizers: ["default", "gpt2", "llama-bpe"],
+               tensor_types: diagnostic.supported_tensor_type_names
+             },
+             %{
+               architecture: "gemma3",
                runtime_status: "supported",
                tokenizers: ["whitespace", "bpe"],
                tokenizer_models: ["llama", "gpt2"],
@@ -6215,7 +6223,7 @@ defmodule LlamexTest do
            }
 
     assert diagnostic.runtime_feature_status == %{
-             architecture_runtime: "blocked",
+             architecture_runtime: "supported",
              attention_qk_extra_norm: "supported",
              attention_variant: "blocked",
              post_feed_forward_extra_norm: "supported",
@@ -6223,13 +6231,6 @@ defmodule LlamexTest do
            }
 
     assert diagnostic.runtime_feature_blockers == [
-             %{
-               feature: :architecture_runtime,
-               component: "engine",
-               reason: "architecture runtime not implemented",
-               issue: "unsupported architecture runtime: gemma3",
-               value: "gemma3"
-             },
              %{
                feature: :attention_variant,
                component: "attention",
@@ -6247,21 +6248,18 @@ defmodule LlamexTest do
            ]
 
     assert diagnostic.compatibility_issues == [
-             "unsupported architecture runtime: gemma3",
              "unsupported attention variant: sliding_window",
              "unsupported RoPE scaling: linear"
            ]
 
-    assert diagnostic.compatibility_issue_groups.runtime == [
-             "unsupported architecture runtime: gemma3"
-           ]
+    assert diagnostic.compatibility_issue_groups.runtime == []
 
     assert diagnostic.compatibility_issue_groups.features == [
              "unsupported attention variant: sliding_window",
              "unsupported RoPE scaling: linear"
            ]
 
-    assert diagnostic.blocking_issue_groups == [:runtime, :features]
+    assert diagnostic.blocking_issue_groups == [:features]
   end
 
   test "diagnoses missing required gguf tensors" do
@@ -6346,6 +6344,14 @@ defmodule LlamexTest do
       assert diagnostic["supported_combinations"] == [
                %{
                  "architecture" => "llama",
+                 "runtime_status" => "supported",
+                 "tokenizers" => ["whitespace", "bpe"],
+                 "tokenizer_models" => ["llama", "gpt2"],
+                 "pre_tokenizers" => ["default", "gpt2", "llama-bpe"],
+                 "tensor_types" => diagnostic["supported_tensor_type_names"]
+               },
+               %{
+                 "architecture" => "gemma3",
                  "runtime_status" => "supported",
                  "tokenizers" => ["whitespace", "bpe"],
                  "tokenizer_models" => ["llama", "gpt2"],
@@ -6739,21 +6745,20 @@ defmodule LlamexTest do
         Mix.Tasks.Llamex.Gguf.Inspect.run(["--supported"])
       end)
 
-    assert output =~ "supported architectures: llama"
+    assert output =~ "supported architectures: llama, gemma3"
     assert output =~ "known architectures: llama, gemma3"
-    assert output =~ "architecture runtime surface: gemma3=known_unsupported; llama=supported"
+    assert output =~ "architecture runtime surface: gemma3=supported; llama=supported"
     assert output =~ "architecture runtime blockers:"
-    assert output =~ "gemma3=architecture runtime not implemented"
+    assert output =~ "gemma3=none"
     assert output =~ "llama=none"
     assert output =~ "architecture runtime blocker details:"
-    assert output =~ "gemma3=architecture_runtime:engine:architecture runtime not implemented"
+    assert output =~ "gemma3=none"
     assert output =~ "runtime feature status:"
     assert output =~ "attention_qk_extra_norm:supported"
     assert output =~ "post_feed_forward_extra_norm:supported"
     assert output =~ "runtime feature blockers:"
 
-    assert output =~
-             "gemma3=architecture_runtime:engine:architecture runtime not implemented"
+    assert output =~ "runtime feature blockers: gemma3=none; llama=none"
 
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
@@ -6790,10 +6795,13 @@ defmodule LlamexTest do
 
     assert output =~ "known combinations:"
     assert output =~ "gemma3+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
-    assert output =~ "+known_unsupported"
+    assert output =~ "+supported"
 
     assert output =~
              "supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
+
+    assert output =~
+             "gemma3+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+"
   end
 
   test "gguf inspect task can print supported surface as json without a model file" do
@@ -6804,35 +6812,27 @@ defmodule LlamexTest do
 
     surface = JSON.decode!(String.trim(output))
 
-    assert surface["supported_architectures"] == ["llama"]
+    assert surface["supported_architectures"] == ["llama", "gemma3"]
     assert surface["known_architectures"] == ["llama", "gemma3"]
 
     assert surface["architecture_runtime_surface"] == %{
-             "gemma3" => "known_unsupported",
+             "gemma3" => "supported",
              "llama" => "supported"
            }
 
     assert surface["architecture_runtime_blockers"] == %{
-             "gemma3" => [
-               "architecture runtime not implemented"
-             ],
+             "gemma3" => [],
              "llama" => []
            }
 
     assert surface["architecture_runtime_blocker_details"] == %{
-             "gemma3" => [
-               %{
-                 "id" => "architecture_runtime",
-                 "reason" => "architecture runtime not implemented",
-                 "component" => "engine"
-               }
-             ],
+             "gemma3" => [],
              "llama" => []
            }
 
     assert surface["runtime_feature_status"] == %{
              "gemma3" => %{
-               "architecture_runtime" => "blocked",
+               "architecture_runtime" => "supported",
                "attention_variant" => "supported",
                "attention_qk_extra_norm" => "supported",
                "post_feed_forward_extra_norm" => "supported",
@@ -6846,15 +6846,7 @@ defmodule LlamexTest do
            }
 
     assert surface["runtime_feature_blockers"] == %{
-             "gemma3" => [
-               %{
-                 "feature" => "architecture_runtime",
-                 "component" => "engine",
-                 "reason" => "architecture runtime not implemented",
-                 "issue" => "unsupported architecture runtime: gemma3",
-                 "value" => "gemma3"
-               }
-             ],
+             "gemma3" => [],
              "llama" => []
            }
 
@@ -6942,7 +6934,7 @@ defmodule LlamexTest do
 
     assert Enum.find(surface["known_combinations"], &(&1["architecture"] == "gemma3"))[
              "runtime_status"
-           ] == "known_unsupported"
+           ] == "supported"
 
     assert Enum.find(surface["known_combinations"], &(&1["architecture"] == "llama"))[
              "runtime_status"
@@ -6951,6 +6943,14 @@ defmodule LlamexTest do
     assert surface["supported_combinations"] == [
              %{
                "architecture" => "llama",
+               "runtime_status" => "supported",
+               "tokenizers" => ["whitespace", "bpe"],
+               "tokenizer_models" => ["llama", "gpt2"],
+               "pre_tokenizers" => ["default", "gpt2", "llama-bpe"],
+               "tensor_types" => surface["supported_tensor_type_names"]
+             },
+             %{
+               "architecture" => "gemma3",
                "runtime_status" => "supported",
                "tokenizers" => ["whitespace", "bpe"],
                "tokenizer_models" => ["llama", "gpt2"],
@@ -7005,7 +7005,7 @@ defmodule LlamexTest do
     assert formatted =~ "compatibility issues: unsupported pre-tokenizer: qwen2"
   end
 
-  test "diagnoses gemma3-prefixed gguf model metadata separately from architecture support" do
+  test "diagnoses gemma3-prefixed gguf model metadata with supported architecture runtime" do
     parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:without_tensor_data))
 
     diagnostic =
@@ -7035,15 +7035,12 @@ defmodule LlamexTest do
 
     assert diagnostic.architecture == "gemma3"
     assert diagnostic.architecture_known? == true
-    assert diagnostic.architecture_supported? == false
-    assert diagnostic.architecture_runtime_status == "known_unsupported"
-
-    assert diagnostic.architecture_runtime_blockers == [
-             "architecture runtime not implemented"
-           ]
+    assert diagnostic.architecture_supported? == true
+    assert diagnostic.architecture_runtime_status == "supported"
+    assert diagnostic.architecture_runtime_blockers == []
 
     assert diagnostic.runtime_feature_status == %{
-             architecture_runtime: "blocked",
+             architecture_runtime: "supported",
              attention_variant: "supported",
              attention_qk_extra_norm: "supported",
              post_feed_forward_extra_norm: "supported",
@@ -7051,36 +7048,20 @@ defmodule LlamexTest do
            }
 
     assert diagnostic.runtime_capability == %{
-             loadable?: false,
-             runtime_status: "known_unsupported",
-             runtime_blockers: [
-               "architecture runtime not implemented"
-             ],
-             runtime_blocker_details: [
-               %{
-                 id: "architecture_runtime",
-                 reason: "architecture runtime not implemented",
-                 component: "engine"
-               }
-             ],
+             loadable?: true,
+             runtime_status: "supported",
+             runtime_blockers: [],
+             runtime_blocker_details: [],
              runtime_feature_status: %{
-               architecture_runtime: "blocked",
+               architecture_runtime: "supported",
                attention_variant: "supported",
                attention_qk_extra_norm: "supported",
                post_feed_forward_extra_norm: "supported",
                rope_variant: "supported"
              },
-             runtime_feature_blockers: [
-               %{
-                 feature: :architecture_runtime,
-                 component: "engine",
-                 reason: "architecture runtime not implemented",
-                 issue: "unsupported architecture runtime: gemma3",
-                 value: "gemma3"
-               }
-             ],
-             blocked_runtime_features: [:architecture_runtime],
-             blocking_issue_groups: [:runtime],
+             runtime_feature_blockers: [],
+             blocked_runtime_features: [],
+             blocking_issue_groups: [],
              attention_variant: %{type: "full"},
              rope_variant: %{type: "default"}
            }
@@ -7118,27 +7099,25 @@ defmodule LlamexTest do
              feed_forward_size: 8
            }
 
-    assert diagnostic.loadable? == false
-    assert diagnostic.compatibility_issues == ["unsupported architecture runtime: gemma3"]
+    assert diagnostic.loadable? == true
+    assert diagnostic.compatibility_issues == []
 
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~ "architecture: gemma3"
     assert formatted =~ "architecture known: true"
-    assert formatted =~ "architecture supported: false"
-    assert formatted =~ "architecture runtime status: known_unsupported"
+    assert formatted =~ "architecture supported: true"
+    assert formatted =~ "architecture runtime status: supported"
+    assert formatted =~ "architecture runtime blockers: none"
 
     assert formatted =~
-             "architecture runtime blockers: architecture runtime not implemented"
-
-    assert formatted =~
-             "runtime capability: loadable=false, runtime=known_unsupported"
+             "runtime capability: loadable=true, runtime=supported"
 
     assert formatted =~ "attention variant: type=full"
     assert formatted =~ "RoPE variant: type=default"
     assert formatted =~ "missing required metadata: none"
     assert formatted =~ "embedding_size=2"
-    assert formatted =~ "compatibility issues: unsupported architecture runtime: gemma3"
+    assert formatted =~ "compatibility issues: none"
   end
 
   test "uses gemma3 tensor schema names for diagnostics" do
@@ -7177,7 +7156,7 @@ defmodule LlamexTest do
     assert diagnostic.tensor_schema_issues == []
     assert diagnostic.missing_required_tensors == []
     assert diagnostic.tensor_shape_issues == []
-    assert diagnostic.compatibility_issues == ["unsupported architecture runtime: gemma3"]
+    assert diagnostic.compatibility_issues == []
   end
 
   test "reports gemma3 extra norm tensor layers" do
@@ -7220,17 +7199,14 @@ defmodule LlamexTest do
              }
            ]
 
-    assert diagnostic.loadable? == false
-
-    assert diagnostic.compatibility_issues == [
-             "unsupported architecture runtime: gemma3"
-           ]
+    assert diagnostic.loadable? == true
+    assert diagnostic.compatibility_issues == []
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "extra norm tensor layers: blk.0.post_ffw_norm=blk.0.post_ffw_norm.weight"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
-             "compatibility issues: unsupported architecture runtime: gemma3"
+             "compatibility issues: none"
   end
 
   test "reports gemma3 extra norm tensor shape mismatches" do
@@ -7262,7 +7238,7 @@ defmodule LlamexTest do
              "tensor shape mismatch: blk.12.attn_k_norm.weight schema [4] expected embedding length 2"
            ]
 
-    assert diagnostic.blocking_issue_groups == [:runtime, :tensors]
+    assert diagnostic.blocking_issue_groups == [:tensors]
   end
 
   test "normalizes gemma3 tensor names for model maps" do
@@ -7318,35 +7294,19 @@ defmodule LlamexTest do
 
     assert model_map["runtime_capability"] == %{
              loadable?: false,
-             runtime_status: "known_unsupported",
-             runtime_blockers: [
-               "architecture runtime not implemented"
-             ],
-             runtime_blocker_details: [
-               %{
-                 id: "architecture_runtime",
-                 reason: "architecture runtime not implemented",
-                 component: "engine"
-               }
-             ],
+             runtime_status: "supported",
+             runtime_blockers: [],
+             runtime_blocker_details: [],
              runtime_feature_status: %{
-               architecture_runtime: "blocked",
+               architecture_runtime: "supported",
                attention_variant: "supported",
                attention_qk_extra_norm: "supported",
                post_feed_forward_extra_norm: "supported",
                rope_variant: "supported"
              },
-             runtime_feature_blockers: [
-               %{
-                 feature: :architecture_runtime,
-                 component: "engine",
-                 reason: "architecture runtime not implemented",
-                 issue: "unsupported architecture runtime: gemma3",
-                 value: "gemma3"
-               }
-             ],
-             blocked_runtime_features: [:architecture_runtime],
-             blocking_issue_groups: [:runtime, :tensors],
+             runtime_feature_blockers: [],
+             blocked_runtime_features: [],
+             blocking_issue_groups: [:tensors],
              attention_variant: %{type: "full"},
              rope_variant: %{type: "default"}
            }
@@ -7415,36 +7375,20 @@ defmodule LlamexTest do
       parsed = Llamex.GGUF.Reader.read_metadata(path)
 
       assert Llamex.GGUF.ModelLoader.runtime_capability_summary(parsed) == %{
-               loadable?: false,
-               runtime_status: "known_unsupported",
-               runtime_blockers: [
-                 "architecture runtime not implemented"
-               ],
-               runtime_blocker_details: [
-                 %{
-                   id: "architecture_runtime",
-                   reason: "architecture runtime not implemented",
-                   component: "engine"
-                 }
-               ],
+               loadable?: true,
+               runtime_status: "supported",
+               runtime_blockers: [],
+               runtime_blocker_details: [],
                runtime_feature_status: %{
-                 architecture_runtime: "blocked",
+                 architecture_runtime: "supported",
                  attention_variant: "supported",
                  attention_qk_extra_norm: "supported",
                  post_feed_forward_extra_norm: "supported",
                  rope_variant: "supported"
                },
-               runtime_feature_blockers: [
-                 %{
-                   feature: :architecture_runtime,
-                   component: "engine",
-                   reason: "architecture runtime not implemented",
-                   issue: "unsupported architecture runtime: gemma3",
-                   value: "gemma3"
-                 }
-               ],
-               blocked_runtime_features: [:architecture_runtime],
-               blocking_issue_groups: [:runtime],
+               runtime_feature_blockers: [],
+               blocked_runtime_features: [],
+               blocking_issue_groups: [],
                attention_variant: %{type: "full"},
                rope_variant: %{type: "default"}
              }
@@ -8326,11 +8270,11 @@ defmodule LlamexTest do
     end
   end
 
-  test "rejects gemma3 gguf models with architecture runtime blockers" do
+  test "loads gemma3 gguf models with supported text runtime variants" do
     path =
       Path.join(
         System.tmp_dir!(),
-        "llamex-incompatible-gemma3-#{System.unique_integer([:positive])}.gguf"
+        "llamex-compatible-gemma3-#{System.unique_integer([:positive])}.gguf"
       )
 
     gguf =
@@ -8346,11 +8290,15 @@ defmodule LlamexTest do
     try do
       File.write!(path, gguf)
 
-      assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported architecture runtime: gemma3 (blocking issue groups: runtime) (architecture runtime blockers: architecture runtime not implemented) (blocked runtime features: architecture_runtime)",
-                   fn ->
-                     Llamex.GGUF.ModelLoader.load(path)
-                   end
+      model = Llamex.GGUF.ModelLoader.load(path)
+
+      assert model.architecture == "gemma3"
+      assert model.runtime_capability.loadable? == true
+      assert model.runtime_capability.runtime_status == "supported"
+      assert model.runtime_capability.runtime_blockers == []
+      assert model.runtime_capability.blocked_runtime_features == []
+      assert model.config.block_count == 0
+      assert model.config.context_size == 32
     after
       File.rm(path)
     end

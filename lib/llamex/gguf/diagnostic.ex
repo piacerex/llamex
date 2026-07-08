@@ -4,24 +4,12 @@ defmodule Llamex.GGUF.Diagnostic do
   """
 
   @known_architectures ["llama", "gemma3"]
-  @supported_architectures ["llama"]
-  @architecture_runtime_blockers %{
-    "gemma3" => [
-      "architecture runtime not implemented"
-    ]
-  }
-  @architecture_runtime_blocker_details %{
-    "gemma3" => [
-      %{
-        id: "architecture_runtime",
-        reason: "architecture runtime not implemented",
-        component: "engine"
-      }
-    ]
-  }
+  @supported_architectures ["llama", "gemma3"]
+  @architecture_runtime_blockers %{}
+  @architecture_runtime_blocker_details %{}
   @runtime_feature_status %{
     "gemma3" => %{
-      architecture_runtime: "blocked",
+      architecture_runtime: "supported",
       attention_qk_extra_norm: "supported",
       post_feed_forward_extra_norm: "supported"
     }
@@ -144,16 +132,16 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   def supported_combinations do
-    [
+    Enum.map(supported_architectures(), fn architecture ->
       %{
-        architecture: "llama",
+        architecture: architecture,
         runtime_status: "supported",
         tokenizers: supported_tokenizers(),
         tokenizer_models: supported_tokenizer_models(),
         pre_tokenizers: supported_pre_tokenizers(),
         tensor_types: supported_tensor_type_names()
       }
-    ]
+    end)
   end
 
   def known_combinations do

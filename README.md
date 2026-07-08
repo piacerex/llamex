@@ -236,22 +236,19 @@ offsets.
 
 Current GGUF load support is intentionally narrow:
 
-- Architecture: `llama`
+- Architecture: `llama`, `gemma3` text runtime with full attention/default RoPE
 - Tokenizer kinds: `whitespace`, `bpe`
 - Tokenizer model metadata: `llama`, `gpt2`, or omitted
 - Pre-tokenizer metadata: `default`, `gpt2`, `llama-bpe`, or omitted
 - Tensor types: `F32`, `F16`, `BF16`, `Q2_K`, `Q3_K`, `Q4_0`, `Q4_1`,
   `Q4_K`, `Q5_0`, `Q5_1`, `Q5_K`, `Q6_K`, `Q8_0`, `Q8_1`, `Q8_K`
 
-GGUF files for other runtime architectures such as Mistral, Qwen, Gemma, or Phi
-are not loadable yet. Gemma 3 is a known diagnostic architecture: `gemma3.*`
-model metadata is inspected with the Gemma 3 prefix, so Gemma 3 checkpoints can
-show model config and tensor diagnostics before the architecture runtime exists.
-The GGUF model-map conversion path can also read `gemma3.*` config metadata, but
-`Llamex.GGUF.ModelLoader.load/1` still rejects Gemma 3 with an unsupported
-architecture runtime issue until the runtime is implemented. Llama checkpoints
-that require sliding-window attention or non-`none` RoPE scaling are also
-rejected by the compatibility check.
+GGUF files for other runtime architectures such as Mistral, Qwen, or Phi are
+not loadable yet. Gemma 3 is supported for the text-only runtime path when the
+checkpoint uses full attention and default RoPE; `gemma3.*` model metadata,
+tensor schema names, q/k extra norms, and post feed-forward extra norm tensors
+are mapped into the runtime. Checkpoints that require sliding-window attention
+or non-`none` RoPE scaling are rejected by the compatibility check.
 
 F32, F16, BF16, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, and Q8_K tensor data can be read into Llamex's named tensor schema:
 
@@ -800,8 +797,8 @@ This checkpoint is compatible with the current tensor loader:
 
 ```text
 architecture: llama
-supported architectures: llama
-supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+BF16/F16/F32/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K
+supported architectures: llama, gemma3
+supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+BF16/F16/F32/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K; gemma3+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+BF16/F16/F32/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K
 architecture supported: true
 architecture runtime status: supported
 architecture runtime blockers: none
