@@ -579,11 +579,11 @@ Use `--supported` without a model path to print the current supported GGUF
 surface before choosing a checkpoint.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `loadable: true` as the quick check that architecture, tokenizer metadata,
-tokenizer model metadata when present, required model metadata, and tensor types
-are inside Llamex's current supported GGUF surface.
+tokenizer model metadata when present, required model metadata, required tensors,
+and tensor types are inside Llamex's current supported GGUF surface.
 Use `compatibility_issues: []` in JSON output to confirm that no unsupported
 architecture, tokenizer metadata, tokenizer model, required model metadata, or
-tensor type was found.
+required tensor, or tensor type was found.
 `Llamex.GGUF.ModelLoader.load/1` uses the same compatibility checks before
 loading tensor data.
 With `--json`, multiple GGUF paths can be inspected in one command for model

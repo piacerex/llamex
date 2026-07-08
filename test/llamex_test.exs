@@ -4234,6 +4234,7 @@ defmodule LlamexTest do
     assert diagnostic.supported_tensor_type_ids[30] == "BF16"
     assert diagnostic.supported_tensor_types == %{}
     assert diagnostic.unsupported_tensor_types == %{"type_99" => 1}
+    assert diagnostic.missing_required_tensors == []
     assert diagnostic.chat_template == "none"
     assert diagnostic.chat_usable == false
     assert diagnostic.special_tokens == %{}
@@ -4265,6 +4266,7 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "pre-tokenizer: unknown"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required metadata: none"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "missing required tensors: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: llama"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: whitespace"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 0"
@@ -4294,6 +4296,7 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_kind == "whitespace"
     assert diagnostic.tokenizer_merge_count == 0
     assert diagnostic.unsupported_tensor_types == %{}
+    assert diagnostic.missing_required_tensors == []
     assert diagnostic.loadable? == true
     assert diagnostic.compatibility_issues == []
 
@@ -4306,6 +4309,7 @@ defmodule LlamexTest do
     assert formatted =~ "tokenizer kind: whitespace"
     assert formatted =~ "tokenizer merges: 0"
     assert formatted =~ "missing required metadata: none"
+    assert formatted =~ "missing required tensors: none"
     assert formatted =~ "loadable: true"
     assert formatted =~ "compatibility issues: none"
   end
@@ -4329,6 +4333,21 @@ defmodule LlamexTest do
 
     assert formatted =~ "missing required metadata: llama.embedding_length"
     assert formatted =~ "compatibility issues: missing required metadata: llama.embedding_length"
+  end
+
+  test "diagnoses missing required gguf tensors" do
+    parsed = Llamex.GGUF.Reader.read_binary(tiny_gguf(:with_missing_token_embeddings_tensor_data))
+
+    diagnostic = Llamex.GGUF.Diagnostic.inspect_reader(parsed)
+
+    assert diagnostic.missing_required_tensors == ["token_embd.weight"]
+    assert diagnostic.loadable? == false
+    assert diagnostic.compatibility_issues == ["missing required tensor: token_embd.weight"]
+
+    formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
+
+    assert formatted =~ "missing required tensors: token_embd.weight"
+    assert formatted =~ "compatibility issues: missing required tensor: token_embd.weight"
   end
 
   test "gguf inspect task can print json diagnostics" do
@@ -4389,6 +4408,7 @@ defmodule LlamexTest do
 
       assert diagnostic["special_tokens"] == %{}
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
+      assert diagnostic["missing_required_tensors"] == []
     after
       File.rm(path)
     end
@@ -5077,6 +5097,26 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects gguf models with missing required tensors before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-missing-tensor-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_missing_token_embeddings_tensor_data))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: missing required tensor: token_embd.weight",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "loads gguf output norm and output tensors" do
     path =
       Path.join(
@@ -5267,7 +5307,7 @@ defmodule LlamexTest do
         _other -> {[2, 2], 0, [1.0, 0.0, 0.0, 1.0]}
       end
 
-    tensor_infos = tensor_info("token_embd.weight", dimensions, tensor_type, 0)
+    tensor_infos = tensor_info(tiny_gguf_tensor_name(mode), dimensions, tensor_type, 0)
 
     without_data = IO.iodata_to_binary([header, metadata, tensor_infos])
 
@@ -5282,6 +5322,9 @@ defmodule LlamexTest do
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_missing_embedding_length_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_missing_token_embeddings_tensor_data ->
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_rectangular_tensor_data ->
@@ -5375,6 +5418,9 @@ defmodule LlamexTest do
   end
 
   defp maybe_delete_metadata(metadata, _mode), do: metadata
+
+  defp tiny_gguf_tensor_name(:with_missing_token_embeddings_tensor_data), do: "other.weight"
+  defp tiny_gguf_tensor_name(_mode), do: "token_embd.weight"
 
   defp with_aligned_f32_tensor_data(binary, values) do
     padding = rem(32 - rem(byte_size(binary), 32), 32)
