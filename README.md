@@ -606,7 +606,7 @@ mix llamex.gguf.inspect first.gguf second.gguf --json
 The inspection output includes supported architecture/tokenizer/tensor type
 combinations, special tokens, tokenizer `add_bos` / `add_eos` flags, chat
 template support/family, missing marker tokens, tokenizer model
-support/kind/merge counts, token type counts, mapped Llama model config,
+support/kind/merge counts, score counts, token type counts, mapped Llama model config,
 unsupported attention/RoPE feature metadata, plus representative raw GGUF
 dimensions and normalized schema shapes for key tensors. This is the fastest way
 to decide whether `--chat` is safe for a checkpoint and whether tensor layout

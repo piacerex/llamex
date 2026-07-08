@@ -5378,6 +5378,7 @@ defmodule LlamexTest do
     assert diagnostic.supported_tokenizer_models == ["llama", "gpt2"]
     assert diagnostic.supported_pre_tokenizers == ["default", "gpt2", "llama-bpe"]
     assert diagnostic.tokenizer_merge_count == 0
+    assert diagnostic.tokenizer_score_count == 0
     assert diagnostic.loadable? == false
     assert diagnostic.compatibility_issues == ["unsupported tensor type: type_99 (1)"]
 
@@ -5442,6 +5443,7 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: llama"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: whitespace"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 0"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer scores: 0"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "loadable: false"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
@@ -5818,6 +5820,7 @@ defmodule LlamexTest do
       assert diagnostic["supported_tokenizer_models"] == ["llama", "gpt2"]
       assert diagnostic["supported_pre_tokenizers"] == ["default", "gpt2", "llama-bpe"]
       assert diagnostic["tokenizer_merge_count"] == 0
+      assert diagnostic["tokenizer_score_count"] == 0
       assert diagnostic["tokenizer_token_types"] == %{}
       assert diagnostic["loadable?"] == false
       assert diagnostic["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
@@ -6363,10 +6366,12 @@ defmodule LlamexTest do
     assert diagnostic.tokenizer_model == "gpt2"
     assert diagnostic.tokenizer_model_supported? == true
     assert diagnostic.tokenizer_merge_count == 2
+    assert diagnostic.tokenizer_score_count == 6
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model: gpt2"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer model supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer kind: bpe"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer merges: 2"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "tokenizer scores: 6"
   end
 
   test "builds a bpe tokenizer with gguf special token metadata" do
@@ -7855,19 +7860,20 @@ defmodule LlamexTest do
   end
 
   defp tiny_bpe_gguf do
-    header = [
-      "GGUF",
-      u32(3),
-      u64(0),
-      u64(5)
-    ]
-
     metadata = [
       kv_string("general.architecture", "llama"),
       kv_string("tokenizer.ggml.model", "gpt2"),
       kv_array_string("tokenizer.ggml.tokens", ["<unk>", "l", "o", "w", "lo", "low"]),
       kv_array_string("tokenizer.ggml.merges", ["l o", "lo w"]),
+      kv_array_f32("tokenizer.ggml.scores", [0.0, -1.0, -1.1, -1.2, -0.5, -0.1]),
       kv_u32("tokenizer.ggml.unknown_token_id", 0)
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(0),
+      u64(length(metadata))
     ]
 
     IO.iodata_to_binary([header, metadata])
@@ -8159,6 +8165,16 @@ defmodule LlamexTest do
 
   defp kv_array_u32(key, values),
     do: [gguf_string(key), u32(9), u32(4), u64(length(values)), Enum.map(values, &u32/1)]
+
+  defp kv_array_f32(key, values) do
+    [
+      gguf_string(key),
+      u32(9),
+      u32(6),
+      u64(length(values)),
+      Enum.map(values, &<<&1::little-float-size(32)>>)
+    ]
+  end
 
   defp kv_array_string(key, values) do
     [gguf_string(key), u32(9), u32(8), u64(length(values)), Enum.map(values, &gguf_string/1)]

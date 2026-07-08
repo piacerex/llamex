@@ -137,6 +137,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_pre_tokenizers: supported_pre_tokenizers(),
       tokenizer_token_count: tokenizer_token_count(gguf.metadata),
       tokenizer_merge_count: tokenizer_merge_count(gguf.metadata),
+      tokenizer_score_count: tokenizer_score_count(gguf.metadata),
       tokenizer_token_types: tokenizer_token_types(gguf.metadata),
       special_tokens: special_tokens(gguf.metadata),
       unsupported_features: unsupported_features(gguf.metadata),
@@ -198,6 +199,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tokenizer kind: #{diagnostic.tokenizer_kind}",
       "tokenizer tokens: #{diagnostic.tokenizer_token_count || "unknown"}",
       "tokenizer merges: #{diagnostic.tokenizer_merge_count}",
+      "tokenizer scores: #{diagnostic.tokenizer_score_count}",
       "tokenizer token types: #{format_type_counts(diagnostic.tokenizer_token_types)}",
       "special tokens: #{format_special_tokens(diagnostic.special_tokens)}",
       "unsupported features: #{format_unsupported_features(diagnostic.unsupported_features)}",
@@ -334,6 +336,13 @@ defmodule Llamex.GGUF.Diagnostic do
 
   defp tokenizer_merge_count(metadata) do
     case metadata_value(metadata, "tokenizer.ggml.merges") do
+      %{values: values} -> length(values)
+      _other -> 0
+    end
+  end
+
+  defp tokenizer_score_count(metadata) do
+    case metadata_value(metadata, "tokenizer.ggml.scores") do
       %{values: values} -> length(values)
       _other -> 0
     end
