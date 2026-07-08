@@ -30,11 +30,19 @@ defmodule Llamex.RuntimeCapability do
   end
 
   def blocked_features(model_or_capability) do
-    model_or_capability
-    |> feature_status()
-    |> Enum.filter(fn {_feature, status} -> status == "blocked" end)
-    |> Enum.map(fn {feature, _status} -> feature end)
-    |> Enum.sort()
+    capability = runtime_capability(model_or_capability)
+
+    case Map.get(capability, :blocked_runtime_features) do
+      features when is_list(features) ->
+        Enum.sort(features)
+
+      _other ->
+        capability
+        |> feature_status()
+        |> Enum.filter(fn {_feature, status} -> status == "blocked" end)
+        |> Enum.map(fn {feature, _status} -> feature end)
+        |> Enum.sort()
+    end
   end
 
   def validate!(model) do

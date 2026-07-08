@@ -300,10 +300,12 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
   end
 
   defp blocked_runtime_features(capability) do
-    capability.runtime_feature_status
-    |> Enum.filter(fn {_feature, status} -> status == "blocked" end)
-    |> Enum.map(fn {feature, _status} -> feature end)
-    |> Enum.sort()
+    Map.get_lazy(capability, :blocked_runtime_features, fn ->
+      capability.runtime_feature_status
+      |> Enum.filter(fn {_feature, status} -> status == "blocked" end)
+      |> Enum.map(fn {feature, _status} -> feature end)
+      |> Enum.sort()
+    end)
   end
 
   defp format_extra_norm_tensor_layers([]), do: "none"

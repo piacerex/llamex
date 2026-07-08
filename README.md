@@ -178,7 +178,8 @@ GGUF-loaded `Llamex.Model` structs preserve the detected `architecture`,
 `runtime_capability`, and `tensor_schema` so runtime-specific execution paths can
 be checked without re-reading checkpoint metadata. `runtime_capability` also
 keeps `runtime_feature_status`, which separates implemented architecture
-features from blockers that still prevent loading.
+features from blockers that still prevent loading, and
+`blocked_runtime_features` for direct loadability checks.
 Models whose `runtime_capability.loadable?` is false are rejected by
 `prepare_model`, `prefill`, `generate`, and streaming entry points before backend
 execution starts.

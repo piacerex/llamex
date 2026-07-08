@@ -485,6 +485,7 @@ defmodule Llamex.GGUF.Diagnostic do
       runtime_blockers: architecture_runtime_blockers(metadata),
       runtime_blocker_details: architecture_runtime_blocker_details(metadata),
       runtime_feature_status: runtime_feature_status(metadata),
+      blocked_runtime_features: blocked_runtime_features(metadata),
       blocking_issue_groups: blocking_issue_groups(groups),
       attention_variant: attention_variant(metadata),
       rope_variant: rope_variant(metadata)
@@ -595,6 +596,14 @@ defmodule Llamex.GGUF.Diagnostic do
       %{type: "default"} -> "supported"
       _variant -> "blocked"
     end
+  end
+
+  defp blocked_runtime_features(metadata) do
+    metadata
+    |> runtime_feature_status()
+    |> Enum.filter(fn {_feature, status} -> status == "blocked" end)
+    |> Enum.map(fn {feature, _status} -> feature end)
+    |> Enum.sort()
   end
 
   defp tokenizer_supported?(metadata) do

@@ -83,6 +83,7 @@ defmodule LlamexTest do
             attention_variant: "supported",
             rope_variant: "supported"
           },
+          blocked_runtime_features: [:architecture_runtime],
           blocking_issue_groups: [:runtime],
           attention_variant: %{type: "full"},
           rope_variant: %{type: "default"}
@@ -5773,6 +5774,7 @@ defmodule LlamexTest do
                  attention_variant: "supported",
                  rope_variant: "supported"
                },
+               blocked_runtime_features: [],
                blocking_issue_groups: [],
                attention_variant: %{type: "full"},
                rope_variant: %{type: "default"}
@@ -6505,6 +6507,7 @@ defmodule LlamexTest do
                  "attention_variant" => "supported",
                  "rope_variant" => "supported"
                },
+               "blocked_runtime_features" => [],
                "blocking_issue_groups" => ["tensors"],
                "attention_variant" => %{"type" => "full"},
                "rope_variant" => %{"type" => "default"}
@@ -6980,6 +6983,7 @@ defmodule LlamexTest do
                post_feed_forward_extra_norm: "supported",
                rope_variant: "supported"
              },
+             blocked_runtime_features: [:architecture_runtime],
              blocking_issue_groups: [:runtime],
              attention_variant: %{type: "full"},
              rope_variant: %{type: "default"}
@@ -7236,6 +7240,7 @@ defmodule LlamexTest do
                post_feed_forward_extra_norm: "supported",
                rope_variant: "supported"
              },
+             blocked_runtime_features: [:architecture_runtime],
              blocking_issue_groups: [:runtime, :tensors],
              attention_variant: %{type: "full"},
              rope_variant: %{type: "default"}
@@ -7324,6 +7329,7 @@ defmodule LlamexTest do
                  post_feed_forward_extra_norm: "supported",
                  rope_variant: "supported"
                },
+               blocked_runtime_features: [:architecture_runtime],
                blocking_issue_groups: [:runtime],
                attention_variant: %{type: "full"},
                rope_variant: %{type: "default"}
