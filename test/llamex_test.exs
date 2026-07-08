@@ -2770,6 +2770,39 @@ defmodule LlamexTest do
     assert Enum.all?(profile.timings, &is_integer(&1.milliseconds))
   end
 
+  test "profiles adjacent special token prompt pieces" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "<s>" => 1, "</s>" => 2, "hello" => 3, "world" => 4},
+        "<unk>",
+        special_tokens: %{
+          bos: %{id: 1, token: "<s>"},
+          eos: %{id: 2, token: "</s>"}
+        }
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 5, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0],
+          1 => [0.0],
+          2 => [1.0],
+          3 => [0.5],
+          4 => [0.0]
+        },
+        output: %{weight: [[0.0], [0.0], [0.0], [0.0], [2.0]]}
+      })
+
+    profile =
+      Llamex.Profile.generation_step(model, "<s>hello</s>", %{backend: Llamex.Backend.List})
+
+    assert profile.prompt_token_ids == [1, 3, 2]
+    assert profile.prompt_pieces == ["<s>", "hello", "</s>"]
+    assert profile.token_info == %{token: 4, piece: "world"}
+  end
+
   test "profiles prefill tokens individually" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
@@ -2797,6 +2830,37 @@ defmodule LlamexTest do
     assert Enum.map(profile.steps, & &1.token) == [1]
     assert Enum.map(profile.steps, & &1.piece) == ["hello"]
     assert Enum.map(profile.steps, & &1.timing.label) == ["prefill_1"]
+  end
+
+  test "profiles adjacent special token prefill pieces" do
+    tokenizer =
+      Llamex.Tokenizer.whitespace(
+        %{"<unk>" => 0, "<s>" => 1, "</s>" => 2, "hello" => 3},
+        "<unk>",
+        special_tokens: %{
+          bos: %{id: 1, token: "<s>"},
+          eos: %{id: 2, token: "</s>"}
+        }
+      )
+
+    model =
+      Llamex.new_model(%{
+        config: %{vocab_size: 4, embedding_size: 1},
+        tokenizer: tokenizer,
+        token_embeddings: %{
+          0 => [0.0],
+          1 => [0.0],
+          2 => [1.0],
+          3 => [0.5]
+        }
+      })
+
+    profile = Llamex.Profile.prefill_steps(model, "<s>hello</s>", %{backend: Llamex.Backend.List})
+
+    assert profile.prompt_tokens == [1, 3, 2]
+    assert profile.prompt_pieces == ["<s>", "hello", "</s>"]
+    assert profile.current_piece == "</s>"
+    assert Enum.map(profile.steps, & &1.piece) == ["<s>", "hello"]
   end
 
   test "profiles prepared prefill tokens individually" do
