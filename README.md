@@ -801,6 +801,8 @@ payload bytes without exposing compact backend code to the raw model-map shape.
 Q4_0 payloads on demand, matching the eager dequantized reader path.
 `Llamex.TensorStore.fetch_dequantized_matrix/2` can lazily fetch a compact Q4_0
 matrix as the regular matrix value expected by existing backend code.
+`Llamex.TensorStore.fetch_dequantized_token_embeddings/2` builds the token-id to
+embedding map from compact Q4_0 `token_embd.weight` on demand.
 Chat template support includes ChatML, role markers, Llama header markers,
 Gemma turn markers, and Mistral/Llama2-style `[INST]...[/INST]` markers.
 With `--json`, multiple GGUF paths can be inspected in one command for model

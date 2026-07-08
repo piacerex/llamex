@@ -54,6 +54,13 @@ defmodule Llamex.TensorStore do
     |> dequantized_tensor_value()
   end
 
+  def fetch_dequantized_token_embeddings(tensors, name \\ "token_embd.weight")
+      when is_map(tensors) and is_binary(name) do
+    tensors
+    |> fetch_dequantized_matrix(name)
+    |> token_embeddings_from_matrix()
+  end
+
   def dequantize_compact_tensor(%{info: %{type_name: "Q4_0", shape: shape}, payload: payload})
       when is_list(shape) and is_binary(payload) do
     count = Enum.product(shape)
@@ -165,6 +172,12 @@ defmodule Llamex.TensorStore do
   end
 
   defp dequantized_tensor_value(%{shape: shape, data: data}), do: to_value(shape, data)
+
+  defp token_embeddings_from_matrix(matrix) when is_list(matrix) do
+    matrix
+    |> Enum.with_index()
+    |> Map.new(fn {embedding, token_id} -> {token_id, embedding} end)
+  end
 
   defp read_q4_0_blocks(<<>>, values), do: values |> Enum.reverse() |> List.flatten()
 

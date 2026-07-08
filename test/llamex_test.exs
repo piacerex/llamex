@@ -5812,6 +5812,22 @@ defmodule LlamexTest do
            ) == Enum.chunk_every(dequantized_map["tensors"]["token_embd.weight"]["data"], 32)
   end
 
+  test "fetches compact q4_0 token embeddings lazily" do
+    binary = tiny_gguf(:with_q4_0_matrix_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+    compact_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+    dequantized_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
+
+    expected =
+      dequantized_map["tensors"]["token_embd.weight"]["data"]
+      |> Enum.chunk_every(32)
+      |> Enum.with_index()
+      |> Map.new(fn {embedding, token_id} -> {token_id, embedding} end)
+
+    assert Llamex.TensorStore.fetch_dequantized_token_embeddings(compact_map["tensors"]) ==
+             expected
+  end
+
   test "rejects compact tensor dequantization for unsupported compact types" do
     assert_raise ArgumentError, "compact tensor type Q8_0 cannot be dequantized yet", fn ->
       Llamex.TensorStore.dequantize_compact_tensor(%{
