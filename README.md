@@ -170,12 +170,10 @@ Gemma 3 diagnostics also recognize architecture-specific tensor names before
 runtime support is enabled. `blk.N.post_attention_norm.weight` is mapped to the
 internal `blk.N.ffn_norm.weight` schema for model-map inspection.
 `blk.N.attn_q_norm.weight` and `blk.N.attn_k_norm.weight` are applied inside
-attention projection, while `blk.N.post_ffw_norm.weight` remains reported as an
-unsupported tensor feature until the runtime implements that MLP extra norm. The
-loader preserves these optional extra norm tensors on layer maps for runtime
-implementation work, but Gemma 3 remains guarded by `extra_norm_tensors` until
-post-FFW execution support is added. GGUF
-diagnostics also validate their vector length against the model embedding size.
+attention projection, and `blk.N.post_ffw_norm.weight` is applied between SwiGLU
+activation and down projection. The loader preserves these optional extra norm
+tensors on layer maps for runtime implementation work. GGUF diagnostics also
+validate their vector length against the model embedding size.
 GGUF-loaded `Llamex.Model` structs preserve the detected `architecture`,
 `runtime_capability`, and `tensor_schema` so runtime-specific execution paths can
 be checked without re-reading checkpoint metadata.
@@ -693,7 +691,7 @@ runtime combinations.
 Use `architecture_runtime_blockers` to see the named runtime gaps that keep a
 known architecture, such as Gemma 3, out of the loadable runtime surface.
 Use `architecture_runtime_blocker_details` when an implementation task needs a
-stable blocker id and component, such as `extra_norm_tensors` in `layers`.
+stable blocker id and component.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `chat_template_issues: []` to confirm that the template is supported and all
 required marker tokens are present.

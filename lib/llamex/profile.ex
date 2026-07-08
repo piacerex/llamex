@@ -765,6 +765,16 @@ defmodule Llamex.Profile do
         |> Tensor.multiply(up)
       end)
 
+    {post_norm_time, activated} =
+      timed("post_feed_forward_norm", fn ->
+        maybe_apply_post_feed_forward_norm(
+          activated,
+          Map.get(layer, :post_feed_forward_norm),
+          epsilon,
+          Llamex.Backend.List
+        )
+      end)
+
     {down_time, down} =
       timed("w_down", fn ->
         Linear.forward(activated, Map.fetch!(layer, :w_down), Llamex.Backend.List)
@@ -775,7 +785,7 @@ defmodule Llamex.Profile do
         Llamex.Backend.List.add(hidden, down)
       end)
 
-    {hidden, [norm_time, gate_up_time, activation_time, down_time, residual_time]}
+    {hidden, [norm_time, gate_up_time, activation_time, post_norm_time, down_time, residual_time]}
   end
 
   defp timed_mlp(hidden, %{feed_forward_norm: feed_forward_norm} = layer, epsilon, backend) do
@@ -795,6 +805,16 @@ defmodule Llamex.Profile do
         |> backend.silu_multiply(up)
       end)
 
+    {post_norm_time, activated} =
+      timed("post_feed_forward_norm", fn ->
+        maybe_apply_post_feed_forward_norm(
+          activated,
+          Map.get(layer, :post_feed_forward_norm),
+          epsilon,
+          backend
+        )
+      end)
+
     {down_time, down} =
       timed("w_down", fn ->
         Map.fetch!(layer, :w_down)
@@ -806,10 +826,16 @@ defmodule Llamex.Profile do
         backend.add(hidden, down)
       end)
 
-    {hidden, [norm_time, gate_up_time, activation_time, down_time, residual_time]}
+    {hidden, [norm_time, gate_up_time, activation_time, post_norm_time, down_time, residual_time]}
   end
 
   defp timed_mlp(hidden, _layer, _epsilon, _backend), do: {hidden, []}
+
+  defp maybe_apply_post_feed_forward_norm(activated, nil, _epsilon, _backend), do: activated
+
+  defp maybe_apply_post_feed_forward_norm(activated, norm, epsilon, backend) do
+    backend.rms_norm(activated, norm, epsilon)
+  end
 
   defp maybe_apply_output_norm(hidden, nil, _epsilon, _backend), do: hidden
 

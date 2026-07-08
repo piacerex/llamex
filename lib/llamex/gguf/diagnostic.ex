@@ -7,8 +7,7 @@ defmodule Llamex.GGUF.Diagnostic do
   @supported_architectures ["llama"]
   @architecture_runtime_blockers %{
     "gemma3" => [
-      "architecture runtime not implemented",
-      "extra norm tensor execution not implemented"
+      "architecture runtime not implemented"
     ]
   }
   @architecture_runtime_blocker_details %{
@@ -17,11 +16,6 @@ defmodule Llamex.GGUF.Diagnostic do
         id: "architecture_runtime",
         reason: "architecture runtime not implemented",
         component: "engine"
-      },
-      %{
-        id: "extra_norm_tensors",
-        reason: "extra norm tensor execution not implemented",
-        component: "layers"
       }
     ]
   }

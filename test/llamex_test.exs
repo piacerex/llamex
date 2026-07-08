@@ -67,19 +67,13 @@ defmodule LlamexTest do
           loadable?: false,
           runtime_status: "known_unsupported",
           runtime_blockers: [
-            "architecture runtime not implemented",
-            "extra norm tensor execution not implemented"
+            "architecture runtime not implemented"
           ],
           runtime_blocker_details: [
             %{
               id: "architecture_runtime",
               reason: "architecture runtime not implemented",
               component: "engine"
-            },
-            %{
-              id: "extra_norm_tensors",
-              reason: "extra norm tensor execution not implemented",
-              component: "layers"
             }
           ],
           blocking_issue_groups: [:runtime],
@@ -97,8 +91,7 @@ defmodule LlamexTest do
     assert Llamex.RuntimeCapability.loadable?(model) == false
 
     assert Llamex.RuntimeCapability.blocker_ids(model) == [
-             "architecture_runtime",
-             "extra_norm_tensors"
+             "architecture_runtime"
            ]
 
     assert Llamex.RuntimeCapability.blockers_by_component(model) == %{
@@ -107,13 +100,6 @@ defmodule LlamexTest do
                  id: "architecture_runtime",
                  reason: "architecture runtime not implemented",
                  component: "engine"
-               }
-             ],
-             "layers" => [
-               %{
-                 id: "extra_norm_tensors",
-                 reason: "extra norm tensor execution not implemented",
-                 component: "layers"
                }
              ]
            }
@@ -1611,6 +1597,7 @@ defmodule LlamexTest do
              "feed_forward_norm",
              "w_gate_up",
              "silu_multiply",
+             "post_feed_forward_norm",
              "w_down",
              "residual"
            ]
@@ -6641,11 +6628,9 @@ defmodule LlamexTest do
     assert output =~ "architecture runtime surface: gemma3=known_unsupported; llama=supported"
     assert output =~ "architecture runtime blockers:"
     assert output =~ "gemma3=architecture runtime not implemented"
-    assert output =~ "extra norm tensor execution not implemented"
     assert output =~ "llama=none"
     assert output =~ "architecture runtime blocker details:"
     assert output =~ "gemma3=architecture_runtime:engine:architecture runtime not implemented"
-    assert output =~ "extra_norm_tensors:layers:extra norm tensor execution not implemented"
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
@@ -6672,7 +6657,7 @@ defmodule LlamexTest do
     assert output =~ "llama=interesting:12, unsupported_features:none"
 
     assert output =~
-             "gemma3=interesting:15, unsupported_features:post_ffw_norm"
+             "gemma3=interesting:15, unsupported_features:none"
 
     assert output =~ "supported tensor type names:"
     assert output =~ "supported tensor type ids: 0:F32, 1:F16, 2:Q4_0"
@@ -6705,8 +6690,7 @@ defmodule LlamexTest do
 
     assert surface["architecture_runtime_blockers"] == %{
              "gemma3" => [
-               "architecture runtime not implemented",
-               "extra norm tensor execution not implemented"
+               "architecture runtime not implemented"
              ],
              "llama" => []
            }
@@ -6717,11 +6701,6 @@ defmodule LlamexTest do
                  "id" => "architecture_runtime",
                  "reason" => "architecture runtime not implemented",
                  "component" => "engine"
-               },
-               %{
-                 "id" => "extra_norm_tensors",
-                 "reason" => "extra norm tensor execution not implemented",
-                 "component" => "layers"
                }
              ],
              "llama" => []
@@ -6782,9 +6761,7 @@ defmodule LlamexTest do
 
     assert surface["tensor_schema_surface"]["llama"]["unsupported_feature_parts"] == []
 
-    assert surface["tensor_schema_surface"]["gemma3"]["unsupported_feature_parts"] == [
-             "post_ffw_norm"
-           ]
+    assert surface["tensor_schema_surface"]["gemma3"]["unsupported_feature_parts"] == []
 
     assert "blk.0.post_ffw_norm.weight" in surface["tensor_schema_surface"]["gemma3"][
              "interesting_tensor_names"
@@ -6910,27 +6887,20 @@ defmodule LlamexTest do
     assert diagnostic.architecture_runtime_status == "known_unsupported"
 
     assert diagnostic.architecture_runtime_blockers == [
-             "architecture runtime not implemented",
-             "extra norm tensor execution not implemented"
+             "architecture runtime not implemented"
            ]
 
     assert diagnostic.runtime_capability == %{
              loadable?: false,
              runtime_status: "known_unsupported",
              runtime_blockers: [
-               "architecture runtime not implemented",
-               "extra norm tensor execution not implemented"
+               "architecture runtime not implemented"
              ],
              runtime_blocker_details: [
                %{
                  id: "architecture_runtime",
                  reason: "architecture runtime not implemented",
                  component: "engine"
-               },
-               %{
-                 id: "extra_norm_tensors",
-                 reason: "extra norm tensor execution not implemented",
-                 component: "layers"
                }
              ],
              blocking_issue_groups: [:runtime],
@@ -6982,7 +6952,7 @@ defmodule LlamexTest do
     assert formatted =~ "architecture runtime status: known_unsupported"
 
     assert formatted =~
-             "architecture runtime blockers: architecture runtime not implemented; extra norm tensor execution not implemented"
+             "architecture runtime blockers: architecture runtime not implemented"
 
     assert formatted =~
              "runtime capability: loadable=false, runtime=known_unsupported"
@@ -7033,7 +7003,7 @@ defmodule LlamexTest do
     assert diagnostic.compatibility_issues == ["unsupported architecture runtime: gemma3"]
   end
 
-  test "reports unsupported gemma3 tensor features" do
+  test "reports gemma3 extra norm tensor layers" do
     assert "blk.0.attn_q_norm.weight" in Llamex.GGUF.TensorSchema.interesting_tensor_names(
              "gemma3"
            )
@@ -7063,9 +7033,7 @@ defmodule LlamexTest do
     assert diagnostic.tensor_schema_issues == []
     assert diagnostic.tensor_shape_issues == []
 
-    assert diagnostic.unsupported_tensor_features == [
-             "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
-           ]
+    assert diagnostic.unsupported_tensor_features == []
 
     assert diagnostic.extra_norm_tensor_layers == [
              %{
@@ -7078,18 +7046,14 @@ defmodule LlamexTest do
     assert diagnostic.loadable? == false
 
     assert diagnostic.compatibility_issues == [
-             "unsupported architecture runtime: gemma3",
-             "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
+             "unsupported architecture runtime: gemma3"
            ]
-
-    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
-             "unsupported tensor features: unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "extra norm tensor layers: blk.0.post_ffw_norm=blk.0.post_ffw_norm.weight"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
-             "compatibility issues: unsupported architecture runtime: gemma3; unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
+             "compatibility issues: unsupported architecture runtime: gemma3"
   end
 
   test "reports gemma3 extra norm tensor shape mismatches" do
@@ -7134,9 +7098,7 @@ defmodule LlamexTest do
              "mappings" => [
                %{name: "blk.0.post_attention_norm.weight", schema_name: "blk.0.ffn_norm.weight"}
              ],
-             "unsupported_features" => [
-               "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
-             ],
+             "unsupported_features" => [],
              "issues" => ["unmapped tensor schema: blk.0.unknown.weight"]
            }
 
@@ -7181,19 +7143,13 @@ defmodule LlamexTest do
              loadable?: false,
              runtime_status: "known_unsupported",
              runtime_blockers: [
-               "architecture runtime not implemented",
-               "extra norm tensor execution not implemented"
+               "architecture runtime not implemented"
              ],
              runtime_blocker_details: [
                %{
                  id: "architecture_runtime",
                  reason: "architecture runtime not implemented",
                  component: "engine"
-               },
-               %{
-                 id: "extra_norm_tensors",
-                 reason: "extra norm tensor execution not implemented",
-                 component: "layers"
                }
              ],
              blocking_issue_groups: [:runtime, :tensors],
@@ -7268,19 +7224,13 @@ defmodule LlamexTest do
                loadable?: false,
                runtime_status: "known_unsupported",
                runtime_blockers: [
-                 "architecture runtime not implemented",
-                 "extra norm tensor execution not implemented"
+                 "architecture runtime not implemented"
                ],
                runtime_blocker_details: [
                  %{
                    id: "architecture_runtime",
                    reason: "architecture runtime not implemented",
                    component: "engine"
-                 },
-                 %{
-                   id: "extra_norm_tensors",
-                   reason: "extra norm tensor execution not implemented",
-                   component: "layers"
                  }
                ],
                blocking_issue_groups: [:runtime],
@@ -7316,9 +7266,7 @@ defmodule LlamexTest do
              "architecture" => "gemma3",
              "issues" => [],
              "mappings" => [],
-             "unsupported_features" => [
-               "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
-             ]
+             "unsupported_features" => []
            }
   end
 
@@ -8188,7 +8136,7 @@ defmodule LlamexTest do
       File.write!(path, gguf)
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported architecture runtime: gemma3 (blocking issue groups: runtime) (architecture runtime blockers: architecture runtime not implemented; extra norm tensor execution not implemented)",
+                   "GGUF model is not loadable by Llamex: unsupported architecture runtime: gemma3 (blocking issue groups: runtime) (architecture runtime blockers: architecture runtime not implemented)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end

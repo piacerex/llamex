@@ -121,11 +121,24 @@ defmodule Llamex.Engine do
       hidden
       |> backend.rms_norm(feed_forward_norm, epsilon)
       |> SwiGLU.forward(layer, backend)
+      |> maybe_apply_post_feed_forward_norm(layer, epsilon, backend)
 
     backend.add(hidden, feed_forward)
   end
 
   defp maybe_apply_mlp(hidden, _layer, _epsilon, _backend), do: hidden
+
+  defp maybe_apply_post_feed_forward_norm(
+         feed_forward,
+         %{post_feed_forward_norm: norm},
+         epsilon,
+         backend
+       ) do
+    backend.rms_norm(feed_forward, norm, epsilon)
+  end
+
+  defp maybe_apply_post_feed_forward_norm(feed_forward, _layer, _epsilon, _backend),
+    do: feed_forward
 
   defp maybe_apply_output_norm(hidden, nil, _epsilon, _backend), do: hidden
 
