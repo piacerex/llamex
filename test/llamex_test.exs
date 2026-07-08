@@ -3360,6 +3360,12 @@ defmodule LlamexTest do
     assert result["generated_tokens"] == [2]
     assert result["ok"] == true
     assert result["issues"] == []
+    assert result["settings"]["max_new_tokens"] == 1
+    assert result["settings"]["stop_tokens"] == []
+    assert result["settings"]["sampler"]["temperature"] == 0.8
+    assert result["settings"]["sampler"]["top_k"] == 40
+    assert result["settings"]["sampler"]["top_p"] == 0.5
+    assert result["settings"]["sampler"]["seed"] == 1
   end
 
   test "natural smoke task accepts a Japanese prompt" do
