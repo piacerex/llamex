@@ -5,6 +5,12 @@ defmodule Llamex.GGUF.Diagnostic do
 
   @known_architectures ["llama", "gemma3"]
   @supported_architectures ["llama"]
+  @architecture_runtime_blockers %{
+    "gemma3" => [
+      "architecture runtime not implemented",
+      "extra norm tensor execution not implemented"
+    ]
+  }
   @supported_tokenizers ["whitespace", "bpe"]
   @supported_tokenizer_models ["llama", "gpt2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
@@ -22,6 +28,7 @@ defmodule Llamex.GGUF.Diagnostic do
   @summary_keys [
     :architecture,
     :architecture_runtime_status,
+    :architecture_runtime_blockers,
     :model_combination,
     :loadable?,
     :compatibility_issues,
@@ -151,6 +158,12 @@ defmodule Llamex.GGUF.Diagnostic do
     end)
   end
 
+  def architecture_runtime_blockers do
+    Map.new(known_architectures(), fn architecture ->
+      {architecture, Map.get(@architecture_runtime_blockers, architecture, [])}
+    end)
+  end
+
   def tokenizer_metadata_surface do
     Map.new(known_architectures(), fn architecture ->
       {
@@ -168,6 +181,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_architectures: supported_architectures(),
       known_architectures: known_architectures(),
       architecture_runtime_surface: architecture_runtime_surface(),
+      architecture_runtime_blockers: architecture_runtime_blockers(),
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
@@ -189,6 +203,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "supported architectures: #{Enum.join(surface.supported_architectures, ", ")}",
       "known architectures: #{Enum.join(surface.known_architectures, ", ")}",
       "architecture runtime surface: #{format_architecture_runtime_surface(surface.architecture_runtime_surface)}",
+      "architecture runtime blockers: #{format_architecture_runtime_blockers(surface.architecture_runtime_blockers)}",
       "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
       "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
@@ -251,6 +266,7 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_known?: architecture_known?(gguf.metadata),
       architecture_supported?: architecture_supported?(gguf.metadata),
       architecture_runtime_status: architecture_runtime_status(gguf.metadata),
+      architecture_runtime_blockers: architecture_runtime_blockers(gguf.metadata),
       model_combination: model_combination(gguf.metadata, gguf.tensors),
       tokenizer_supported?: tokenizer_supported?(gguf.metadata),
       tokenizer_metadata: tokenizer_metadata_for(gguf.metadata),
@@ -327,6 +343,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "architecture known: #{diagnostic.architecture_known?}",
       "architecture supported: #{diagnostic.architecture_supported?}",
       "architecture runtime status: #{diagnostic.architecture_runtime_status}",
+      "architecture runtime blockers: #{format_list(diagnostic.architecture_runtime_blockers)}",
       "model combination: #{format_model_combination(diagnostic.model_combination)}",
       "supported tokenizers: #{Enum.join(diagnostic.supported_tokenizers, ", ")}",
       "tokenizer supported: #{diagnostic.tokenizer_supported?}",
@@ -458,6 +475,12 @@ defmodule Llamex.GGUF.Diagnostic do
       architecture_known?(metadata) -> "known_unsupported"
       true -> "unknown"
     end
+  end
+
+  defp architecture_runtime_blockers(metadata) do
+    metadata
+    |> metadata_value("general.architecture")
+    |> then(&Map.get(@architecture_runtime_blockers, &1, []))
   end
 
   defp tokenizer_supported?(metadata) do
@@ -1151,6 +1174,18 @@ defmodule Llamex.GGUF.Diagnostic do
     |> Enum.map(fn {architecture, status} -> "#{architecture}=#{status}" end)
     |> Enum.join("; ")
   end
+
+  defp format_architecture_runtime_blockers(surface) do
+    surface
+    |> Enum.sort()
+    |> Enum.map(fn {architecture, blockers} ->
+      "#{architecture}=#{format_list(blockers)}"
+    end)
+    |> Enum.join("; ")
+  end
+
+  defp format_list([]), do: "none"
+  defp format_list(values), do: Enum.join(values, "; ")
 
   defp format_tokenizer_metadata_surface(surface) do
     surface

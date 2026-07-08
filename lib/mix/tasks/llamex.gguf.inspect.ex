@@ -152,6 +152,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     [
       "architecture: #{summary.architecture || "unknown"}",
       "architecture runtime status: #{summary.architecture_runtime_status}",
+      "architecture runtime blockers: #{format_list(summary.architecture_runtime_blockers)}",
       "model combination: #{format_model_combination(summary.model_combination)}",
       "loadable: #{summary.loadable?}",
       "blocking issue groups: #{format_atoms(summary.blocking_issue_groups)}",

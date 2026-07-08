@@ -5377,6 +5377,7 @@ defmodule LlamexTest do
     assert diagnostic.architecture_supported? == true
     assert diagnostic.architecture_known? == true
     assert diagnostic.architecture_runtime_status == "supported"
+    assert diagnostic.architecture_runtime_blockers == []
 
     assert diagnostic.model_combination == %{
              architecture: "llama",
@@ -5467,6 +5468,7 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture known: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture supported: true"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture runtime status: supported"
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "architecture runtime blockers: none"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "known architectures: llama, gemma3"
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~ "supported architectures: llama"
 
@@ -5528,6 +5530,7 @@ defmodule LlamexTest do
     assert Llamex.GGUF.Diagnostic.summary(diagnostic) == %{
              architecture: "llama",
              architecture_runtime_status: "supported",
+             architecture_runtime_blockers: [],
              model_combination: %{
                architecture: "llama",
                runtime_status: "supported",
@@ -6112,6 +6115,7 @@ defmodule LlamexTest do
       assert output =~ "loadable: false"
       assert output =~ "architecture: llama"
       assert output =~ "architecture runtime status: supported"
+      assert output =~ "architecture runtime blockers: none"
 
       assert output =~
                "model combination: architecture=llama, runtime=supported, tokenizer=whitespace, model=llama, pre=default, tensor_types=type_99"
@@ -6176,6 +6180,7 @@ defmodule LlamexTest do
       assert summary["path"] == path
       assert summary["architecture"] == "llama"
       assert summary["architecture_runtime_status"] == "supported"
+      assert summary["architecture_runtime_blockers"] == []
 
       assert summary["model_combination"] == %{
                "architecture" => "llama",
@@ -6330,6 +6335,10 @@ defmodule LlamexTest do
     assert output =~ "supported architectures: llama"
     assert output =~ "known architectures: llama, gemma3"
     assert output =~ "architecture runtime surface: gemma3=known_unsupported; llama=supported"
+    assert output =~ "architecture runtime blockers:"
+    assert output =~ "gemma3=architecture runtime not implemented"
+    assert output =~ "extra norm tensor execution not implemented"
+    assert output =~ "llama=none"
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "supported tokenizer models: llama, gpt2"
     assert output =~ "supported pre-tokenizers: default, gpt2, llama-bpe"
@@ -6385,6 +6394,14 @@ defmodule LlamexTest do
     assert surface["architecture_runtime_surface"] == %{
              "gemma3" => "known_unsupported",
              "llama" => "supported"
+           }
+
+    assert surface["architecture_runtime_blockers"] == %{
+             "gemma3" => [
+               "architecture runtime not implemented",
+               "extra norm tensor execution not implemented"
+             ],
+             "llama" => []
            }
 
     assert surface["supported_tokenizers"] == ["whitespace", "bpe"]
@@ -6570,6 +6587,12 @@ defmodule LlamexTest do
     assert diagnostic.architecture_known? == true
     assert diagnostic.architecture_supported? == false
     assert diagnostic.architecture_runtime_status == "known_unsupported"
+
+    assert diagnostic.architecture_runtime_blockers == [
+             "architecture runtime not implemented",
+             "extra norm tensor execution not implemented"
+           ]
+
     assert diagnostic.tokenizer_model == "llama"
     assert diagnostic.tokenizer_model_supported? == true
     assert diagnostic.pre_tokenizer == "llama-bpe"
@@ -6598,6 +6621,10 @@ defmodule LlamexTest do
     assert formatted =~ "architecture known: true"
     assert formatted =~ "architecture supported: false"
     assert formatted =~ "architecture runtime status: known_unsupported"
+
+    assert formatted =~
+             "architecture runtime blockers: architecture runtime not implemented; extra norm tensor execution not implemented"
+
     assert formatted =~ "missing required metadata: none"
     assert formatted =~ "embedding_size=2"
     assert formatted =~ "compatibility issues: unsupported architecture runtime: gemma3"
