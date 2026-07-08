@@ -46,7 +46,7 @@ defmodule Llamex.Generation do
 
   def step(%Context{} = context, current_token, opts)
       when is_integer(current_token) and current_token >= 0 and is_map(opts) do
-    sampler = Map.get(opts, :sampler, :greedy)
+    sampler = sampler(opts)
     {context, next_token, sampler_state} = step_token(context, current_token, sampler, opts)
 
     %{
@@ -55,6 +55,14 @@ defmodule Llamex.Generation do
       text: Llamex.decode(context.model, [next_token]),
       sampler_state: sampler_state
     }
+  end
+
+  defp sampler(opts) do
+    case Map.get(opts, :sampler, :greedy) do
+      :greedy -> :greedy
+      sampler when is_map(sampler) -> Sampler.validate_options!(sampler)
+      sampler -> sampler
+    end
   end
 
   defp step_token(context, current_token, :greedy, _opts) do
@@ -219,7 +227,7 @@ defmodule Llamex.Generation do
     max_new_tokens = Llamex.MaxNewTokens.fetch!(opts)
     stop_tokens = stop_tokens(opts)
     stop_sequences = stop_sequences(opts)
-    sampler = Map.get(opts, :sampler, :greedy)
+    sampler = sampler(opts)
 
     state = prefill(model, prompt, Map.take(opts, [:backend, :context_window]))
     %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} = state
@@ -268,7 +276,7 @@ defmodule Llamex.Generation do
     max_new_tokens = Llamex.MaxNewTokens.fetch!(opts)
     stop_tokens = stop_tokens(opts)
     stop_sequences = stop_sequences(opts)
-    sampler = Map.get(opts, :sampler, :greedy)
+    sampler = sampler(opts)
     state = prefill_for_stream(model_or_prepared, prompt, opts)
 
     effective_max_new_tokens =
@@ -306,7 +314,7 @@ defmodule Llamex.Generation do
     max_new_tokens = Llamex.MaxNewTokens.fetch!(opts)
     stop_tokens = stop_tokens(opts)
     stop_sequences = stop_sequences(opts)
-    sampler = Map.get(opts, :sampler, :greedy)
+    sampler = sampler(opts)
 
     state = prefill(prepared_model, prompt, Map.take(opts, [:context_window]))
     %{context: context, prompt_tokens: prompt_tokens, current_token: current_token} = state

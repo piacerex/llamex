@@ -1781,6 +1781,27 @@ defmodule LlamexTest do
         sampler: %{temperature: 1.0, seed: "1"}
       })
     end
+
+    assert_raise ArgumentError, "top_k must be a positive integer", fn ->
+      model
+      |> Llamex.stream("hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: %{temperature: 1.0, top_k: 0, seed: 1}
+      })
+      |> Enum.to_list()
+    end
+
+    prepared = Llamex.prepare_model(model, Llamex.Backend.List)
+
+    assert_raise ArgumentError,
+                 "top_p must be greater than zero and less than or equal to one",
+                 fn ->
+                   Llamex.generate(prepared, "hello", %{
+                     max_new_tokens: 1,
+                     sampler: %{temperature: 1.0, top_p: 0.0, seed: 1}
+                   })
+                 end
   end
 
   test "generation result includes configured exla target" do
