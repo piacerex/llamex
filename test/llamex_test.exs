@@ -5712,6 +5712,26 @@ defmodule LlamexTest do
     end
   end
 
+  test "rejects gguf models with missing tokenizer metadata before loading tensor data" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-missing-tokenizer-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_gguf(:with_missing_tokenizer_tokens_tensor_data))
+
+      assert_raise ArgumentError,
+                   "GGUF model is not loadable by Llamex: missing tokenizer.ggml.tokens",
+                   fn ->
+                     Llamex.GGUF.ModelLoader.load(path)
+                   end
+    after
+      File.rm(path)
+    end
+  end
+
   test "rejects gguf models with missing required tensors before loading tensor data" do
     path =
       Path.join(
@@ -5910,9 +5930,9 @@ defmodule LlamexTest do
         kv_u32("llama.block_count", 1),
         kv_u32("llama.attention.head_count", 2),
         kv_u32("llama.attention.head_count_kv", 1),
-        kv_u32("llama.feed_forward_length", 8),
-        kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])
+        kv_u32("llama.feed_forward_length", 8)
       ]
+      |> maybe_put_tokenizer_tokens(mode)
       |> maybe_put_tokenizer_model(mode)
       |> maybe_delete_metadata(mode)
       |> Kernel.++(extra_metadata)
@@ -5985,6 +6005,9 @@ defmodule LlamexTest do
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_missing_embedding_length_tensor_data ->
+        with_aligned_f32_tensor_data(without_data, values)
+
+      :with_missing_tokenizer_tokens_tensor_data ->
         with_aligned_f32_tensor_data(without_data, values)
 
       :with_missing_token_embeddings_tensor_data ->
@@ -6084,6 +6107,14 @@ defmodule LlamexTest do
   end
 
   defp maybe_delete_metadata(metadata, _mode), do: metadata
+
+  defp maybe_put_tokenizer_tokens(metadata, :with_missing_tokenizer_tokens_tensor_data) do
+    metadata
+  end
+
+  defp maybe_put_tokenizer_tokens(metadata, _mode) do
+    metadata ++ [kv_array_string("tokenizer.ggml.tokens", ["<unk>", "hello"])]
+  end
 
   defp maybe_put_tokenizer_model(metadata, :with_unsupported_tokenizer_model_tensor_data) do
     [kv_string("tokenizer.ggml.model", "sentencepiece") | metadata]
