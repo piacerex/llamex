@@ -5227,7 +5227,9 @@ defmodule LlamexTest do
     assert diagnostic.special_tokens == %{
              unknown: %{id: 0, piece: "<unk>"},
              bos: %{id: 1, piece: "<s>"},
-             eos: %{id: 2, piece: "</s>"}
+             eos: %{id: 2, piece: "</s>"},
+             add_bos: true,
+             add_eos: false
            }
 
     assert diagnostic.tokenizer_token_types == %{
@@ -5237,7 +5239,7 @@ defmodule LlamexTest do
            }
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
-             "special tokens: bos=1:<s>, eos=2:</s>, unknown=0:<unk>"
+             "special tokens: add_bos=true, add_eos=false, bos=1:<s>, eos=2:</s>, unknown=0:<unk>"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "tokenizer token types: control=2, normal=1, unknown=1"

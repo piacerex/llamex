@@ -551,6 +551,8 @@ defmodule Llamex.GGUF.Diagnostic do
     |> put_special_token(metadata, tokens, :bos, "tokenizer.ggml.bos_token_id")
     |> put_special_token(metadata, tokens, :eos, "tokenizer.ggml.eos_token_id")
     |> put_special_token(metadata, tokens, :padding, "tokenizer.ggml.padding_token_id")
+    |> put_special_flag(metadata, :add_bos, "tokenizer.ggml.add_bos_token")
+    |> put_special_flag(metadata, :add_eos, "tokenizer.ggml.add_eos_token")
   end
 
   defp unsupported_features(metadata) do
@@ -582,6 +584,13 @@ defmodule Llamex.GGUF.Diagnostic do
 
       _other ->
         attrs
+    end
+  end
+
+  defp put_special_flag(attrs, metadata, name, key) do
+    case metadata_value(metadata, key) do
+      value when is_boolean(value) -> Map.put(attrs, name, value)
+      _other -> attrs
     end
   end
 
@@ -654,7 +663,10 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_special_tokens(tokens) do
     tokens
     |> Enum.sort()
-    |> Enum.map(fn {name, %{id: id, piece: piece}} -> "#{name}=#{id}:#{piece}" end)
+    |> Enum.map(fn
+      {name, %{id: id, piece: piece}} -> "#{name}=#{id}:#{piece}"
+      {name, value} when is_boolean(value) -> "#{name}=#{value}"
+    end)
     |> Enum.join(", ")
   end
 
