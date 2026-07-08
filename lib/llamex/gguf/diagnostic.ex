@@ -484,6 +484,7 @@ defmodule Llamex.GGUF.Diagnostic do
       runtime_status: architecture_runtime_status(metadata),
       runtime_blockers: architecture_runtime_blockers(metadata),
       runtime_blocker_details: architecture_runtime_blocker_details(metadata),
+      runtime_feature_status: runtime_feature_status(metadata),
       blocking_issue_groups: blocking_issue_groups(groups),
       attention_variant: attention_variant(metadata),
       rope_variant: rope_variant(metadata)

@@ -5749,6 +5749,7 @@ defmodule LlamexTest do
                runtime_status: "supported",
                runtime_blockers: [],
                runtime_blocker_details: [],
+               runtime_feature_status: %{architecture_runtime: "supported"},
                blocking_issue_groups: [],
                attention_variant: %{type: "full"},
                rope_variant: %{type: "default"}
@@ -6463,6 +6464,7 @@ defmodule LlamexTest do
                "runtime_status" => "supported",
                "runtime_blockers" => [],
                "runtime_blocker_details" => [],
+               "runtime_feature_status" => %{"architecture_runtime" => "supported"},
                "blocking_issue_groups" => ["tensors"],
                "attention_variant" => %{"type" => "full"},
                "rope_variant" => %{"type" => "default"}
@@ -6923,6 +6925,11 @@ defmodule LlamexTest do
                  component: "engine"
                }
              ],
+             runtime_feature_status: %{
+               architecture_runtime: "blocked",
+               attention_qk_extra_norm: "supported",
+               post_feed_forward_extra_norm: "supported"
+             },
              blocking_issue_groups: [:runtime],
              attention_variant: %{type: "full"},
              rope_variant: %{type: "default"}
@@ -7172,6 +7179,11 @@ defmodule LlamexTest do
                  component: "engine"
                }
              ],
+             runtime_feature_status: %{
+               architecture_runtime: "blocked",
+               attention_qk_extra_norm: "supported",
+               post_feed_forward_extra_norm: "supported"
+             },
              blocking_issue_groups: [:runtime, :tensors],
              attention_variant: %{type: "full"},
              rope_variant: %{type: "default"}
@@ -7253,6 +7265,11 @@ defmodule LlamexTest do
                    component: "engine"
                  }
                ],
+               runtime_feature_status: %{
+                 architecture_runtime: "blocked",
+                 attention_qk_extra_norm: "supported",
+                 post_feed_forward_extra_norm: "supported"
+               },
                blocking_issue_groups: [:runtime],
                attention_variant: %{type: "full"},
                rope_variant: %{type: "default"}
