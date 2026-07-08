@@ -3,6 +3,32 @@ defmodule Llamex.GGUF.ModelConfig do
   Converts GGUF model metadata into Llamex model config maps.
   """
 
+  @fields [
+    {"vocab_size", "vocab_size"},
+    {"embedding_size", "embedding_length"},
+    {"context_size", "context_length"},
+    {"epsilon", "attention.layer_norm_rms_epsilon"},
+    {"rope_theta", "rope.freq_base"},
+    {"rope_dimension_count", "rope.dimension_count"},
+    {"block_count", "block_count"},
+    {"attention_head_count", "attention.head_count"},
+    {"attention_head_count_kv", "attention.head_count_kv"},
+    {"feed_forward_size", "feed_forward_length"}
+  ]
+
+  def fields, do: @fields
+
+  def surface(architectures) when is_list(architectures) do
+    Map.new(architectures, fn architecture ->
+      {
+        architecture,
+        Enum.map(@fields, fn {name, suffix} ->
+          %{name: name, metadata_key: metadata_key(architecture, suffix)}
+        end)
+      }
+    end)
+  end
+
   def from_metadata(metadata) when is_map(metadata) do
     prefix = metadata_prefix(metadata)
 
