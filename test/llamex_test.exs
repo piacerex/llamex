@@ -6315,6 +6315,11 @@ defmodule LlamexTest do
     assert output =~
              "unsupported feature metadata: *.attention.sliding_window, *.rope.scaling.type"
 
+    assert output =~ "unsupported feature metadata surface:"
+    assert output =~ "gemma3=gemma3.attention.sliding_window/gemma3.rope.scaling.type"
+    assert output =~ "gemma3.rope.scaling.factor/gemma3.rope.scaling.original_context_length"
+    assert output =~ "llama=llama.attention.sliding_window/llama.rope.scaling.type"
+
     assert output =~ "model config surface:"
     assert output =~ "llama=vocab_size/embedding_size/context_size"
     assert output =~ "gemma3=vocab_size/embedding_size/context_size"
@@ -6381,6 +6386,20 @@ defmodule LlamexTest do
     assert surface["unsupported_feature_metadata"] == [
              "*.attention.sliding_window",
              "*.rope.scaling.type"
+           ]
+
+    assert surface["unsupported_feature_metadata_surface"]["gemma3"] == [
+             "gemma3.attention.sliding_window",
+             "gemma3.rope.scaling.type",
+             "gemma3.rope.scaling.factor",
+             "gemma3.rope.scaling.original_context_length"
+           ]
+
+    assert surface["unsupported_feature_metadata_surface"]["llama"] == [
+             "llama.attention.sliding_window",
+             "llama.rope.scaling.type",
+             "llama.rope.scaling.factor",
+             "llama.rope.scaling.original_context_length"
            ]
 
     assert %{

@@ -84,6 +84,16 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def unsupported_feature_metadata, do: @unsupported_feature_metadata
 
+  def unsupported_feature_metadata_surface do
+    Map.new(known_architectures(), fn architecture ->
+      keys =
+        @unsupported_feature_detail_suffixes
+        |> Enum.map(&metadata_key(architecture, &1))
+
+      {architecture, keys}
+    end)
+  end
+
   def supported_tensor_type_names do
     @supported_tensor_types
     |> Map.values()
@@ -158,6 +168,7 @@ defmodule Llamex.GGUF.Diagnostic do
       tokenizer_metadata_surface: tokenizer_metadata_surface(),
       supported_chat_templates: supported_chat_templates(),
       unsupported_feature_metadata: unsupported_feature_metadata(),
+      unsupported_feature_metadata_surface: unsupported_feature_metadata_surface(),
       model_config_surface: Llamex.GGUF.ModelConfig.surface(known_architectures()),
       tensor_schema_surface: Llamex.GGUF.TensorSchema.surface(known_architectures()),
       supported_tensor_type_names: supported_tensor_type_names(),
@@ -178,6 +189,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "tokenizer metadata surface: #{format_tokenizer_metadata_surface(surface.tokenizer_metadata_surface)}",
       "supported chat templates: #{Enum.join(surface.supported_chat_templates, ", ")}",
       "unsupported feature metadata: #{Enum.join(surface.unsupported_feature_metadata, ", ")}",
+      "unsupported feature metadata surface: #{format_unsupported_feature_metadata_surface(surface.unsupported_feature_metadata_surface)}",
       "model config surface: #{format_model_config_surface(surface.model_config_surface)}",
       "tensor schema surface: #{format_tensor_schema_surface(surface.tensor_schema_surface)}",
       "supported tensor type names: #{Enum.join(surface.supported_tensor_type_names, ", ")}",
@@ -1131,6 +1143,13 @@ defmodule Llamex.GGUF.Diagnostic do
 
       "#{architecture}=models:#{models}, pre:#{pre_tokenizers}"
     end)
+    |> Enum.join("; ")
+  end
+
+  defp format_unsupported_feature_metadata_surface(surface) do
+    surface
+    |> Enum.sort()
+    |> Enum.map(fn {architecture, keys} -> "#{architecture}=#{Enum.join(keys, "/")}" end)
     |> Enum.join("; ")
   end
 
