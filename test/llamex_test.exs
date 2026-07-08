@@ -5314,6 +5314,20 @@ defmodule LlamexTest do
     assert diagnostic.eager_f32_bytes == 128
     assert diagnostic.gguf_payload_bytes == 18
     assert_in_delta diagnostic.eager_f32_expansion_ratio, 7.11, 0.01
+
+    assert [top_payload] = diagnostic.top_tensor_payloads
+
+    assert Map.drop(top_payload, [:eager_f32_expansion_ratio]) == %{
+             name: "token_embd.weight",
+             type: "Q4_0",
+             dimensions: [32],
+             elements: 32,
+             eager_f32_bytes: 128,
+             gguf_payload_bytes: 18
+           }
+
+    assert_in_delta top_payload.eager_f32_expansion_ratio, 7.11, 0.01
+
     assert diagnostic.tensor_payload_by_type["Q4_0"].tensors == 1
     assert diagnostic.tensor_payload_by_type["Q4_0"].elements == 32
     assert diagnostic.tensor_payload_by_type["Q4_0"].eager_f32_bytes == 128
@@ -5339,6 +5353,9 @@ defmodule LlamexTest do
     assert formatted =~
              "tensor payload by type: Q4_0=tensors:1, elements:32, gguf:18 B, eager_f32:128 B, ratio:7.11x"
 
+    assert formatted =~
+             "top tensor payloads:\n- token_embd.weight: Q4_0 [32] elements:32 gguf:18 B eager_f32:128 B ratio:7.11x"
+
     assert formatted =~ "supported tensors:\n- token_embd.weight: Q4_0 [32]"
     assert formatted =~ "unsupported tensor types: none"
   end
@@ -5350,6 +5367,12 @@ defmodule LlamexTest do
     assert diagnostic.eager_f32_bytes == 256
     assert diagnostic.gguf_payload_bytes == 52
     assert_in_delta diagnostic.eager_f32_expansion_ratio, 4.92, 0.01
+
+    assert Enum.map(diagnostic.top_tensor_payloads, & &1.name) == [
+             "output.weight",
+             "token_embd.weight"
+           ]
+
     assert diagnostic.tensor_payload_by_type["Q4_0"].gguf_payload_bytes == 18
     assert diagnostic.tensor_payload_by_type["Q4_0"].eager_f32_bytes == 128
     assert diagnostic.tensor_payload_by_type["Q8_0"].gguf_payload_bytes == 34
@@ -5380,6 +5403,12 @@ defmodule LlamexTest do
 
     assert formatted =~
              "Q8_0=tensors:1, elements:32, gguf:34 B, eager_f32:128 B, ratio:3.76x"
+
+    assert formatted =~
+             "top tensor payloads:\n- output.weight: Q8_0 [32] elements:32 gguf:34 B eager_f32:128 B ratio:3.76x"
+
+    assert formatted =~
+             "- token_embd.weight: Q4_0 [32] elements:32 gguf:18 B eager_f32:128 B ratio:7.11x"
 
     assert formatted =~ "supported tensors:\n- token_embd.weight: Q4_0 [32]"
     assert formatted =~ "- output.weight: Q8_0 [32]"
@@ -5620,6 +5649,18 @@ defmodule LlamexTest do
                "gguf_payload_bytes" => 0,
                "eager_f32_expansion_ratio" => nil
              }
+
+      assert diagnostic["top_tensor_payloads"] == [
+               %{
+                 "name" => "token_embd.weight",
+                 "type" => "type_99",
+                 "dimensions" => [2, 2],
+                 "elements" => 4,
+                 "eager_f32_bytes" => 16,
+                 "gguf_payload_bytes" => 0,
+                 "eager_f32_expansion_ratio" => nil
+               }
+             ]
 
       assert diagnostic["supported_tensors"] == []
       assert diagnostic["unsupported_tensor_types"] == %{"type_99" => 1}
