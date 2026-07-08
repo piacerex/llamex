@@ -75,6 +75,7 @@ defmodule Llamex.GGUF.Diagnostic do
     :unsupported_features,
     :unsupported_feature_metadata_values,
     :unsupported_tensor_features,
+    :extra_norm_tensor_layers,
     :tensor_schema_mappings,
     :tensor_schema_issues,
     :missing_required_tensors,
@@ -325,6 +326,7 @@ defmodule Llamex.GGUF.Diagnostic do
       unsupported_features: unsupported_features(gguf.metadata),
       unsupported_feature_metadata_values: unsupported_feature_metadata_values(gguf.metadata),
       unsupported_tensor_features: unsupported_tensor_features(gguf.metadata, gguf.tensors),
+      extra_norm_tensor_layers: extra_norm_tensor_layers(gguf.metadata, gguf.tensors),
       chat_template: chat_template,
       chat_template_family: chat_template_family,
       chat_usable: chat_usable?(chat_template, missing_chat_template_tokens),
@@ -412,6 +414,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "unsupported features: #{format_unsupported_features(diagnostic.unsupported_features)}",
       "unsupported feature metadata values: #{format_metadata_values(diagnostic.unsupported_feature_metadata_values)}",
       "unsupported tensor features: #{format_unsupported_features(diagnostic.unsupported_tensor_features)}",
+      "extra norm tensor layers: #{format_extra_norm_tensor_layers(diagnostic.extra_norm_tensor_layers)}",
       "chat template: #{diagnostic.chat_template}",
       "chat template family: #{diagnostic.chat_template_family}",
       "chat usable: #{diagnostic.chat_usable}",
@@ -873,6 +876,30 @@ defmodule Llamex.GGUF.Diagnostic do
       Enum.map(tensors, & &1.name)
     )
   end
+
+  defp extra_norm_tensor_layers(metadata, tensors) do
+    case metadata_value(metadata, "general.architecture") do
+      "gemma3" ->
+        tensors
+        |> Enum.flat_map(&extra_norm_tensor_layer/1)
+        |> Enum.sort_by(fn tensor -> {tensor.layer, tensor.part} end)
+
+      _other ->
+        []
+    end
+  end
+
+  defp extra_norm_tensor_layer(%{name: "blk." <> rest = name}) do
+    case String.split(rest, ".", parts: 3) do
+      [index, part, "weight"] when part in ["attn_q_norm", "attn_k_norm", "post_ffw_norm"] ->
+        [%{layer: String.to_integer(index), part: part, name: name}]
+
+      _other ->
+        []
+    end
+  end
+
+  defp extra_norm_tensor_layer(_tensor), do: []
 
   defp missing_required_tensors(metadata, tensors) do
     tensor_names = MapSet.new(Enum.map(tensors, & &1.name))
@@ -1478,6 +1505,14 @@ defmodule Llamex.GGUF.Diagnostic do
   defp format_unsupported_features([]), do: "none"
 
   defp format_unsupported_features(features), do: Enum.join(features, "; ")
+
+  defp format_extra_norm_tensor_layers([]), do: "none"
+
+  defp format_extra_norm_tensor_layers(tensors) do
+    tensors
+    |> Enum.map(fn tensor -> "blk.#{tensor.layer}.#{tensor.part}=#{tensor.name}" end)
+    |> Enum.join(", ")
+  end
 
   defp format_metadata_values(values) when map_size(values) == 0, do: "none"
 

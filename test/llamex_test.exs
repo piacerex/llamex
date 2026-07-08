@@ -5742,6 +5742,7 @@ defmodule LlamexTest do
              unsupported_features: [],
              unsupported_feature_metadata_values: %{},
              unsupported_tensor_features: [],
+             extra_norm_tensor_layers: [],
              tensor_schema_mappings: [],
              tensor_schema_issues: [],
              missing_required_tensors: [],
@@ -6348,6 +6349,7 @@ defmodule LlamexTest do
       assert output =~ "chat template: none"
       assert output =~ "unsupported features: none"
       assert output =~ "unsupported feature metadata values: none"
+      assert output =~ "extra norm tensor layers: none"
       assert output =~ "tensor schema mappings: none"
       assert output =~ "missing required tensors: none"
       assert output =~ "tensor shape issues: none"
@@ -6996,6 +6998,14 @@ defmodule LlamexTest do
              "unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
            ]
 
+    assert diagnostic.extra_norm_tensor_layers == [
+             %{
+               layer: 0,
+               part: "post_ffw_norm",
+               name: "blk.0.post_ffw_norm.weight"
+             }
+           ]
+
     assert diagnostic.loadable? == false
 
     assert diagnostic.compatibility_issues == [
@@ -7005,6 +7015,9 @@ defmodule LlamexTest do
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "unsupported tensor features: unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"
+
+    assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
+             "extra norm tensor layers: blk.0.post_ffw_norm=blk.0.post_ffw_norm.weight"
 
     assert Llamex.GGUF.Diagnostic.format(diagnostic) =~
              "compatibility issues: unsupported architecture runtime: gemma3; unsupported tensor feature: extra_norm blk.0.post_ffw_norm.weight"

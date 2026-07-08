@@ -184,6 +184,7 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
       "unsupported features: #{format_list(summary.unsupported_features)}",
       "unsupported feature metadata values: #{format_metadata_values(summary.unsupported_feature_metadata_values)}",
       "unsupported tensor features: #{format_list(summary.unsupported_tensor_features)}",
+      "extra norm tensor layers: #{format_extra_norm_tensor_layers(summary.extra_norm_tensor_layers)}",
       "tensor schema mappings: #{format_mappings(summary.tensor_schema_mappings)}",
       "tensor schema issues: #{format_list(summary.tensor_schema_issues)}",
       "missing required tensors: #{format_list(summary.missing_required_tensors)}",
@@ -287,6 +288,14 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
     details
     |> Enum.map(fn detail -> "#{detail.id}:#{detail.component}:#{detail.reason}" end)
     |> Enum.join("/")
+  end
+
+  defp format_extra_norm_tensor_layers([]), do: "none"
+
+  defp format_extra_norm_tensor_layers(tensors) do
+    tensors
+    |> Enum.map(fn tensor -> "blk.#{tensor.layer}.#{tensor.part}=#{tensor.name}" end)
+    |> Enum.join(", ")
   end
 
   defp format_list([]), do: "none"

@@ -713,6 +713,8 @@ post-attention norms. Use `tensor_schema_issues: []` to confirm that no tensor
 names remain outside the current schema mapping, and
 `unsupported_tensor_features: []` to confirm that no recognized tensor names
 still require unsupported runtime behavior such as Gemma 3 extra norms.
+`extra_norm_tensor_layers` lists the layer indexes and tensor parts that still
+need extra norm execution support.
 Supported chat templates currently cover ChatML, `<|user|>`/`<|assistant|>`
 role markers, and Llama header markers using `<|start_header_id|>`,
 `<|end_header_id|>`, and `<|eot_id|>`, including templates that start with
