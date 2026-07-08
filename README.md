@@ -620,10 +620,10 @@ mix llamex.gguf.inspect first.gguf second.gguf --json
 ```
 
 Use `--summary` for fast checkpoint comparison: it reports architecture,
-runtime status, loadability, blocking issue groups, tokenizer metadata, token
-counts, merge/score counts, token type counts, special tokens, chat template
-state, schema mappings/issues, and memory estimates without printing the full
-tensor directory.
+runtime status/blockers, loadability, blocking issue groups, tokenizer metadata,
+token counts, merge/score counts, token type counts, special tokens, chat
+template state, schema mappings/issues, and memory estimates without printing
+the full tensor directory.
 
 The tensor schema summary can also be checked from IEx without reading tensor
 payloads:
@@ -660,8 +660,8 @@ Per-model diagnostics include the tokenizer metadata surface selected for that
 checkpoint's architecture, so unsupported tokenizer model or pre-tokenizer
 values can be compared with the accepted values directly.
 Use `--supported` without a model path to print the current supported GGUF
-surface, architecture runtime status, model config metadata mapping, supported
-tokenizer metadata mapping, tensor type ID/name pairs, and explicitly
+surface, architecture runtime status/blockers, model config metadata mapping,
+supported tokenizer metadata mapping, tensor type ID/name pairs, and explicitly
 unsupported feature metadata before choosing a checkpoint. It also includes the
 architecture-specific `unsupported_feature_metadata_surface` for exact keys such
 as `gemma3.rope.scaling.type`, plus the tensor schema surface for known
@@ -670,6 +670,8 @@ tensor data.
 `known_combinations` includes diagnostic-only architectures such as Gemma 3 with
 their runtime status, while `supported_combinations` remains limited to loadable
 runtime combinations.
+Use `architecture_runtime_blockers` to see the named runtime gaps that keep a
+known architecture, such as Gemma 3, out of the loadable runtime surface.
 Use `chat_usable: true` in JSON output as the quick check for `--chat` readiness.
 Use `chat_template_issues: []` to confirm that the template is supported and all
 required marker tokens are present.
@@ -761,6 +763,7 @@ supported architectures: llama
 supported combinations: llama+whitespace/bpe+llama/gpt2+default/gpt2/llama-bpe+BF16/F16/F32/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K
 architecture supported: true
 architecture runtime status: supported
+architecture runtime blockers: none
 model combination: architecture=llama, runtime=supported, tokenizer=whitespace, model=unknown, pre=default, tensor_types=F32/Q2_K/Q3_K/Q6_K
 supported tokenizers: whitespace, bpe
 tokenizer supported: true
