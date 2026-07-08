@@ -159,6 +159,9 @@ GGUF モデル読み込み
 - `Llamex.GGUF.Reader.read_compact_tensor_data/2` で GGUF tensor payload を
   eager F32 展開せず named tensor schema として読めるため、量子化 tensor の
   メモリ効率の良い保持形式へ進む足場がある。
+- `Llamex.GGUF.ModelLoader.to_model_map/3` は `tensor_format: :compact` で
+  compact payload schema を返せるため、標準の dequantized 推論経路を保ったまま
+  量子化 weight 保持形式を選択できる。
 
 ## gemma3対応
 

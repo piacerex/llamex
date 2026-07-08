@@ -7773,8 +7773,34 @@ defmodule LlamexTest do
              "unsupported_features" => []
            }
 
+    assert model_map["tensor_format"] == "dequantized"
     assert model_map["tensors"]["blk.0.ffn_norm.weight"]["data"] == [1.0, 0.0, 0.0, 1.0]
     refute Map.has_key?(model_map["tensors"], "blk.0.post_attention_norm.weight")
+  end
+
+  test "can build gguf model maps with compact tensor payloads" do
+    binary = tiny_gguf(:with_q4_0_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+
+    model_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+
+    assert model_map["tensor_format"] == "compact"
+    assert model_map["tensors"]["token_embd.weight"]["shape"] == [32]
+    assert model_map["tensors"]["token_embd.weight"]["dtype"] == "quantized"
+    assert model_map["tensors"]["token_embd.weight"]["type_name"] == "Q4_0"
+    assert model_map["tensors"]["token_embd.weight"]["quantized?"] == true
+    assert model_map["tensors"]["token_embd.weight"]["payload_bytes"] == 18
+    assert byte_size(model_map["tensors"]["token_embd.weight"]["payload"]) == 18
+    refute Map.has_key?(model_map["tensors"]["token_embd.weight"], "data")
+  end
+
+  test "rejects unsupported gguf model map tensor formats" do
+    binary = tiny_gguf(:with_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+
+    assert_raise ArgumentError, "unsupported GGUF tensor format: :packed", fn ->
+      Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :packed)
+    end
   end
 
   test "preserves gguf runtime metadata in model structs" do

@@ -16,8 +16,14 @@ defmodule Llamex.GGUF.ModelLoader do
   end
 
   def to_model_map(%Llamex.GGUF.Reader{} = gguf, binary) when is_binary(binary) do
+    to_model_map(gguf, binary, [])
+  end
+
+  def to_model_map(%Llamex.GGUF.Reader{} = gguf, binary, opts)
+      when is_binary(binary) and is_list(opts) do
     architecture = metadata_value(gguf.metadata, "general.architecture", nil)
-    tensors = tensors_from_reader(gguf, binary, architecture)
+    tensor_format = Keyword.get(opts, :tensor_format, :dequantized)
+    tensors = tensors_from_reader(gguf, binary, architecture, tensor_format)
 
     %{
       "config" => config_from_metadata(gguf.metadata),
@@ -25,6 +31,7 @@ defmodule Llamex.GGUF.ModelLoader do
       "runtime_capability" => runtime_capability_summary(gguf),
       "tokenizer" => tokenizer_from_metadata(gguf.metadata),
       "tensor_schema" => tensor_schema_summary(gguf),
+      "tensor_format" => Atom.to_string(tensor_format),
       "tensors" => tensors
     }
   end
@@ -74,10 +81,20 @@ defmodule Llamex.GGUF.ModelLoader do
     |> runtime_capability_summary()
   end
 
-  defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary, architecture) do
+  defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary, architecture, :dequantized) do
     gguf
     |> Llamex.GGUF.Reader.read_tensor_data(binary)
     |> then(&Llamex.GGUF.TensorSchema.normalize_tensor_map(architecture, &1))
+  end
+
+  defp tensors_from_reader(%Llamex.GGUF.Reader{} = gguf, binary, architecture, :compact) do
+    gguf
+    |> Llamex.GGUF.Reader.read_compact_tensor_data(binary)
+    |> then(&Llamex.GGUF.TensorSchema.normalize_tensor_map(architecture, &1))
+  end
+
+  defp tensors_from_reader(_gguf, _binary, _architecture, tensor_format) do
+    raise ArgumentError, "unsupported GGUF tensor format: #{inspect(tensor_format)}"
   end
 
   defp config_from_metadata(metadata) do

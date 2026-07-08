@@ -788,6 +788,9 @@ feature blockers.
 without eager F32 dequantization. The standard model loader still uses the
 dequantized schema for inference, while compact payloads provide the next
 memory-efficient boundary for quantized tensor backends.
+`Llamex.GGUF.ModelLoader.to_model_map/3` accepts
+`tensor_format: :compact` when you need a model map with compact GGUF payloads;
+omit the option or use `:dequantized` for the default inference-ready map.
 With `--json`, multiple GGUF paths can be inspected in one command for model
 candidate comparison.
 
