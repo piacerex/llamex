@@ -7429,6 +7429,23 @@ defmodule LlamexTest do
     assert Llamex.GGUF.ModelConfig.from_metadata(metadata)["context_size"] == 16
   end
 
+  test "builds partial gguf model config when required metadata is missing" do
+    metadata =
+      tiny_gguf(:without_tensor_data)
+      |> Llamex.GGUF.Reader.read_binary()
+      |> update_in([Access.key!(:metadata)], &Map.delete(&1, "llama.embedding_length"))
+      |> Map.fetch!(:metadata)
+
+    assert Llamex.GGUF.ModelConfig.partial_from_metadata(metadata) == %{
+             "attention_head_count" => 2,
+             "attention_head_count_kv" => 1,
+             "block_count" => 1,
+             "context_size" => 16,
+             "feed_forward_size" => 8,
+             "vocab_size" => 2
+           }
+  end
+
   test "summarizes gemma3-prefixed model config from gguf file path" do
     path =
       Path.join(

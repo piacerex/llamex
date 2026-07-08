@@ -352,26 +352,9 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp model_config(metadata) do
-    prefix = metadata_prefix(metadata)
-
-    %{
-      vocab_size:
-        metadata_value(metadata, metadata_key(prefix, "vocab_size")) ||
-          tokenizer_token_count(metadata),
-      embedding_size: metadata_value(metadata, metadata_key(prefix, "embedding_length")),
-      context_size: metadata_value(metadata, metadata_key(prefix, "context_length")),
-      block_count: metadata_value(metadata, metadata_key(prefix, "block_count")),
-      attention_head_count:
-        metadata_value(metadata, metadata_key(prefix, "attention.head_count")),
-      attention_head_count_kv:
-        metadata_value(metadata, metadata_key(prefix, "attention.head_count_kv")),
-      feed_forward_size: metadata_value(metadata, metadata_key(prefix, "feed_forward_length")),
-      rope_theta: metadata_value(metadata, metadata_key(prefix, "rope.freq_base")),
-      rope_dimension_count:
-        metadata_value(metadata, metadata_key(prefix, "rope.dimension_count")),
-      epsilon: metadata_value(metadata, metadata_key(prefix, "attention.layer_norm_rms_epsilon"))
-    }
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    metadata
+    |> Llamex.GGUF.ModelConfig.partial_from_metadata()
+    |> Enum.map(fn {key, value} -> {String.to_atom(key), value} end)
     |> Map.new()
   end
 
@@ -899,17 +882,7 @@ defmodule Llamex.GGUF.Diagnostic do
   end
 
   defp metadata_prefix(metadata) do
-    case metadata_value(metadata, "general.architecture") do
-      architecture when is_binary(architecture) ->
-        if Map.has_key?(metadata, metadata_key(architecture, "embedding_length")) do
-          architecture
-        else
-          "llama"
-        end
-
-      _other ->
-        "llama"
-    end
+    Llamex.GGUF.ModelConfig.metadata_prefix(metadata)
   end
 
   defp metadata_key(prefix, suffix), do: "#{prefix}.#{suffix}"
