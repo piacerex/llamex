@@ -7,6 +7,7 @@ defmodule Llamex.GGUF.Diagnostic do
   @supported_tokenizers ["whitespace", "bpe"]
   @supported_tokenizer_models ["llama", "gpt2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
+  @supported_chat_templates ["chatml", "role_markers", "llama_header_markers"]
   @unsupported_feature_metadata [
     "llama.attention.sliding_window",
     "llama.rope.scaling.type"
@@ -39,6 +40,8 @@ defmodule Llamex.GGUF.Diagnostic do
 
   def supported_pre_tokenizers, do: @supported_pre_tokenizers
 
+  def supported_chat_templates, do: @supported_chat_templates
+
   def unsupported_feature_metadata, do: @unsupported_feature_metadata
 
   def supported_tensor_type_names do
@@ -69,6 +72,7 @@ defmodule Llamex.GGUF.Diagnostic do
       supported_tokenizers: supported_tokenizers(),
       supported_tokenizer_models: supported_tokenizer_models(),
       supported_pre_tokenizers: supported_pre_tokenizers(),
+      supported_chat_templates: supported_chat_templates(),
       unsupported_feature_metadata: unsupported_feature_metadata(),
       supported_tensor_type_names: supported_tensor_type_names(),
       supported_tensor_type_ids: supported_tensor_type_ids(),
@@ -82,6 +86,7 @@ defmodule Llamex.GGUF.Diagnostic do
       "supported tokenizers: #{Enum.join(surface.supported_tokenizers, ", ")}",
       "supported tokenizer models: #{Enum.join(surface.supported_tokenizer_models, ", ")}",
       "supported pre-tokenizers: #{Enum.join(surface.supported_pre_tokenizers, ", ")}",
+      "supported chat templates: #{Enum.join(surface.supported_chat_templates, ", ")}",
       "unsupported feature metadata: #{Enum.join(surface.unsupported_feature_metadata, ", ")}",
       "supported tensor type names: #{Enum.join(surface.supported_tensor_type_names, ", ")}",
       "supported combinations: #{format_supported_combinations(surface.supported_combinations)}"
