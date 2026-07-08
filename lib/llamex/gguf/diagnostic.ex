@@ -20,6 +20,8 @@ defmodule Llamex.GGUF.Diagnostic do
   ]
   @required_metadata_suffixes ["embedding_length"]
   @summary_keys [
+    :architecture,
+    :architecture_runtime_status,
     :loadable?,
     :compatibility_issues,
     :compatibility_issue_groups,

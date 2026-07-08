@@ -150,6 +150,8 @@ defmodule Mix.Tasks.Llamex.Gguf.Inspect do
 
   defp format_summary(summary) do
     [
+      "architecture: #{summary.architecture || "unknown"}",
+      "architecture runtime status: #{summary.architecture_runtime_status}",
       "loadable: #{summary.loadable?}",
       "blocking issue groups: #{format_atoms(summary.blocking_issue_groups)}",
       "compatibility issues: #{format_list(summary.compatibility_issues)}",

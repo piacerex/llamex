@@ -5516,6 +5516,8 @@ defmodule LlamexTest do
     diagnostic = Llamex.GGUF.Diagnostic.inspect_binary(tiny_gguf(:without_tensor_data))
 
     assert Llamex.GGUF.Diagnostic.summary(diagnostic) == %{
+             architecture: "llama",
+             architecture_runtime_status: "supported",
              loadable?: true,
              compatibility_issues: [],
              compatibility_issue_groups: %{
@@ -6040,6 +6042,8 @@ defmodule LlamexTest do
         end)
 
       assert output =~ "loadable: false"
+      assert output =~ "architecture: llama"
+      assert output =~ "architecture runtime status: supported"
       assert output =~ "blocking issue groups: tensors"
       assert output =~ "compatibility issues: unsupported tensor type: type_99 (1)"
       assert output =~ "model config metadata prefix: llama"
@@ -6073,6 +6077,8 @@ defmodule LlamexTest do
       [summary] = JSON.decode!(String.trim(output))
 
       assert summary["path"] == path
+      assert summary["architecture"] == "llama"
+      assert summary["architecture_runtime_status"] == "supported"
       assert summary["loadable?"] == false
       assert summary["blocking_issue_groups"] == ["tensors"]
       assert summary["compatibility_issues"] == ["unsupported tensor type: type_99 (1)"]
