@@ -1569,6 +1569,82 @@ defmodule LlamexTest do
     end
   end
 
+  test "prepares fused qkv projection for gemma-style grouped attention when Nx is available" do
+    if Code.ensure_loaded?(Nx) do
+      layer = %{
+        head_count: 4,
+        kv_head_count: 1,
+        wq: [
+          [1.0, 0.0],
+          [0.0, 1.0],
+          [1.0, 1.0],
+          [0.5, 1.0],
+          [1.0, 0.5],
+          [0.0, 2.0],
+          [2.0, 1.0],
+          [1.5, 0.0]
+        ],
+        wk: [
+          [2.0, 0.0],
+          [0.0, 2.0]
+        ],
+        wv: [
+          [0.0, 3.0],
+          [3.0, 0.0]
+        ],
+        wo: [
+          [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        ]
+      }
+
+      prepared = Llamex.Backend.NxEXLA.prepare_model(%{layers: [layer], output: nil})
+      [prepared_layer] = prepared.layers
+
+      assert match?(%Nx.Tensor{}, prepared_layer.w_qkv)
+      assert prepared_layer.w_qkv_row_counts == [8, 2, 2]
+
+      input = Llamex.Backend.NxEXLA.from_list([1.0, 2.0])
+
+      result =
+        Llamex.Backend.NxEXLA.qkv_heads(
+          prepared_layer.w_qkv,
+          prepared_layer.w_qkv_row_counts,
+          input,
+          4,
+          1,
+          0,
+          10_000.0,
+          2
+        )
+
+      expected =
+        Llamex.Backend.List.qkv_heads(
+          layer.wq ++ layer.wk ++ layer.wv,
+          [8, 2, 2],
+          [1.0, 2.0],
+          4,
+          1,
+          0,
+          10_000.0,
+          2
+        )
+
+      {result_query, result_key, result_value} = result
+      {expected_query, expected_key, expected_value} = expected
+
+      actual_values =
+        [result_query, result_key, result_value]
+        |> Enum.flat_map(fn {:nx_exla_heads, heads} -> Llamex.Backend.NxEXLA.to_list(heads) end)
+
+      expected_values = List.flatten(expected_query ++ expected_key ++ expected_value)
+
+      for {actual, expected} <- Enum.zip(actual_values, expected_values) do
+        assert_in_delta actual, expected, 1.0e-6
+      end
+    end
+  end
+
   test "maps exla targets to clients" do
     assert Llamex.Backend.NxEXLA.client(:cpu) == :host
     assert Llamex.Backend.NxEXLA.client("cpu") == :host
