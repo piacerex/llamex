@@ -3859,6 +3859,18 @@ defmodule LlamexTest do
     assert profile["timing_summary"]["total_milliseconds"] >= 0
     assert is_integer(profile["timing_summary"]["components"]["prefill.backend_prepare"])
     assert is_integer(profile["timing_summary"]["components"]["eval.logits"])
+
+    assert Enum.map(profile["timing_summary"]["focus_components"], & &1["label"]) == [
+             "attention",
+             "ffn",
+             "output_logits"
+           ]
+
+    assert Enum.all?(
+             profile["timing_summary"]["focus_components"],
+             &is_integer(&1["milliseconds"])
+           )
+
     assert profile["timing_summary"]["top_layers"] == []
     assert Enum.any?(profile["timing_summary"]["top_components"], &(&1["label"] == "eval.logits"))
     assert Enum.all?(profile["timing_summary"]["top_components"], &is_integer(&1["milliseconds"]))

@@ -383,7 +383,9 @@ seed, and sampling options used for each run can be audited. Use
 `prompt_eval_summary.layers` to compare accumulated prefill layer costs across
 List and NxEXLA. Non-JSON benchmark output also prints
 `prompt_eval_top_layers` and `prompt_eval_top_components` so the next prefill
-optimization target is visible without expanding the raw JSON.
+optimization target is visible without expanding the raw JSON. Use JSON
+`timing_summary.focus_components` to compare attention, FFN, and output logits
+across backend and token-count runs.
 
 Current GGUF generation baseline on
 `zephyr-smol_llama-100m-sft-full-Q2_K.gguf` with the List backend:
@@ -944,6 +946,8 @@ Profile JSON includes `timing_summary.top_components` and
 `timing_summary.top_layers` sorted by elapsed milliseconds. Use those fields to
 pick the next backend optimization target from the measured run instead of
 guessing from the model structure.
+It also includes `timing_summary.focus_components` for the main attention
+roadmap buckets: attention, FFN, and output logits.
 
 Tokenizer metadata can be converted into a Llamex tokenizer:
 
