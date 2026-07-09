@@ -3187,6 +3187,12 @@ defmodule LlamexTest do
 
     assert Enum.map(profile.timings, & &1.label) == ["prefill", "step"]
     assert Enum.all?(profile.timings, &is_integer(&1.milliseconds))
+
+    assert Enum.map(profile.timing_summary.focus_components, & &1.label) == [
+             "attention",
+             "ffn",
+             "output_logits"
+           ]
   end
 
   test "profiles preserved extra norm layer counts" do
