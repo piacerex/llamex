@@ -38,15 +38,13 @@ defmodule Llamex.GGUF.Diagnostic do
   @known_pre_tokenizers ["default", "gpt2", "llama-bpe", "qwen2"]
   @supported_pre_tokenizers ["default", "gpt2", "llama-bpe"]
   @known_attention_variants ["full", "sliding_window"]
-  @supported_attention_variants ["full"]
+  @supported_attention_variants ["full", "sliding_window"]
   @known_rope_variants ["default", "linear", "yarn"]
   @supported_rope_variants ["default"]
   @unsupported_feature_metadata [
-    "*.attention.sliding_window",
     "*.rope.scaling.type"
   ]
   @unsupported_feature_detail_suffixes [
-    "attention.sliding_window",
     "rope.scaling.type",
     "rope.scaling.factor",
     "rope.scaling.original_context_length"
@@ -706,6 +704,7 @@ defmodule Llamex.GGUF.Diagnostic do
   defp attention_variant_runtime_status(metadata) do
     case attention_variant(metadata) do
       %{type: "full"} -> "supported"
+      %{type: "sliding_window"} -> "supported"
       _variant -> "blocked"
     end
   end
@@ -771,6 +770,9 @@ defmodule Llamex.GGUF.Diagnostic do
   defp add_attention_feature_blocker(blockers, metadata) do
     case attention_variant(metadata) do
       %{type: "full"} ->
+        blockers
+
+      %{type: "sliding_window"} ->
         blockers
 
       variant ->
@@ -1191,7 +1193,7 @@ defmodule Llamex.GGUF.Diagnostic do
 
     []
     |> add_token_embedding_shape_issue(architecture, embedding_length, tensors)
-    |> add_extra_norm_shape_issues(architecture, embedding_length, tensors)
+    |> add_extra_norm_shape_issues(metadata, architecture, embedding_length, tensors)
     |> add_gemma3_transformer_shape_issues(metadata, architecture, embedding_length, tensors)
     |> Enum.reverse()
   end
@@ -1221,27 +1223,43 @@ defmodule Llamex.GGUF.Diagnostic do
     end
   end
 
-  defp add_extra_norm_shape_issues(issues, "gemma3", embedding_length, tensors)
+  defp add_extra_norm_shape_issues(issues, metadata, "gemma3", embedding_length, tensors)
        when is_integer(embedding_length) do
+    head_count =
+      metadata_value(metadata, metadata_key(metadata_prefix(metadata), "attention.head_count"))
+
+    head_dimension = gemma3_head_dimension(tensors, head_count, embedding_length)
+
     tensors
     |> Enum.flat_map(&extra_norm_tensor_layer/1)
     |> Enum.reduce(issues, fn %{name: name}, issues ->
       %{dimensions: dimensions} = find_tensor(tensors, name)
+      expected = extra_norm_expected_shape(name, embedding_length, head_dimension)
 
       case Llamex.GGUF.TensorSchema.schema_shape(dimensions) do
-        [^embedding_length] ->
+        ^expected ->
           issues
 
         shape ->
           [
-            "tensor shape mismatch: #{name} schema #{inspect(shape)} expected embedding length #{embedding_length}"
+            "tensor shape mismatch: #{name} schema #{inspect(shape)} expected #{inspect(expected)}"
             | issues
           ]
       end
     end)
   end
 
-  defp add_extra_norm_shape_issues(issues, _architecture, _embedding_length, _tensors), do: issues
+  defp add_extra_norm_shape_issues(issues, _metadata, _architecture, _embedding_length, _tensors),
+    do: issues
+
+  defp extra_norm_expected_shape(name, embedding_length, head_dimension) do
+    if String.match?(name, ~r/^blk\.\d+\.attn_[qk]_norm\.weight$/) and
+         is_integer(head_dimension) do
+      [head_dimension]
+    else
+      [embedding_length]
+    end
+  end
 
   defp add_gemma3_transformer_shape_issues(issues, metadata, "gemma3", embedding_length, tensors)
        when is_integer(embedding_length) do
@@ -1251,8 +1269,11 @@ defmodule Llamex.GGUF.Diagnostic do
     head_count = metadata_value(metadata, metadata_key(prefix, "attention.head_count"))
     kv_head_count = metadata_value(metadata, metadata_key(prefix, "attention.head_count_kv"))
 
+    q_embedding_length = gemma3_q_embedding_length(tensors) || embedding_length
+
     kv_embedding_length =
-      kv_embedding_length(embedding_length, head_count, kv_head_count)
+      gemma3_kv_embedding_length(tensors) ||
+        kv_embedding_length(embedding_length, head_count, kv_head_count)
 
     tensors
     |> Enum.reduce(issues, fn tensor, issues ->
@@ -1261,6 +1282,7 @@ defmodule Llamex.GGUF.Diagnostic do
              embedding_length,
              vocab_size,
              feed_forward_size,
+             q_embedding_length,
              kv_embedding_length
            ) do
         nil ->
@@ -1286,6 +1308,7 @@ defmodule Llamex.GGUF.Diagnostic do
          embedding_length,
          vocab_size,
          feed_forward_size,
+         q_embedding_length,
          kv_embedding_length
        ) do
     cond do
@@ -1301,8 +1324,13 @@ defmodule Llamex.GGUF.Diagnostic do
       ) ->
         [embedding_length]
 
-      String.match?(name, ~r/^blk\.\d+\.(attn_q|attn_output)\.weight$/) ->
-        [embedding_length, embedding_length]
+      String.match?(name, ~r/^blk\.\d+\.attn_q\.weight$/) and
+          is_integer(q_embedding_length) ->
+        [q_embedding_length, embedding_length]
+
+      String.match?(name, ~r/^blk\.\d+\.attn_output\.weight$/) and
+          is_integer(q_embedding_length) ->
+        [embedding_length, q_embedding_length]
 
       String.match?(name, ~r/^blk\.\d+\.(attn_k|attn_v)\.weight$/) and
           is_integer(kv_embedding_length) ->
@@ -1319,6 +1347,40 @@ defmodule Llamex.GGUF.Diagnostic do
         nil
     end
   end
+
+  defp gemma3_head_dimension(tensors, head_count, embedding_length)
+       when is_integer(head_count) and head_count > 0 do
+    tensors
+    |> gemma3_q_embedding_length()
+    |> then(fn
+      nil -> nil
+      ^embedding_length -> nil
+      q_embedding_length -> div(q_embedding_length, head_count)
+    end)
+  end
+
+  defp gemma3_head_dimension(_tensors, _head_count, _embedding_length), do: nil
+
+  defp gemma3_q_embedding_length(tensors) do
+    tensors
+    |> find_tensor("blk.0.attn_q.weight")
+    |> tensor_schema_rows()
+  end
+
+  defp gemma3_kv_embedding_length(tensors) do
+    tensors
+    |> find_tensor("blk.0.attn_k.weight")
+    |> tensor_schema_rows()
+  end
+
+  defp tensor_schema_rows(%{dimensions: dimensions}) do
+    case Llamex.GGUF.TensorSchema.schema_shape(dimensions) do
+      [rows, _columns] -> rows
+      _shape -> nil
+    end
+  end
+
+  defp tensor_schema_rows(_tensor), do: nil
 
   defp add_tensor_shape_issue(issues, tensor, expected) do
     shape = Llamex.GGUF.TensorSchema.schema_shape(tensor.dimensions)
@@ -1608,15 +1670,7 @@ defmodule Llamex.GGUF.Diagnostic do
     end
   end
 
-  defp add_sliding_window_issue(issues, metadata) do
-    case metadata_value(
-           metadata,
-           metadata_key(metadata_prefix(metadata), "attention.sliding_window")
-         ) do
-      nil -> issues
-      _window -> ["unsupported attention variant: sliding_window" | issues]
-    end
-  end
+  defp add_sliding_window_issue(issues, _metadata), do: issues
 
   defp add_rope_scaling_issue(issues, metadata) do
     case metadata_value(metadata, metadata_key(metadata_prefix(metadata), "rope.scaling.type")) do

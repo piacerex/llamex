@@ -14,6 +14,7 @@ defmodule Llamex.Config do
     :block_count,
     :attention_head_count,
     :attention_head_count_kv,
+    :attention_sliding_window,
     :feed_forward_size
   ]
 
@@ -27,6 +28,7 @@ defmodule Llamex.Config do
           block_count: pos_integer() | nil,
           attention_head_count: pos_integer() | nil,
           attention_head_count_kv: pos_integer() | nil,
+          attention_sliding_window: pos_integer() | nil,
           feed_forward_size: pos_integer() | nil
         }
 
@@ -48,6 +50,7 @@ defmodule Llamex.Config do
       block_count: Map.get(attrs, :block_count),
       attention_head_count: Map.get(attrs, :attention_head_count),
       attention_head_count_kv: Map.get(attrs, :attention_head_count_kv),
+      attention_sliding_window: Map.get(attrs, :attention_sliding_window),
       feed_forward_size: Map.get(attrs, :feed_forward_size)
     }
   end

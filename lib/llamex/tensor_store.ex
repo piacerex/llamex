@@ -5,6 +5,7 @@ defmodule Llamex.TensorStore do
 
   @supported_dtypes MapSet.new(["f32", "f16"])
   @q4_0_block_size 32
+  @q8_0_block_size 32
 
   def decode(tensors) when is_map(tensors) do
     Map.new(tensors, fn {name, tensor} ->
@@ -72,6 +73,21 @@ defmodule Llamex.TensorStore do
       shape: shape,
       dtype: "f32",
       data: read_q4_0_blocks(payload, [])
+    }
+  end
+
+  def dequantize_compact_tensor(%{info: %{type_name: "Q8_0", shape: shape}, payload: payload})
+      when is_list(shape) and is_binary(payload) do
+    count = Enum.product(shape)
+
+    if rem(count, @q8_0_block_size) != 0 do
+      raise ArgumentError, "Q8_0 tensor element count must be divisible by #{@q8_0_block_size}"
+    end
+
+    %{
+      shape: shape,
+      dtype: "f32",
+      data: read_q8_0_blocks(payload, [])
     }
   end
 
@@ -197,12 +213,33 @@ defmodule Llamex.TensorStore do
     read_q4_0_blocks(rest, [block | values])
   end
 
+  defp read_q8_0_blocks(<<>>, values), do: values |> Enum.reverse() |> List.flatten()
+
+  defp read_q8_0_blocks(
+         <<scale_bits::little-unsigned-integer-size(16), quantized::binary-size(@q8_0_block_size),
+           rest::binary>>,
+         values
+       ) do
+    scale = f16_to_float(scale_bits)
+
+    block =
+      quantized
+      |> :binary.bin_to_list()
+      |> Enum.map(&signed_i8/1)
+      |> Enum.map(&(&1 * scale))
+
+    read_q8_0_blocks(rest, [block | values])
+  end
+
   defp q4_0_values(byte, scale) do
     low = Bitwise.band(byte, 0x0F)
     high = byte |> Bitwise.bsr(4) |> Bitwise.band(0x0F)
 
     [(low - 8) * scale, (high - 8) * scale]
   end
+
+  defp signed_i8(value) when value < 128, do: value
+  defp signed_i8(value), do: value - 256
 
   defp f16_to_float(bits) do
     sign = if Bitwise.band(bits, 0x8000) == 0, do: 1.0, else: -1.0

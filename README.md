@@ -248,11 +248,11 @@ Current GGUF load support is intentionally narrow:
 
 GGUF files for other runtime architectures such as Qwen or Phi are not loadable
 yet. Mistral uses the llama-compatible text runtime path. Gemma 3 is supported
-for the text-only runtime path when the checkpoint uses full attention and
-default RoPE; `gemma3.*` model metadata,
+for the text-only runtime path when the checkpoint uses full or sliding-window
+attention and default RoPE; `gemma3.*` model metadata,
 tensor schema names, q/k extra norms, and post feed-forward extra norm tensors
-are mapped into the runtime. Checkpoints that require sliding-window attention
-or non-`none` RoPE scaling are rejected by the compatibility check.
+are mapped into the runtime. Checkpoints that require non-`none` RoPE scaling
+are rejected by the compatibility check.
 
 F32, F16, BF16, Q2_K, Q3_K, Q4_0, Q4_1, Q4_K, Q5_0, Q5_1, Q5_K, Q6_K, Q8_0, Q8_1, and Q8_K tensor data can be read into Llamex's named tensor schema:
 
@@ -785,9 +785,8 @@ unsupported candidates: `sentencepiece` tokenizer models and `qwen2`
 pre-tokenizers are visible in the supported surface but still rejected by the
 loader until their runtime paths are implemented.
 Attention and RoPE diagnostics expose variant status in the supported surface:
-`full` attention and default RoPE are supported, while sliding-window attention
-and linear / YaRN RoPE scaling are known unsupported variants with explicit
-feature blockers.
+`full` / sliding-window attention and default RoPE are supported, while linear /
+YaRN RoPE scaling are known unsupported variants with explicit feature blockers.
 `Llamex.GGUF.Reader.read_compact_tensor_data/2` can read named tensor payloads
 without eager F32 dequantization. The standard model loader still uses the
 dequantized schema for inference, while compact payloads provide the next
@@ -866,10 +865,10 @@ mix llamex.natural.smoke "$MODEL_GGUF" 1 --backend list --include-japanese --jso
 ```
 
 Gemma 3 checkpoints are expected to be loadable only on the text-only path with
-full attention and default RoPE. Inspect output should show `architecture:
-gemma3`, `architecture runtime status: supported`, `loadable: true`, and
-`compatibility issues: none`; checkpoints that include sliding-window attention
-or RoPE scaling remain rejected with explicit feature blockers.
+full or sliding-window attention and default RoPE. Inspect output should show
+`architecture: gemma3`, `architecture runtime status: supported`,
+`loadable: true`, and `compatibility issues: none`; checkpoints that include
+RoPE scaling remain rejected with explicit feature blockers.
 
 This checkpoint is compatible with the current tensor loader:
 

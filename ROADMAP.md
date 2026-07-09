@@ -166,9 +166,9 @@ GGUF モデル読み込み
 - tokenizer metadata surface では SentencePiece tokenizer model と Qwen2
   pre-tokenizer を known unsupported として明示し、対応済み tokenizer
   metadata と未対応候補を分けて確認できる。
-- attention / RoPE variant surface では full attention / default RoPE と、
-  sliding-window attention / linear・YaRN RoPE scaling の known unsupported
-  status を分けて確認できる。
+- attention / RoPE variant surface では full / sliding-window attention と
+  default RoPE を supported として扱い、linear・YaRN RoPE scaling の
+  known unsupported status を分けて確認できる。
 - `Llamex.GGUF.Reader.read_compact_tensor_data/2` で GGUF tensor payload を
   eager F32 展開せず named tensor schema として読めるため、量子化 tensor の
   メモリ効率の良い保持形式へ進む足場がある。
@@ -244,7 +244,8 @@ README の tensor schema 診断説明も Gemma3 extra norm supported path と整
   `gguf inspect task can print supported surface as json without a model file`
   で Gemma3 supported surface を固定している。
 - `diagnoses unsupported gemma3 attention and rope metadata by architecture prefix`
-  で sliding-window attention と RoPE scaling の feature blocker を固定している。
+  で sliding-window attention は supported、RoPE scaling は feature blocker として
+  固定している。
 - `gguf inspect task can print gemma3 json diagnostics` で Gemma3 metadata、
   tokenizer、chat template、runtime capability、model config、tensor schema を固定している。
 - `loads gemma3 gguf models with supported text runtime variants` で load、
@@ -269,8 +270,8 @@ README の tensor schema 診断説明も Gemma3 extra norm supported path と整
 - [x] Gemma3 metadata を architecture prefix から `Model` config へ変換する。
 - [x] Gemma3 tensor 名を内部 schema へ対応させ、shape 検証を追加する。
 - [x] Gemma3 tokenizer の special token、BOS / EOS、byte fallback、英語 / 日本語 decode を固定する。
-- [x] Gemma3 の full attention / default RoPE / extra norm text runtime を supported path として固定する。
-- [x] sliding-window attention と RoPE scaling は explicit feature blocker として固定する。
+- [x] Gemma3 の full / sliding-window attention / default RoPE / extra norm text runtime を supported path として固定する。
+- [x] RoPE scaling は explicit feature blocker として固定する。
 - [x] Gemma3 chat template の `system` / `user` / `assistant` role と `generate_chat/3` / `stream_chat/3` smoke を固定する。
 - [x] `Llamex.GGUF.ModelLoader.load/1`、`prefill/3`、`step/3`、`mix llamex.generate`、`mix llamex.natural.smoke` の end-to-end smoke を固定する。
 - [x] List backend を基準に NxEXLA の greedy token 選択一致を固定する。

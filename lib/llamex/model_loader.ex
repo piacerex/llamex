@@ -81,6 +81,7 @@ defmodule Llamex.ModelLoader do
     %{
       "head_count" => head_count,
       "kv_head_count" => kv_head_count(attrs, head_count, wq, wk),
+      "sliding_window" => get_in(attrs, ["config", "attention_sliding_window"]),
       "attention_norm" =>
         Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_norm.weight"),
       "feed_forward_norm" =>
@@ -266,6 +267,7 @@ defmodule Llamex.ModelLoader do
     %{
       head_count: head_count,
       kv_head_count: kv_head_count(tensors, head_count, wq, wk),
+      sliding_window: tensor_config(tensors, :attention_sliding_window),
       attention_norm: Llamex.TensorStore.fetch_matrix(tensors, "blk.#{index}.attn_norm.weight"),
       feed_forward_norm:
         Llamex.TensorStore.fetch_optional_matrix(tensors, "blk.#{index}.ffn_norm.weight"),

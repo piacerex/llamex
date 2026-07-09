@@ -6149,20 +6149,18 @@ defmodule LlamexTest do
                  fn -> Llamex.ModelLoader.from_compact_map(model_map) end
   end
 
-  test "rejects compact tensor dequantization for unsupported compact types" do
-    assert_raise ArgumentError, "compact tensor type Q8_0 cannot be dequantized yet", fn ->
-      Llamex.TensorStore.dequantize_compact_tensor(%{
-        info: %{
-          shape: [32],
-          dtype: "quantized",
-          type: 8,
-          type_name: "Q8_0",
-          quantized?: true,
-          payload_bytes: 34
-        },
-        payload: <<0::272>>
-      })
-    end
+  test "dequantizes compact q8_0 tensor payloads" do
+    binary = tiny_gguf(:with_q8_0_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+    compact_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+    dequantized_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
+
+    compact = Llamex.TensorStore.fetch_compact_tensor(compact_map["tensors"], "token_embd.weight")
+    tensor = Llamex.TensorStore.dequantize_compact_tensor(compact)
+
+    assert tensor.shape == [32]
+    assert tensor.dtype == "f32"
+    assert tensor.data == dequantized_map["tensors"]["token_embd.weight"]["data"]
   end
 
   test "rejects compact tensor payloads in the dequantized model loader path" do
@@ -6842,14 +6840,12 @@ defmodule LlamexTest do
     assert diagnostic.loadable? == false
 
     assert diagnostic.unsupported_features == [
-             "unsupported attention variant: sliding_window",
              "unsupported RoPE scaling: linear"
            ]
 
     assert diagnostic.compatibility_issues == diagnostic.unsupported_features
 
     assert diagnostic.unsupported_feature_metadata_values == %{
-             "llama.attention.sliding_window" => 128,
              "llama.rope.scaling.factor" => 8.0,
              "llama.rope.scaling.original_context_length" => 2048,
              "llama.rope.scaling.type" => "linear"
@@ -6858,13 +6854,12 @@ defmodule LlamexTest do
     formatted = Llamex.GGUF.Diagnostic.format(diagnostic)
 
     assert formatted =~
-             "unsupported features: unsupported attention variant: sliding_window; unsupported RoPE scaling: linear"
+             "unsupported features: unsupported RoPE scaling: linear"
 
     assert formatted =~
-             "compatibility issues: unsupported attention variant: sliding_window; unsupported RoPE scaling: linear"
+             "compatibility issues: unsupported RoPE scaling: linear"
 
     assert formatted =~ "unsupported feature metadata values:"
-    assert formatted =~ "llama.attention.sliding_window=128"
     assert formatted =~ "llama.rope.scaling.factor=8.0"
     assert formatted =~ "llama.rope.scaling.original_context_length=2048"
     assert formatted =~ "llama.rope.scaling.type=linear"
@@ -6879,13 +6874,9 @@ defmodule LlamexTest do
              original_context_length: 2048
            }
 
-    assert summary.unsupported_features == [
-             "unsupported attention variant: sliding_window",
-             "unsupported RoPE scaling: linear"
-           ]
+    assert summary.unsupported_features == ["unsupported RoPE scaling: linear"]
 
     assert summary.unsupported_feature_metadata_values == %{
-             "llama.attention.sliding_window" => 128,
              "llama.rope.scaling.factor" => 8.0,
              "llama.rope.scaling.original_context_length" => 2048,
              "llama.rope.scaling.type" => "linear"
@@ -6929,13 +6920,9 @@ defmodule LlamexTest do
              original_context_length: 32_768
            }
 
-    assert diagnostic.unsupported_features == [
-             "unsupported attention variant: sliding_window",
-             "unsupported RoPE scaling: linear"
-           ]
+    assert diagnostic.unsupported_features == ["unsupported RoPE scaling: linear"]
 
     assert diagnostic.unsupported_feature_metadata_values == %{
-             "gemma3.attention.sliding_window" => 1024,
              "gemma3.rope.scaling.factor" => 4.0,
              "gemma3.rope.scaling.original_context_length" => 32_768,
              "gemma3.rope.scaling.type" => "linear"
@@ -6944,19 +6931,12 @@ defmodule LlamexTest do
     assert diagnostic.runtime_feature_status == %{
              architecture_runtime: "supported",
              attention_qk_extra_norm: "supported",
-             attention_variant: "blocked",
+             attention_variant: "supported",
              post_feed_forward_extra_norm: "supported",
              rope_variant: "blocked"
            }
 
     assert diagnostic.runtime_feature_blockers == [
-             %{
-               feature: :attention_variant,
-               component: "attention",
-               reason: "attention variant not implemented",
-               issue: "unsupported attention variant: sliding_window",
-               value: %{type: "sliding_window", window: 1024}
-             },
              %{
                feature: :rope_variant,
                component: "rope",
@@ -6966,17 +6946,11 @@ defmodule LlamexTest do
              }
            ]
 
-    assert diagnostic.compatibility_issues == [
-             "unsupported attention variant: sliding_window",
-             "unsupported RoPE scaling: linear"
-           ]
+    assert diagnostic.compatibility_issues == ["unsupported RoPE scaling: linear"]
 
     assert diagnostic.compatibility_issue_groups.runtime == []
 
-    assert diagnostic.compatibility_issue_groups.features == [
-             "unsupported attention variant: sliding_window",
-             "unsupported RoPE scaling: linear"
-           ]
+    assert diagnostic.compatibility_issue_groups.features == ["unsupported RoPE scaling: linear"]
 
     assert diagnostic.blocking_issue_groups == [:features]
   end
@@ -7520,10 +7494,10 @@ defmodule LlamexTest do
              "pre-tokenizer status surface: default=supported; gpt2=supported; llama-bpe=supported; qwen2=known_unsupported"
 
     assert output =~ "known attention variants: full, sliding_window"
-    assert output =~ "supported attention variants: full"
+    assert output =~ "supported attention variants: full, sliding_window"
 
     assert output =~
-             "attention variant status surface: full=supported; sliding_window=known_unsupported"
+             "attention variant status surface: full=supported; sliding_window=supported"
 
     assert output =~ "known RoPE variants: default, linear, yarn"
     assert output =~ "supported RoPE variants: default"
@@ -7539,14 +7513,13 @@ defmodule LlamexTest do
     assert output =~
              "supported chat templates: chatml, role_markers, llama_header_markers, gemma_turn_markers, mistral_inst_markers"
 
-    assert output =~
-             "unsupported feature metadata: *.attention.sliding_window, *.rope.scaling.type"
+    assert output =~ "unsupported feature metadata: *.rope.scaling.type"
 
     assert output =~ "unsupported feature metadata surface:"
-    assert output =~ "gemma3=gemma3.attention.sliding_window/gemma3.rope.scaling.type"
+    assert output =~ "gemma3=gemma3.rope.scaling.type"
     assert output =~ "gemma3.rope.scaling.factor/gemma3.rope.scaling.original_context_length"
-    assert output =~ "llama=llama.attention.sliding_window/llama.rope.scaling.type"
-    assert output =~ "mistral=mistral.attention.sliding_window/mistral.rope.scaling.type"
+    assert output =~ "llama=llama.rope.scaling.type"
+    assert output =~ "mistral=mistral.rope.scaling.type"
 
     assert output =~ "model config surface:"
     assert output =~ "llama=vocab_size/embedding_size/context_size"
@@ -7699,11 +7672,11 @@ defmodule LlamexTest do
            }
 
     assert surface["known_attention_variants"] == ["full", "sliding_window"]
-    assert surface["supported_attention_variants"] == ["full"]
+    assert surface["supported_attention_variants"] == ["full", "sliding_window"]
 
     assert surface["attention_variant_status_surface"] == %{
              "full" => "supported",
-             "sliding_window" => "known_unsupported"
+             "sliding_window" => "supported"
            }
 
     assert surface["known_rope_variants"] == ["default", "linear", "yarn"]
@@ -7762,27 +7735,21 @@ defmodule LlamexTest do
 
     assert surface["supported_chat_templates"] == Llamex.ChatTemplate.supported_families()
 
-    assert surface["unsupported_feature_metadata"] == [
-             "*.attention.sliding_window",
-             "*.rope.scaling.type"
-           ]
+    assert surface["unsupported_feature_metadata"] == ["*.rope.scaling.type"]
 
     assert surface["unsupported_feature_metadata_surface"]["gemma3"] == [
-             "gemma3.attention.sliding_window",
              "gemma3.rope.scaling.type",
              "gemma3.rope.scaling.factor",
              "gemma3.rope.scaling.original_context_length"
            ]
 
     assert surface["unsupported_feature_metadata_surface"]["llama"] == [
-             "llama.attention.sliding_window",
              "llama.rope.scaling.type",
              "llama.rope.scaling.factor",
              "llama.rope.scaling.original_context_length"
            ]
 
     assert surface["unsupported_feature_metadata_surface"]["mistral"] == [
-             "mistral.attention.sliding_window",
              "mistral.rope.scaling.type",
              "mistral.rope.scaling.factor",
              "mistral.rope.scaling.original_context_length"
@@ -8149,13 +8116,13 @@ defmodule LlamexTest do
       |> Llamex.GGUF.Diagnostic.inspect_reader()
 
     assert diagnostic.tensor_shape_issues == [
-             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected embedding length 2",
-             "tensor shape mismatch: blk.12.attn_k_norm.weight schema [4] expected embedding length 2"
+             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected [2]",
+             "tensor shape mismatch: blk.12.attn_k_norm.weight schema [4] expected [2]"
            ]
 
     assert diagnostic.compatibility_issue_groups.tensors == [
-             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected embedding length 2",
-             "tensor shape mismatch: blk.12.attn_k_norm.weight schema [4] expected embedding length 2"
+             "tensor shape mismatch: blk.0.attn_q_norm.weight schema [3] expected [2]",
+             "tensor shape mismatch: blk.12.attn_k_norm.weight schema [4] expected [2]"
            ]
 
     assert diagnostic.blocking_issue_groups == [:tensors]
@@ -8201,8 +8168,8 @@ defmodule LlamexTest do
       |> Llamex.GGUF.Diagnostic.inspect_reader()
 
     assert diagnostic.tensor_shape_issues == [
-             "tensor shape mismatch: blk.0.attn_q.weight schema [3, 2] expected [2, 2]",
-             "tensor shape mismatch: blk.0.attn_k.weight schema [2, 2] expected [1, 2]",
+             "tensor shape mismatch: blk.0.attn_v.weight schema [1, 2] expected [2, 2]",
+             "tensor shape mismatch: blk.0.attn_output.weight schema [2, 2] expected [2, 3]",
              "tensor shape mismatch: blk.0.ffn_gate.weight schema [9, 2] expected [8, 2]"
            ]
 
@@ -9766,21 +9733,21 @@ defmodule LlamexTest do
     end
   end
 
-  test "rejects gguf models with sliding window attention before loading tensor data" do
+  test "loads gguf models with sliding window attention metadata" do
     path =
       Path.join(
         System.tmp_dir!(),
-        "llamex-incompatible-sliding-window-#{System.unique_integer([:positive])}.gguf"
+        "llamex-sliding-window-#{System.unique_integer([:positive])}.gguf"
       )
 
     try do
       File.write!(path, tiny_gguf(:with_sliding_window_tensor_data))
 
-      assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported attention variant: sliding_window (blocking issue groups: features) (blocked runtime features: attention_variant)",
-                   fn ->
-                     Llamex.GGUF.ModelLoader.load(path)
-                   end
+      model = Llamex.GGUF.ModelLoader.load(path)
+
+      assert model.config.attention_sliding_window == 128
+      assert model.runtime_capability.attention_variant == %{type: "sliding_window", window: 128}
+      assert model.runtime_capability.loadable? == true
     after
       File.rm(path)
     end

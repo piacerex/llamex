@@ -13,6 +13,7 @@ defmodule Llamex.GGUF.ModelConfig do
     {"block_count", "block_count"},
     {"attention_head_count", "attention.head_count"},
     {"attention_head_count_kv", "attention.head_count_kv"},
+    {"attention_sliding_window", "attention.sliding_window"},
     {"feed_forward_size", "feed_forward_length"}
   ]
 
@@ -55,6 +56,8 @@ defmodule Llamex.GGUF.ModelConfig do
         metadata_value(metadata, metadata_key(prefix, "attention.head_count"), nil),
       "attention_head_count_kv" =>
         metadata_value(metadata, metadata_key(prefix, "attention.head_count_kv"), nil),
+      "attention_sliding_window" =>
+        metadata_value(metadata, metadata_key(prefix, "attention.sliding_window"), nil),
       "feed_forward_size" =>
         metadata_value(metadata, metadata_key(prefix, "feed_forward_length"), nil)
     }
@@ -107,10 +110,14 @@ defmodule Llamex.GGUF.ModelConfig do
     @fields
     |> Enum.map(fn {name, suffix} -> {name, metadata_key(prefix, suffix)} end)
     |> Enum.reject(fn {name, key} ->
-      Map.has_key?(metadata, key) or (name == "vocab_size" and token_count(metadata) != nil)
+      Map.has_key?(metadata, key) or optional_field?(name) or
+        (name == "vocab_size" and token_count(metadata) != nil)
     end)
     |> Enum.map(fn {name, key} -> %{name: name, metadata_key: key} end)
   end
+
+  defp optional_field?("attention_sliding_window"), do: true
+  defp optional_field?(_name), do: false
 
   defp token_count(metadata) do
     case metadata_value(metadata, "tokenizer.ggml.tokens", nil) do
