@@ -1374,6 +1374,24 @@ defmodule LlamexTest do
     end
   end
 
+  test "runs shared-kv grouped attention through list backend" do
+    query_heads = [[1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.5, 1.0]]
+
+    entries = [
+      {[[1.0, 0.0]], [[2.0, 0.0]]},
+      {[[0.0, 1.0]], [[0.0, 4.0]]}
+    ]
+
+    keys = [[1.0, 0.0], [0.0, 1.0]]
+    values = [[2.0, 0.0], [0.0, 4.0]]
+
+    expected =
+      query_heads
+      |> Enum.flat_map(&Llamex.Backend.List.attend_head(&1, keys, values))
+
+    assert Llamex.Backend.List.attend_heads(query_heads, entries, 4, 1) == expected
+  end
+
   test "runs grouped attention heads through nx_exla backend when Nx is available" do
     if Code.ensure_loaded?(Nx) do
       query_heads = [[1.0, 0.0], [0.0, 1.0]]

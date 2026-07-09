@@ -113,6 +113,22 @@ defmodule Llamex.Backend.List do
   end
 
   @impl true
+  def attend_heads(query_heads, entries, head_count, 1)
+      when is_list(query_heads) and is_list(entries) and is_integer(head_count) and head_count > 0 do
+    keys =
+      Enum.map(entries, fn {cached_keys, _cached_values} ->
+        hd(cached_keys)
+      end)
+
+    values =
+      Enum.map(entries, fn {_cached_keys, cached_values} ->
+        hd(cached_values)
+      end)
+
+    Enum.flat_map(query_heads, &attend_head(&1, keys, values))
+  end
+
+  @impl true
   def attend_heads(query_heads, entries, head_count, kv_head_count)
       when is_list(query_heads) and is_list(entries) and is_integer(head_count) and
              head_count > 0 and is_integer(kv_head_count) and kv_head_count > 0 do
