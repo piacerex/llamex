@@ -6045,6 +6045,71 @@ defmodule LlamexTest do
     assert length(result.generated_tokens) == 1
   end
 
+  test "generates with compact q4_0 layer and output weights kept for the list backend" do
+    binary = tiny_q4_0_transformer_gguf()
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+
+    compact_map =
+      Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+
+    model = Llamex.ModelLoader.from_compact_map(compact_map, compact_backend: true)
+
+    [layer] = model.layers
+
+    assert layer.wq.info.type_name == "Q4_0"
+    assert layer.wk.info.type_name == "Q4_0"
+    assert layer.wv.info.type_name == "Q4_0"
+    assert layer.wo.info.type_name == "Q4_0"
+    assert layer.w_gate.info.type_name == "Q4_0"
+    assert layer.w_up.info.type_name == "Q4_0"
+    assert layer.w_down.info.type_name == "Q4_0"
+    assert model.output.weight.info.type_name == "Q4_0"
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: :greedy
+      })
+
+    assert length(result.generated_tokens) == 1
+  end
+
+  test "loads compact q4_0 backend weights through loader option" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-compact-q4-0-backend-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_q4_0_transformer_gguf())
+
+      model =
+        Llamex.GGUF.ModelLoader.load(path,
+          tensor_format: :compact,
+          compact_backend: true
+        )
+
+      [layer] = model.layers
+
+      assert layer.wq.info.type_name == "Q4_0"
+      assert layer.w_down.info.type_name == "Q4_0"
+      assert model.output.weight.info.type_name == "Q4_0"
+
+      result =
+        Llamex.generate(model, "hello", %{
+          backend: Llamex.Backend.List,
+          max_new_tokens: 1,
+          sampler: :greedy
+        })
+
+      assert length(result.generated_tokens) == 1
+    after
+      File.rm(path)
+    end
+  end
+
   test "rejects non-compact model maps in the compact loader path" do
     binary = tiny_gguf(:with_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(binary)

@@ -18,7 +18,7 @@ defmodule Llamex.GGUF.ModelLoader do
 
     case Keyword.get(opts, :tensor_format, :dequantized) do
       :compact ->
-        Llamex.ModelLoader.from_compact_map(model_map)
+        Llamex.ModelLoader.from_compact_map(model_map, opts)
 
       :dequantized ->
         Llamex.ModelLoader.from_map(model_map)

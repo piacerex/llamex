@@ -155,7 +155,8 @@ defmodule Llamex.Engine do
     end)
   end
 
-  defp greedy_token(%{backend: Llamex.Backend.List, model: %{output: %{weight: weight}}}, hidden) do
+  defp greedy_token(%{backend: Llamex.Backend.List, model: %{output: %{weight: weight}}}, hidden)
+       when is_list(weight) do
     Tensor.argmax_matvec(weight, hidden)
   end
 

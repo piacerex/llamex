@@ -67,6 +67,10 @@ defmodule Llamex.Backend.List do
     matvec_pair(left_rows, right_rows, vector)
   end
 
+  def matvec_pair_tensor(left_rows, right_rows, vector) when is_list(vector) do
+    {matvec_tensor(left_rows, vector), matvec_tensor(right_rows, vector)}
+  end
+
   @impl true
   def matvec_split_pair_tensor(rows, left_count, vector)
       when is_list(rows) and is_integer(left_count) and left_count > 0 and is_list(vector) do
@@ -135,6 +139,14 @@ defmodule Llamex.Backend.List do
   def matvec_triple(left_rows, middle_rows, right_rows, vector)
       when is_list(left_rows) and is_list(middle_rows) and is_list(right_rows) and is_list(vector) do
     {matvec(left_rows, vector), matvec(middle_rows, vector), matvec(right_rows, vector)}
+  end
+
+  def matvec_triple(left_rows, middle_rows, right_rows, vector) when is_list(vector) do
+    {
+      matvec_tensor(left_rows, vector),
+      matvec_tensor(middle_rows, vector),
+      matvec_tensor(right_rows, vector)
+    }
   end
 
   @impl true

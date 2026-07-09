@@ -18,12 +18,7 @@ defmodule Llamex.ModelLoader do
 
   def from_compact_map(%{"tensor_format" => "compact", "tensors" => tensors} = attrs)
       when is_map(tensors) do
-    attrs
-    |> Map.put("token_embeddings", Llamex.TensorStore.fetch_dequantized_token_embeddings(tensors))
-    |> maybe_put_compact_layers(tensors)
-    |> maybe_put_compact_output(tensors)
-    |> Map.delete("tensors")
-    |> from_map()
+    from_compact_map(attrs, [])
   end
 
   def from_compact_map(%{"tensor_format" => tensor_format}) do
@@ -34,26 +29,42 @@ defmodule Llamex.ModelLoader do
     raise ArgumentError, "compact model map expected tensor_format=compact"
   end
 
-  defp maybe_put_compact_output(%{"output" => _output} = attrs, _tensors), do: attrs
+  def from_compact_map(%{"tensor_format" => "compact", "tensors" => tensors} = attrs, opts)
+      when is_map(tensors) and is_list(opts) do
+    compact_backend? = Keyword.get(opts, :compact_backend, false)
 
-  defp maybe_put_compact_output(attrs, tensors) do
+    attrs
+    |> Map.put("token_embeddings", Llamex.TensorStore.fetch_dequantized_token_embeddings(tensors))
+    |> maybe_put_compact_layers(tensors, compact_backend?)
+    |> maybe_put_compact_output(tensors, compact_backend?)
+    |> Map.delete("tensors")
+    |> from_map()
+  end
+
+  defp maybe_put_compact_output(%{"output" => _output} = attrs, _tensors, _compact_backend?) do
+    attrs
+  end
+
+  defp maybe_put_compact_output(attrs, tensors, compact_backend?) do
     if Map.has_key?(tensors, "output.weight") do
       Map.put(attrs, "output", %{
-        "weight" => Llamex.TensorStore.fetch_dequantized_matrix(tensors, "output.weight")
+        "weight" => compact_matrix_value(tensors, "output.weight", compact_backend?)
       })
     else
       attrs
     end
   end
 
-  defp maybe_put_compact_layers(%{"layers" => _layers} = attrs, _tensors), do: attrs
+  defp maybe_put_compact_layers(%{"layers" => _layers} = attrs, _tensors, _compact_backend?) do
+    attrs
+  end
 
-  defp maybe_put_compact_layers(attrs, tensors) do
+  defp maybe_put_compact_layers(attrs, tensors, compact_backend?) do
     layers =
       tensors
       |> Llamex.TensorStore.layer_count()
       |> layer_indexes()
-      |> Enum.map(&compact_layer_from_tensors(tensors, attrs, &1))
+      |> Enum.map(&compact_layer_from_tensors(tensors, attrs, &1, compact_backend?))
 
     if layers == [] do
       attrs
@@ -62,9 +73,9 @@ defmodule Llamex.ModelLoader do
     end
   end
 
-  defp compact_layer_from_tensors(tensors, attrs, index) do
-    wq = Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_q.weight")
-    wk = Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_k.weight")
+  defp compact_layer_from_tensors(tensors, attrs, index, compact_backend?) do
+    wq = compact_matrix_value(tensors, "blk.#{index}.attn_q.weight", compact_backend?)
+    wk = compact_matrix_value(tensors, "blk.#{index}.attn_k.weight", compact_backend?)
     head_count = get_in(attrs, ["config", "attention_head_count"])
 
     %{
@@ -82,15 +93,43 @@ defmodule Llamex.ModelLoader do
         fetch_optional_dequantized_matrix(tensors, "blk.#{index}.post_ffw_norm.weight"),
       "wq" => wq,
       "wk" => wk,
-      "wv" => Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_v.weight"),
-      "wo" =>
-        Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_output.weight"),
-      "w_gate" => fetch_optional_dequantized_matrix(tensors, "blk.#{index}.ffn_gate.weight"),
-      "w_up" => fetch_optional_dequantized_matrix(tensors, "blk.#{index}.ffn_up.weight"),
-      "w_down" => fetch_optional_dequantized_matrix(tensors, "blk.#{index}.ffn_down.weight")
+      "wv" => compact_matrix_value(tensors, "blk.#{index}.attn_v.weight", compact_backend?),
+      "wo" => compact_matrix_value(tensors, "blk.#{index}.attn_output.weight", compact_backend?),
+      "w_gate" =>
+        fetch_optional_compact_matrix_value(
+          tensors,
+          "blk.#{index}.ffn_gate.weight",
+          compact_backend?
+        ),
+      "w_up" =>
+        fetch_optional_compact_matrix_value(
+          tensors,
+          "blk.#{index}.ffn_up.weight",
+          compact_backend?
+        ),
+      "w_down" =>
+        fetch_optional_compact_matrix_value(
+          tensors,
+          "blk.#{index}.ffn_down.weight",
+          compact_backend?
+        )
     }
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
     |> Map.new()
+  end
+
+  defp compact_matrix_value(tensors, name, true) do
+    Llamex.TensorStore.fetch_compact_tensor(tensors, name)
+  end
+
+  defp compact_matrix_value(tensors, name, false) do
+    Llamex.TensorStore.fetch_dequantized_matrix(tensors, name)
+  end
+
+  defp fetch_optional_compact_matrix_value(tensors, name, compact_backend?) do
+    if Map.has_key?(tensors, name) do
+      compact_matrix_value(tensors, name, compact_backend?)
+    end
   end
 
   defp fetch_optional_dequantized_matrix(tensors, name) do
@@ -258,14 +297,17 @@ defmodule Llamex.ModelLoader do
 
   defp kv_head_count(tensors, head_count, wq, wk) do
     configured = tensor_config(tensors, :attention_head_count_kv)
-    head_size = div(length(wq), head_count)
+    head_size = div(matrix_row_count(wq), head_count)
 
     cond do
       is_nil(configured) -> head_count
-      length(wk) == configured * head_size -> configured
+      matrix_row_count(wk) == configured * head_size -> configured
       true -> head_count
     end
   end
+
+  defp matrix_row_count(%{info: %{shape: [rows | _rest]}}), do: rows
+  defp matrix_row_count(rows) when is_list(rows), do: length(rows)
 
   defp token_embeddings(%{"token_embeddings" => token_embeddings}, _tensors), do: token_embeddings
 

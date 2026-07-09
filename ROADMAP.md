@@ -186,6 +186,9 @@ GGUF モデル読み込み
 - `Llamex.Backend.List.matvec_tensor/2` は compact Q4_0 matrix payload を
   直接受け取れるため、model loading 時点で F32 行列へ展開しない backend 境界を
   最小形で確認できる。
+- `Llamex.ModelLoader.from_compact_map/2` と `Llamex.GGUF.ModelLoader.load/2` は
+  `tensor_format: :compact, compact_backend: true` で Q4_0 layer / output weight を
+  compact payload のまま保持し、List backend の 1 token generation を通せる。
 - `Llamex.TensorStore.fetch_dequantized_token_embeddings/2` で compact Q4_0
   `token_embd.weight` から token id => embedding map を遅延構築できる。
 - `Llamex.ModelLoader.from_compact_map/1` で compact model map から最小 `Model` を

@@ -804,6 +804,9 @@ matrix as the regular matrix value expected by existing backend code.
 `Llamex.Backend.List.matvec_tensor/2` also accepts compact Q4_0 matrix payloads
 directly, providing the first backend boundary where compact tensors can be used
 without being expanded during model loading.
+`Llamex.ModelLoader.from_compact_map/2` and `Llamex.GGUF.ModelLoader.load/2`
+accept `compact_backend: true` with `tensor_format: :compact` to keep Q4_0
+layer and output weights compact for the List backend generation path.
 `Llamex.TensorStore.fetch_dequantized_token_embeddings/2` builds the token-id to
 embedding map from compact Q4_0 `token_embd.weight` on demand.
 `Llamex.ModelLoader.from_compact_map/1` can build a minimal model from a compact
