@@ -806,9 +806,10 @@ embedding map from compact Q4_0 `token_embd.weight` on demand.
 `Llamex.ModelLoader.from_compact_map/1` can build a minimal model from a compact
 model map by lazily dequantizing compact Q4_0 token embeddings and optional
 `output.weight`.
-Compact Q4_0 transformer layer attention weights (`attn_norm`, Q/K/V/O
-projection weights) can also be lazily dequantized from compact model maps into
-the regular `Model.layers` shape expected by existing backends.
+Compact Q4_0 transformer layer attention and FFN weights (`attn_norm`, Q/K/V/O
+projection weights, `ffn_norm`, and gate/up/down projection weights) can also be
+lazily dequantized from compact model maps into the regular `Model.layers`
+shape expected by existing backends.
 That opt-in compact model path is smoke-tested through one-token generation on
 the List backend.
 `Llamex.GGUF.ModelLoader.load/2` accepts `tensor_format: :compact` for the same

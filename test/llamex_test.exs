@@ -5997,6 +5997,30 @@ defmodule LlamexTest do
                "blk.0.attn_output.weight"
              )
 
+    assert layer.feed_forward_norm ==
+             Llamex.TensorStore.fetch_dequantized_matrix(
+               compact_map["tensors"],
+               "blk.0.ffn_norm.weight"
+             )
+
+    assert layer.w_gate ==
+             Llamex.TensorStore.fetch_dequantized_matrix(
+               compact_map["tensors"],
+               "blk.0.ffn_gate.weight"
+             )
+
+    assert layer.w_up ==
+             Llamex.TensorStore.fetch_dequantized_matrix(
+               compact_map["tensors"],
+               "blk.0.ffn_up.weight"
+             )
+
+    assert layer.w_down ==
+             Llamex.TensorStore.fetch_dequantized_matrix(
+               compact_map["tensors"],
+               "blk.0.ffn_down.weight"
+             )
+
     result =
       Llamex.generate(model, "hello", %{
         backend: Llamex.Backend.List,
@@ -10328,6 +10352,10 @@ defmodule LlamexTest do
         {"blk.0.attn_k.weight", [32, 32], q4_0_identity_values(32)},
         {"blk.0.attn_v.weight", [32, 32], q4_0_identity_values(32)},
         {"blk.0.attn_output.weight", [32, 32], q4_0_identity_values(32)},
+        {"blk.0.ffn_norm.weight", [32], List.duplicate(9, 32)},
+        {"blk.0.ffn_gate.weight", [32, 32], q4_0_identity_values(32)},
+        {"blk.0.ffn_up.weight", [32, 32], q4_0_identity_values(32)},
+        {"blk.0.ffn_down.weight", [32, 32], q4_0_identity_values(32)},
         {"output.weight", [32, 32], q4_0_identity_values(32)}
       ]
     )
