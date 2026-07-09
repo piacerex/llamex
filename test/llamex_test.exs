@@ -5812,6 +5812,20 @@ defmodule LlamexTest do
            ) == Enum.chunk_every(dequantized_map["tensors"]["token_embd.weight"]["data"], 32)
   end
 
+  test "list backend runs matvec against compact q4_0 matrix tensors" do
+    binary = tiny_gguf(:with_q4_0_matrix_tensor_data)
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+    compact_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+    dequantized_map = Llamex.GGUF.ModelLoader.to_model_map(parsed, binary)
+
+    compact = Llamex.TensorStore.fetch_compact_tensor(compact_map["tensors"], "token_embd.weight")
+    rows = Enum.chunk_every(dequantized_map["tensors"]["token_embd.weight"]["data"], 32)
+    vector = [1.0 | List.duplicate(0.0, 31)]
+
+    assert Llamex.Backend.List.matvec_tensor(compact, vector) ==
+             Llamex.Backend.List.matvec_tensor(rows, vector)
+  end
+
   test "fetches compact q4_0 token embeddings lazily" do
     binary = tiny_gguf(:with_q4_0_matrix_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(binary)

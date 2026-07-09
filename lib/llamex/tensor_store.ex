@@ -50,8 +50,7 @@ defmodule Llamex.TensorStore do
   def fetch_dequantized_matrix(tensors, name) when is_map(tensors) and is_binary(name) do
     tensors
     |> fetch_compact_tensor(name)
-    |> dequantize_compact_tensor()
-    |> dequantized_tensor_value()
+    |> dequantize_compact_matrix()
   end
 
   def fetch_dequantized_token_embeddings(tensors, name \\ "token_embd.weight")
@@ -82,6 +81,12 @@ defmodule Llamex.TensorStore do
 
   def dequantize_compact_tensor(_tensor) do
     raise ArgumentError, "tensor is not a compact GGUF payload"
+  end
+
+  def dequantize_compact_matrix(compact) do
+    compact
+    |> dequantize_compact_tensor()
+    |> dequantized_tensor_value()
   end
 
   def fetch_matrix(tensors, name) when is_map(tensors) and is_binary(name) do

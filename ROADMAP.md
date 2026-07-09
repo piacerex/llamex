@@ -183,6 +183,9 @@ GGUF モデル読み込み
   必要時に F32 data へ展開でき、eager dequantized reader 経路と一致する。
 - `Llamex.TensorStore.fetch_dequantized_matrix/2` で compact Q4_0 matrix を
   既存 backend が期待する matrix value として遅延取得できる。
+- `Llamex.Backend.List.matvec_tensor/2` は compact Q4_0 matrix payload を
+  直接受け取れるため、model loading 時点で F32 行列へ展開しない backend 境界を
+  最小形で確認できる。
 - `Llamex.TensorStore.fetch_dequantized_token_embeddings/2` で compact Q4_0
   `token_embd.weight` から token id => embedding map を遅延構築できる。
 - `Llamex.ModelLoader.from_compact_map/1` で compact model map から最小 `Model` を

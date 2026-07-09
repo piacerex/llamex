@@ -35,6 +35,13 @@ defmodule Llamex.Backend.List do
     matvec(rows, vector)
   end
 
+  def matvec_tensor(%{info: %{type_name: "Q4_0"}, payload: payload} = compact, vector)
+      when is_binary(payload) and is_list(vector) do
+    compact
+    |> Llamex.TensorStore.dequantize_compact_matrix()
+    |> matvec(vector)
+  end
+
   @impl true
   def top_k_matvec(rows, vector, top_k, opts)
       when is_list(rows) and is_list(vector) and is_integer(top_k) and top_k > 0 and
