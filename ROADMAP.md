@@ -144,7 +144,8 @@ GGUF モデル読み込み
 以下は本ロードマップ上で継続して進める未完了項目として扱う。
 
 - [ ] compact tensor backend を追加し、Q4_0 の token embeddings / output weights
-      以外の主要 weight を eager F32 展開せずに扱えるようにする。
+      に加えて transformer layer の主要 attention weight を eager F32 展開せずに
+      compact model map から扱えるようにする。
 - [ ] 既知未対応 architecture の runtime 実装を追加し、診断 blocker から
       supported path へ移せるモデルを増やす。
 - [ ] 実機 FPGA runtime への delegation 境界を実装し、fallback 状態だけでなく
@@ -187,6 +188,9 @@ GGUF モデル読み込み
 - `Llamex.ModelLoader.from_compact_map/1` で compact model map から最小 `Model` を
   opt-in で構築でき、compact Q4_0 token embeddings と任意の `output.weight` を
   遅延展開できる。
+- compact Q4_0 の transformer layer 主要 attention weight
+  (`attn_norm`、Q/K/V/O projection) も compact model map から遅延展開して
+  `Model.layers` へ保持できる。
 - compact Q4_0 token embeddings から構築した最小 `Model` は List backend で
   1 token generation smoke を通せる。
 - `Llamex.GGUF.ModelLoader.load/2` は `tensor_format: :compact` で GGUF file から

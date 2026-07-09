@@ -20,6 +20,7 @@ defmodule Llamex.ModelLoader do
       when is_map(tensors) do
     attrs
     |> Map.put("token_embeddings", Llamex.TensorStore.fetch_dequantized_token_embeddings(tensors))
+    |> maybe_put_compact_layers(tensors)
     |> maybe_put_compact_output(tensors)
     |> Map.delete("tensors")
     |> from_map()
@@ -42,6 +43,59 @@ defmodule Llamex.ModelLoader do
       })
     else
       attrs
+    end
+  end
+
+  defp maybe_put_compact_layers(%{"layers" => _layers} = attrs, _tensors), do: attrs
+
+  defp maybe_put_compact_layers(attrs, tensors) do
+    layers =
+      tensors
+      |> Llamex.TensorStore.layer_count()
+      |> layer_indexes()
+      |> Enum.map(&compact_layer_from_tensors(tensors, attrs, &1))
+
+    if layers == [] do
+      attrs
+    else
+      Map.put(attrs, "layers", layers)
+    end
+  end
+
+  defp compact_layer_from_tensors(tensors, attrs, index) do
+    wq = Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_q.weight")
+    wk = Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_k.weight")
+    head_count = get_in(attrs, ["config", "attention_head_count"])
+
+    %{
+      "head_count" => head_count,
+      "kv_head_count" => kv_head_count(attrs, head_count, wq, wk),
+      "attention_norm" =>
+        Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_norm.weight"),
+      "feed_forward_norm" =>
+        fetch_optional_dequantized_matrix(tensors, "blk.#{index}.ffn_norm.weight"),
+      "attention_q_norm" =>
+        fetch_optional_dequantized_matrix(tensors, "blk.#{index}.attn_q_norm.weight"),
+      "attention_k_norm" =>
+        fetch_optional_dequantized_matrix(tensors, "blk.#{index}.attn_k_norm.weight"),
+      "post_feed_forward_norm" =>
+        fetch_optional_dequantized_matrix(tensors, "blk.#{index}.post_ffw_norm.weight"),
+      "wq" => wq,
+      "wk" => wk,
+      "wv" => Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_v.weight"),
+      "wo" =>
+        Llamex.TensorStore.fetch_dequantized_matrix(tensors, "blk.#{index}.attn_output.weight"),
+      "w_gate" => fetch_optional_dequantized_matrix(tensors, "blk.#{index}.ffn_gate.weight"),
+      "w_up" => fetch_optional_dequantized_matrix(tensors, "blk.#{index}.ffn_up.weight"),
+      "w_down" => fetch_optional_dequantized_matrix(tensors, "blk.#{index}.ffn_down.weight")
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  defp fetch_optional_dequantized_matrix(tensors, name) do
+    if Map.has_key?(tensors, name) do
+      Llamex.TensorStore.fetch_dequantized_matrix(tensors, name)
     end
   end
 

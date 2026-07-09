@@ -5954,6 +5954,59 @@ defmodule LlamexTest do
     end
   end
 
+  test "loads compact q4_0 transformer layer weights from compact model maps" do
+    binary = tiny_q4_0_transformer_gguf()
+    parsed = Llamex.GGUF.Reader.read_binary(binary)
+
+    compact_map =
+      Llamex.GGUF.ModelLoader.to_model_map(parsed, binary, tensor_format: :compact)
+
+    model = Llamex.ModelLoader.from_compact_map(compact_map)
+
+    assert length(model.layers) == 1
+
+    [layer] = model.layers
+
+    assert layer.attention_norm ==
+             Llamex.TensorStore.fetch_dequantized_matrix(
+               compact_map["tensors"],
+               "blk.0.attn_norm.weight"
+             )
+
+    assert layer.wq ==
+             Llamex.TensorStore.fetch_dequantized_matrix(
+               compact_map["tensors"],
+               "blk.0.attn_q.weight"
+             )
+
+    assert layer.wk ==
+             Llamex.TensorStore.fetch_dequantized_matrix(
+               compact_map["tensors"],
+               "blk.0.attn_k.weight"
+             )
+
+    assert layer.wv ==
+             Llamex.TensorStore.fetch_dequantized_matrix(
+               compact_map["tensors"],
+               "blk.0.attn_v.weight"
+             )
+
+    assert layer.wo ==
+             Llamex.TensorStore.fetch_dequantized_matrix(
+               compact_map["tensors"],
+               "blk.0.attn_output.weight"
+             )
+
+    result =
+      Llamex.generate(model, "hello", %{
+        backend: Llamex.Backend.List,
+        max_new_tokens: 1,
+        sampler: :greedy
+      })
+
+    assert length(result.generated_tokens) == 1
+  end
+
   test "rejects non-compact model maps in the compact loader path" do
     binary = tiny_gguf(:with_tensor_data)
     parsed = Llamex.GGUF.Reader.read_binary(binary)
@@ -10260,6 +10313,78 @@ defmodule LlamexTest do
       q4_0_payload(token_values),
       q4_0_payload(output_values)
     ])
+  end
+
+  defp tiny_q4_0_transformer_gguf do
+    tokens = ["<unk>", "hello" | Enum.map(2..31, &"tok#{&1}")]
+
+    q4_0_multi_tensor_gguf(
+      block_count: 1,
+      tokens: tokens,
+      tensors: [
+        {"token_embd.weight", [32, 32], q4_0_identity_values(32)},
+        {"blk.0.attn_norm.weight", [32], List.duplicate(9, 32)},
+        {"blk.0.attn_q.weight", [32, 32], q4_0_identity_values(32)},
+        {"blk.0.attn_k.weight", [32, 32], q4_0_identity_values(32)},
+        {"blk.0.attn_v.weight", [32, 32], q4_0_identity_values(32)},
+        {"blk.0.attn_output.weight", [32, 32], q4_0_identity_values(32)},
+        {"output.weight", [32, 32], q4_0_identity_values(32)}
+      ]
+    )
+  end
+
+  defp q4_0_multi_tensor_gguf(opts) do
+    tensors = Keyword.fetch!(opts, :tensors)
+    block_count = Keyword.fetch!(opts, :block_count)
+    tokens = Keyword.fetch!(opts, :tokens)
+
+    metadata = [
+      kv_string("general.architecture", "llama"),
+      kv_u32("general.alignment", 32),
+      kv_u32("llama.embedding_length", 32),
+      kv_u32("llama.context_length", 16),
+      kv_u32("llama.block_count", block_count),
+      kv_u32("llama.attention.head_count", 2),
+      kv_u32("llama.attention.head_count_kv", 2),
+      kv_u32("llama.feed_forward_length", 32),
+      kv_array_string("tokenizer.ggml.tokens", tokens),
+      kv_string("tokenizer.ggml.model", "llama")
+    ]
+
+    header = [
+      "GGUF",
+      u32(3),
+      u64(length(tensors)),
+      u64(length(metadata))
+    ]
+
+    {tensor_infos, tensor_data} = q4_0_tensor_sections(tensors)
+    without_data = IO.iodata_to_binary([header, metadata, tensor_infos])
+    padding = rem(32 - rem(byte_size(without_data), 32), 32)
+
+    IO.iodata_to_binary([without_data, :binary.copy(<<0>>, padding), tensor_data])
+  end
+
+  defp q4_0_tensor_sections(tensors) do
+    {infos, data, _offset} =
+      Enum.reduce(tensors, {[], [], 0}, fn {name, dimensions, values}, {infos, data, offset} ->
+        binary = IO.iodata_to_binary(q4_0_payload(values))
+        padding = rem(32 - rem(byte_size(binary), 32), 32)
+
+        {
+          [tensor_info(name, dimensions, 2, offset) | infos],
+          [data, binary, :binary.copy(<<0>>, padding)],
+          offset + byte_size(binary) + padding
+        }
+      end)
+
+    {Enum.reverse(infos), data}
+  end
+
+  defp q4_0_identity_values(size) do
+    for row <- 0..(size - 1), column <- 0..(size - 1) do
+      if row == column, do: 9, else: 8
+    end
   end
 
   defp with_aligned_f32_tensor_data(binary, values) do
