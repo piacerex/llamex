@@ -140,9 +140,15 @@ GGUF モデル読み込み
 - [x] chat template は実モデルの metadata 差分を fixture で確認しながら対応パターンを増やせる。
 - [x] AtomVM / FPGA 向け backend は NxEXLA とは別の `Backend` 実装として、演算境界と fallback 状態を確認できる。
 
-次段階では、これらの足場を使って実モデルごとの対応範囲を広げる。
-特に compact tensor backend、既知未対応 architecture の runtime 実装、
-実機 FPGA runtime への delegation は別フェーズの実装項目として扱う。
+次の継続ステップでは、これらの足場を使って実モデルごとの対応範囲を広げる。
+以下は本ロードマップ上で継続して進める未完了項目として扱う。
+
+- [ ] compact tensor backend を追加し、Q4_0 の token embeddings / output weights
+      以外の主要 weight を eager F32 展開せずに扱えるようにする。
+- [ ] 既知未対応 architecture の runtime 実装を追加し、診断 blocker から
+      supported path へ移せるモデルを増やす。
+- [ ] 実機 FPGA runtime への delegation 境界を実装し、fallback 状態だけでなく
+      FPGA backend 実行結果を検証できるようにする。
 
 現在の観測基盤:
 
