@@ -143,7 +143,7 @@ GGUF モデル読み込み
 次の継続ステップでは、これらの足場を使って実モデルごとの対応範囲を広げる。
 以下は本ロードマップ上で継続して進める未完了項目として扱う。
 
-- [ ] compact tensor backend を追加し、Q4_0 の token embeddings / output weights
+- [x] compact tensor backend を追加し、Q4_0 の token embeddings / output weights
       に加えて transformer layer の主要 attention / FFN weight を eager F32
       展開せずに compact model map から扱えるようにする。
 - [ ] 既知未対応 architecture の runtime 実装を追加し、診断 blocker から
