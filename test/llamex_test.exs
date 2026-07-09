@@ -2,6 +2,12 @@ defmodule LlamexTest do
   use ExUnit.Case
   import ExUnit.CaptureIO
 
+  defmodule FPGARuntime do
+    def matvec_pair(_left_rows, _right_rows, _vector) do
+      {[10.0, 20.0], [30.0, 40.0]}
+    end
+  end
+
   test "runs one minimal greedy inference step" do
     model =
       Llamex.new_model(%{
@@ -1159,6 +1165,7 @@ defmodule LlamexTest do
     assert Llamex.Backend.FPGA.capabilities() == %{
              target: :fpga,
              status: :fallback,
+             runtime_backend: nil,
              fallback_backend: Llamex.Backend.List,
              tensor_format: :dequantized,
              atomvm_oriented?: true
@@ -1166,6 +1173,28 @@ defmodule LlamexTest do
 
     assert Llamex.Backend.FPGA.matvec_pair(left_rows, right_rows, [1.0, 2.0]) ==
              {[1.0, 2.0], [2.0, 6.0]}
+  end
+
+  test "delegates fpga backend operations to configured runtime" do
+    try do
+      Llamex.Backend.FPGA.configure_runtime!(FPGARuntime)
+
+      assert Llamex.Backend.FPGA.runtime() == FPGARuntime
+
+      assert Llamex.Backend.FPGA.capabilities() == %{
+               target: :fpga,
+               status: :delegated,
+               runtime_backend: FPGARuntime,
+               fallback_backend: Llamex.Backend.List,
+               tensor_format: :dequantized,
+               atomvm_oriented?: true
+             }
+
+      assert Llamex.Backend.FPGA.matvec_pair([], [], []) == {[10.0, 20.0], [30.0, 40.0]}
+      assert Llamex.Backend.FPGA.add([1.0, 2.0], [3.0, 4.0]) == [4.0, 6.0]
+    after
+      Llamex.Backend.FPGA.clear_runtime!()
+    end
   end
 
   test "runs paired matvecs through nx_exla backend when Nx is available" do

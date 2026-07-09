@@ -148,7 +148,7 @@ GGUF モデル読み込み
       展開せずに compact model map から扱えるようにする。
 - [x] 既知未対応 architecture の runtime 実装を追加し、診断 blocker から
       supported path へ移せるモデルを増やす。
-- [ ] 実機 FPGA runtime への delegation 境界を実装し、fallback 状態だけでなく
+- [x] 実機 FPGA runtime への delegation 境界を実装し、fallback 状態だけでなく
       FPGA backend 実行結果を検証できるようにする。
 
 現在の観測基盤:
@@ -203,7 +203,9 @@ GGUF モデル読み込み
   compact Q4_0 embedding / output-weight path を opt-in でロードできる。
 - chat template は ChatML / role marker / Llama header / Gemma turn marker に加え、
   Mistral・Llama2 系の `[INST]...[/INST]` marker を診断・適用できる。
-- `Llamex.Backend.FPGA.capabilities/0` で FPGA backend の fallback 状態、
+- `Llamex.Backend.FPGA.configure_runtime!/1` で FPGA runtime module へ
+  operation delegation でき、未実装 operation は List fallback に戻せる。
+  `Llamex.Backend.FPGA.capabilities/0` で delegated / fallback 状態、
   dequantized tensor 境界、AtomVM-oriented 境界を確認できる。
 
 ## gemma3対応
