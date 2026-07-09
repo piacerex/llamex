@@ -6279,7 +6279,7 @@ defmodule LlamexTest do
     assert diagnostic.tensor_element_count == 4
     assert diagnostic.architecture == "llama"
     assert diagnostic.known_architectures == ["llama", "gemma3", "mistral", "qwen", "phi"]
-    assert diagnostic.supported_architectures == ["llama", "gemma3"]
+    assert diagnostic.supported_architectures == ["llama", "gemma3", "mistral"]
 
     assert diagnostic.supported_combinations == [
              %{
@@ -6292,6 +6292,14 @@ defmodule LlamexTest do
              },
              %{
                architecture: "gemma3",
+               runtime_status: "supported",
+               tokenizers: ["whitespace", "bpe"],
+               tokenizer_models: ["llama", "gpt2"],
+               pre_tokenizers: ["default", "gpt2", "llama-bpe"],
+               tensor_types: diagnostic.supported_tensor_type_names
+             },
+             %{
+               architecture: "mistral",
                runtime_status: "supported",
                tokenizers: ["whitespace", "bpe"],
                tokenizer_models: ["llama", "gpt2"],
@@ -7039,6 +7047,14 @@ defmodule LlamexTest do
                  "tokenizer_models" => ["llama", "gpt2"],
                  "pre_tokenizers" => ["default", "gpt2", "llama-bpe"],
                  "tensor_types" => diagnostic["supported_tensor_type_names"]
+               },
+               %{
+                 "architecture" => "mistral",
+                 "runtime_status" => "supported",
+                 "tokenizers" => ["whitespace", "bpe"],
+                 "tokenizer_models" => ["llama", "gpt2"],
+                 "pre_tokenizers" => ["default", "gpt2", "llama-bpe"],
+                 "tensor_types" => diagnostic["supported_tensor_type_names"]
                }
              ]
 
@@ -7434,23 +7450,23 @@ defmodule LlamexTest do
         Mix.Tasks.Llamex.Gguf.Inspect.run(["--supported"])
       end)
 
-    assert output =~ "supported architectures: llama, gemma3"
+    assert output =~ "supported architectures: llama, gemma3, mistral"
     assert output =~ "known architectures: llama, gemma3, mistral, qwen, phi"
     assert output =~ "architecture runtime surface:"
     assert output =~ "gemma3=supported"
     assert output =~ "llama=supported"
-    assert output =~ "mistral=known_unsupported"
+    assert output =~ "mistral=supported"
     assert output =~ "qwen=known_unsupported"
     assert output =~ "phi=known_unsupported"
     assert output =~ "architecture runtime blockers:"
     assert output =~ "gemma3=none"
     assert output =~ "llama=none"
-    assert output =~ "mistral=architecture runtime not implemented"
+    assert output =~ "mistral=none"
     assert output =~ "qwen=architecture runtime not implemented"
     assert output =~ "phi=architecture runtime not implemented"
     assert output =~ "architecture runtime blocker details:"
     assert output =~ "gemma3=none"
-    assert output =~ "mistral=architecture_runtime:engine:architecture runtime not implemented"
+    assert output =~ "mistral=none"
     assert output =~ "runtime feature status:"
     assert output =~ "attention_qk_extra_norm:supported"
     assert output =~ "post_feed_forward_extra_norm:supported"
@@ -7459,7 +7475,7 @@ defmodule LlamexTest do
     assert output =~ "runtime feature blockers:"
     assert output =~ "gemma3=none"
     assert output =~ "llama=none"
-    assert output =~ "mistral=architecture_runtime:engine:architecture runtime not implemented"
+    assert output =~ "mistral=none"
 
     assert output =~ "supported tokenizers: whitespace, bpe"
     assert output =~ "known tokenizer models: llama, gpt2, sentencepiece"
@@ -7540,13 +7556,13 @@ defmodule LlamexTest do
 
     surface = JSON.decode!(String.trim(output))
 
-    assert surface["supported_architectures"] == ["llama", "gemma3"]
+    assert surface["supported_architectures"] == ["llama", "gemma3", "mistral"]
     assert surface["known_architectures"] == ["llama", "gemma3", "mistral", "qwen", "phi"]
 
     assert surface["architecture_runtime_surface"] == %{
              "gemma3" => "supported",
              "llama" => "supported",
-             "mistral" => "known_unsupported",
+             "mistral" => "supported",
              "qwen" => "known_unsupported",
              "phi" => "known_unsupported"
            }
@@ -7554,7 +7570,7 @@ defmodule LlamexTest do
     assert surface["architecture_runtime_blockers"] == %{
              "gemma3" => [],
              "llama" => [],
-             "mistral" => ["architecture runtime not implemented"],
+             "mistral" => [],
              "qwen" => ["architecture runtime not implemented"],
              "phi" => ["architecture runtime not implemented"]
            }
@@ -7562,13 +7578,7 @@ defmodule LlamexTest do
     assert surface["architecture_runtime_blocker_details"] == %{
              "gemma3" => [],
              "llama" => [],
-             "mistral" => [
-               %{
-                 "id" => "architecture_runtime",
-                 "component" => "engine",
-                 "reason" => "architecture runtime not implemented"
-               }
-             ],
+             "mistral" => [],
              "qwen" => [
                %{
                  "id" => "architecture_runtime",
@@ -7599,7 +7609,7 @@ defmodule LlamexTest do
                "rope_variant" => "supported"
              },
              "mistral" => %{
-               "architecture_runtime" => "blocked",
+               "architecture_runtime" => "supported",
                "attention_variant" => "supported",
                "rope_variant" => "supported"
              },
@@ -7618,15 +7628,7 @@ defmodule LlamexTest do
     assert surface["runtime_feature_blockers"] == %{
              "gemma3" => [],
              "llama" => [],
-             "mistral" => [
-               %{
-                 "feature" => "architecture_runtime",
-                 "component" => "engine",
-                 "reason" => "architecture runtime not implemented",
-                 "issue" => "unsupported architecture runtime: mistral",
-                 "value" => "mistral"
-               }
-             ],
+             "mistral" => [],
              "qwen" => [
                %{
                  "feature" => "architecture_runtime",
@@ -7806,7 +7808,7 @@ defmodule LlamexTest do
 
     assert Enum.find(surface["known_combinations"], &(&1["architecture"] == "mistral"))[
              "runtime_status"
-           ] == "known_unsupported"
+           ] == "supported"
 
     assert surface["supported_combinations"] == [
              %{
@@ -7819,6 +7821,14 @@ defmodule LlamexTest do
              },
              %{
                "architecture" => "gemma3",
+               "runtime_status" => "supported",
+               "tokenizers" => ["whitespace", "bpe"],
+               "tokenizer_models" => ["llama", "gpt2"],
+               "pre_tokenizers" => ["default", "gpt2", "llama-bpe"],
+               "tensor_types" => surface["supported_tensor_type_names"]
+             },
+             %{
+               "architecture" => "mistral",
                "runtime_status" => "supported",
                "tokenizers" => ["whitespace", "bpe"],
                "tokenizer_models" => ["llama", "gpt2"],
@@ -9461,10 +9471,40 @@ defmodule LlamexTest do
       File.write!(path, tiny_gguf(:with_unsupported_architecture_tensor_data))
 
       assert_raise ArgumentError,
-                   "GGUF model is not loadable by Llamex: unsupported architecture runtime: mistral (blocking issue groups: runtime) (architecture runtime blockers: architecture runtime not implemented) (blocked runtime features: architecture_runtime)",
+                   "GGUF model is not loadable by Llamex: unsupported architecture runtime: qwen (blocking issue groups: runtime) (architecture runtime blockers: architecture runtime not implemented) (blocked runtime features: architecture_runtime)",
                    fn ->
                      Llamex.GGUF.ModelLoader.load(path)
                    end
+    after
+      File.rm(path)
+    end
+  end
+
+  test "loads mistral gguf models with llama-compatible text runtime" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "llamex-mistral-runtime-#{System.unique_integer([:positive])}.gguf"
+      )
+
+    try do
+      File.write!(path, tiny_mistral_gguf())
+
+      model = Llamex.GGUF.ModelLoader.load(path)
+
+      assert model.architecture == "mistral"
+      assert model.runtime_capability.loadable? == true
+      assert model.runtime_capability.runtime_status == "supported"
+      assert model.config.embedding_size == 2
+
+      result =
+        Llamex.generate(model, "hello", %{
+          backend: Llamex.Backend.List,
+          max_new_tokens: 1,
+          sampler: :greedy
+        })
+
+      assert length(result.generated_tokens) == 1
     after
       File.rm(path)
     end
@@ -10106,7 +10146,7 @@ defmodule LlamexTest do
   defp tiny_gguf(mode) do
     architecture =
       case mode do
-        :with_unsupported_architecture_tensor_data -> "mistral"
+        :with_unsupported_architecture_tensor_data -> "qwen"
         :with_unknown_architecture_tensor_data -> "unknownllm"
         _other -> "llama"
       end
@@ -10861,6 +10901,18 @@ defmodule LlamexTest do
       tensors: [
         {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]},
         {"output_norm.weight", [2], [1.0, 1.0]},
+        {"output.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
+      ]
+    )
+  end
+
+  defp tiny_mistral_gguf do
+    tiny_multi_tensor_gguf(
+      architecture: "mistral",
+      metadata_prefix: "mistral",
+      block_count: 0,
+      tensors: [
+        {"token_embd.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]},
         {"output.weight", [2, 2], [1.0, 0.0, 0.0, 1.0]}
       ]
     )

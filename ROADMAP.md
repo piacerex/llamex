@@ -160,9 +160,9 @@ GGUF モデル読み込み
   possible savings、expansion ratio をまとめて確認できる。
 - generate profile、benchmark、natural smoke の GGUF JSON artifact で
   `compact_weight_estimate` を確認できることをテストで固定している。
-- GGUF supported surface では Mistral / Qwen / Phi を known unsupported
-  architecture として明示し、runtime 未実装 blocker を JSON / text 診断と
-  load error で確認できる。
+- GGUF supported surface では Mistral を llama-compatible text runtime として
+  supported path へ移し、Qwen / Phi を known unsupported architecture として
+  runtime 未実装 blocker を JSON / text 診断と load error で確認できる。
 - tokenizer metadata surface では SentencePiece tokenizer model と Qwen2
   pre-tokenizer を known unsupported として明示し、対応済み tokenizer
   metadata と未対応候補を分けて確認できる。

@@ -4,20 +4,12 @@ defmodule Llamex.GGUF.Diagnostic do
   """
 
   @known_architectures ["llama", "gemma3", "mistral", "qwen", "phi"]
-  @supported_architectures ["llama", "gemma3"]
+  @supported_architectures ["llama", "gemma3", "mistral"]
   @architecture_runtime_blockers %{
-    "mistral" => ["architecture runtime not implemented"],
     "qwen" => ["architecture runtime not implemented"],
     "phi" => ["architecture runtime not implemented"]
   }
   @architecture_runtime_blocker_details %{
-    "mistral" => [
-      %{
-        id: "architecture_runtime",
-        component: "engine",
-        reason: "architecture runtime not implemented"
-      }
-    ],
     "qwen" => [
       %{
         id: "architecture_runtime",
