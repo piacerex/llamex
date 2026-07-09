@@ -31,8 +31,14 @@ defmodule Llamex.Layers.Attention do
         backend
       )
 
-    {cache, entries} = KVCache.append(cache, layer_index, key_heads, value_heads)
-    entries = maybe_apply_sliding_window(entries, position, Map.get(layer, :sliding_window))
+    {cache, entries} =
+      append_kv_entries(
+        cache,
+        layer_index,
+        key_heads,
+        value_heads,
+        Map.get(layer, :sliding_window)
+      )
 
     {cache, entries} =
       KVCache.prepare_entries(cache, layer_index, backend, entries, key_heads, value_heads)
@@ -45,12 +51,14 @@ defmodule Llamex.Layers.Attention do
     {cache, output}
   end
 
-  defp maybe_apply_sliding_window(entries, _position, window)
+  defp append_kv_entries(cache, layer_index, key_heads, value_heads, window)
        when is_integer(window) and window > 0 do
-    Enum.take(entries, window)
+    KVCache.append_window(cache, layer_index, key_heads, value_heads, window)
   end
 
-  defp maybe_apply_sliding_window(entries, _position, _window), do: entries
+  defp append_kv_entries(cache, layer_index, key_heads, value_heads, _window) do
+    KVCache.append(cache, layer_index, key_heads, value_heads)
+  end
 
   defp qkv_projection(
          %{w_qkv: weight, w_qkv_row_counts: [q_count, k_count, v_count]},

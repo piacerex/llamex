@@ -340,6 +340,40 @@ defmodule LlamexTest do
            ]
   end
 
+  test "kv cache prunes entries to the sliding window" do
+    cache = Llamex.KVCache.new()
+
+    {cache, _entries} = Llamex.KVCache.append_window(cache, 0, [:first_key], [:first_value], 2)
+    {cache, _entries} = Llamex.KVCache.append_window(cache, 0, [:second_key], [:second_value], 2)
+    {cache, entries} = Llamex.KVCache.append_window(cache, 0, [:third_key], [:third_value], 2)
+
+    assert entries == [
+             {[:third_key], [:third_value]},
+             {[:second_key], [:second_value]}
+           ]
+
+    assert Llamex.KVCache.entries(cache, 0) == [
+             {[:second_key], [:second_value]},
+             {[:third_key], [:third_value]}
+           ]
+  end
+
+  test "kv cache drops prepared layer when sliding window prunes entries" do
+    cache = Llamex.KVCache.new()
+
+    {cache, entries} = Llamex.KVCache.append_window(cache, 0, [[1.0]], [[1.0]], 2)
+
+    {cache, _prepared} =
+      Llamex.KVCache.prepare_entries(cache, 0, Llamex.Backend.List, entries, [[1.0]], [[1.0]])
+
+    assert Map.has_key?(cache.prepared_layers, {0, Llamex.Backend.List})
+
+    {cache, _entries} = Llamex.KVCache.append_window(cache, 0, [[2.0]], [[2.0]], 2)
+    {cache, _entries} = Llamex.KVCache.append_window(cache, 0, [[3.0]], [[3.0]], 2)
+
+    refute Map.has_key?(cache.prepared_layers, {0, Llamex.Backend.List})
+  end
+
   test "encodes text with the minimal tokenizer" do
     tokenizer = Llamex.Tokenizer.new(%{"<unk>" => 0, "hello" => 1, "world" => 2}, "<unk>")
 
