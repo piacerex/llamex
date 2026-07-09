@@ -3,7 +3,7 @@ defmodule Llamex.Profile do
   Small profiling helpers for local GGUF generation experiments.
   """
 
-  alias Llamex.{Context, ContextWindow, PreparedModel, Tensor}
+  alias Llamex.{Context, ContextWindow, KVCache, PreparedModel, Tensor}
   alias Llamex.Layers.{Attention, Linear}
 
   def timed(label, fun) when is_binary(label) and is_function(fun, 0) do
@@ -33,7 +33,7 @@ defmodule Llamex.Profile do
     %{
       backend: step.context.backend,
       exla: exla_info(step.context.backend),
-      backend_profile: backend_profile(state.context),
+      backend_profile: backend_profile(step.context),
       prompt_tokens: length(state.prompt_tokens),
       prompt_token_ids: state.prompt_tokens,
       prompt_pieces: token_pieces(display_model, state.prompt_tokens),
@@ -367,16 +367,20 @@ defmodule Llamex.Profile do
       extra_norm_layers: extra_norm_layers(model.layers),
       output_norm_tensor?: tensor?(model.output_norm),
       output_weight_tensor?: tensor?(get_in(model.output, [:weight])),
+      kv_cache_entries: KVCache.entry_count(context.kv_cache),
+      kv_cache_entry_counts: KVCache.entry_counts(context.kv_cache),
       prepared_kv_cache_entries: map_size(context.kv_cache.prepared_layers),
       nx_exla_cache: Llamex.Backend.NxEXLA.cache_stats(),
       nx_exla_prepare: Llamex.Backend.NxEXLA.prepare_stats()
     }
   end
 
-  defp backend_profile(%Context{model: model}) do
+  defp backend_profile(%Context{model: model} = context) do
     %{
       tensor_backend?: false,
       layer_count: length(model.layers),
+      kv_cache_entries: KVCache.entry_count(context.kv_cache),
+      kv_cache_entry_counts: KVCache.entry_counts(context.kv_cache),
       extra_norm_layers: extra_norm_layers(model.layers)
     }
   end

@@ -60,6 +60,19 @@ defmodule Llamex.KVCache do
     |> Enum.reverse()
   end
 
+  def entry_counts(%__MODULE__{} = cache) do
+    Map.new(cache.layers, fn {layer_index, entries} ->
+      {layer_index, length(entries)}
+    end)
+  end
+
+  def entry_count(%__MODULE__{} = cache) do
+    cache.layers
+    |> Map.values()
+    |> Enum.map(&length/1)
+    |> Enum.sum()
+  end
+
   defp drop_prepared_layer(prepared_layers, layer_index) do
     Map.reject(prepared_layers, fn
       {{^layer_index, _backend}, _prepared} -> true

@@ -338,6 +338,9 @@ defmodule LlamexTest do
              {[:first_key], [:first_value]},
              {[:second_key], [:second_value]}
            ]
+
+    assert Llamex.KVCache.entry_count(cache) == 2
+    assert Llamex.KVCache.entry_counts(cache) == %{0 => 2}
   end
 
   test "kv cache prunes entries to the sliding window" do
@@ -3230,6 +3233,9 @@ defmodule LlamexTest do
 
     profile = Llamex.Profile.generation_step(model, "hello", %{backend: Llamex.Backend.List})
 
+    assert profile.backend_profile.kv_cache_entries == 1
+    assert profile.backend_profile.kv_cache_entry_counts == %{0 => 1}
+
     assert profile.backend_profile.extra_norm_layers == %{
              attention_q_norm: 1,
              attention_k_norm: 1,
@@ -3828,6 +3834,8 @@ defmodule LlamexTest do
     assert profile["backend_profile"]["tensor_backend?"] == true
     assert profile["backend_profile"]["layer_count"] == 0
     assert is_boolean(profile["backend_profile"]["output_weight_tensor?"])
+    assert is_integer(profile["backend_profile"]["kv_cache_entries"])
+    assert is_map(profile["backend_profile"]["kv_cache_entry_counts"])
     assert profile["backend_profile"]["prepared_kv_cache_entries"] == 0
     assert is_integer(profile["backend_profile"]["nx_exla_cache"]["rope_trig_entries"])
     assert is_integer(profile["backend_profile"]["nx_exla_prepare"]["total_milliseconds"])
