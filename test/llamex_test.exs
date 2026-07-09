@@ -1849,7 +1849,15 @@ defmodule LlamexTest do
     profile = Llamex.Profile.generation_step(model, "hello", %{backend: Llamex.Backend.List})
 
     [layer] = profile.eval_timings.layers
+    attention = Enum.find(layer.components, &(&1.label == "attention"))
     mlp = Enum.find(layer.components, &(&1.label == "mlp"))
+
+    assert Enum.map(attention.components, & &1.label) == [
+             "qkv",
+             "kv_cache",
+             "attend",
+             "output_projection"
+           ]
 
     assert Enum.map(mlp.components, & &1.label) == [
              "feed_forward_norm",

@@ -51,6 +51,61 @@ defmodule Llamex.Layers.Attention do
     {cache, output}
   end
 
+  def profile_forward(
+        input,
+        layer,
+        cache,
+        layer_index,
+        position,
+        rope_theta,
+        rope_dimension_count \\ nil,
+        backend \\ Llamex.Backend.List
+      )
+      when is_map(layer) and is_integer(layer_index) do
+    head_count = Map.get(layer, :head_count, 1)
+    kv_head_count = Map.get(layer, :kv_head_count, head_count)
+
+    {qkv_time, {query_heads, key_heads, value_heads}} =
+      timed("qkv", fn ->
+        qkv_heads(
+          layer,
+          input,
+          head_count,
+          kv_head_count,
+          position,
+          rope_theta,
+          rope_dimension_count,
+          backend
+        )
+      end)
+
+    {kv_cache_time, {cache, entries}} =
+      timed("kv_cache", fn ->
+        {cache, entries} =
+          append_kv_entries(
+            cache,
+            layer_index,
+            key_heads,
+            value_heads,
+            Map.get(layer, :sliding_window)
+          )
+
+        KVCache.prepare_entries(cache, layer_index, backend, entries, key_heads, value_heads)
+      end)
+
+    {attend_time, attended} =
+      timed("attend", fn ->
+        backend.attend_heads(query_heads, entries, head_count, kv_head_count)
+      end)
+
+    {output_time, output} =
+      timed("output_projection", fn ->
+        backend.matvec_tensor(Map.fetch!(layer, :wo), attended)
+      end)
+
+    {cache, output, [qkv_time, kv_cache_time, attend_time, output_time]}
+  end
+
   defp append_kv_entries(cache, layer_index, key_heads, value_heads, window)
        when is_integer(window) and window > 0 do
     KVCache.append_window(cache, layer_index, key_heads, value_heads, window)
@@ -174,5 +229,10 @@ defmodule Llamex.Layers.Attention do
 
   defp apply_rope(heads, position, rope_theta, rope_dimension_count, backend) do
     Enum.map(heads, &backend.rope(&1, position, rope_theta, rope_dimension_count))
+  end
+
+  defp timed(label, fun) do
+    {microseconds, result} = :timer.tc(fun)
+    {%{label: label, milliseconds: div(microseconds, 1000)}, result}
   end
 end

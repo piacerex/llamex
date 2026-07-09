@@ -734,9 +734,9 @@ defmodule Llamex.Profile do
         )
       end)
 
-    {attention_time, {kv_cache, attention}} =
+    {attention_time, {kv_cache, attention, attention_timings}} =
       timed("attention", fn ->
-        Attention.forward(
+        Attention.profile_forward(
           normalized,
           layer,
           context.kv_cache,
@@ -748,6 +748,7 @@ defmodule Llamex.Profile do
         )
       end)
 
+    attention_time = Map.put(attention_time, :components, attention_timings)
     hidden = context.backend.add(hidden, attention)
 
     {mlp_time, {hidden, mlp_timings}} =
