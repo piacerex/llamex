@@ -146,7 +146,7 @@ GGUF モデル読み込み
 - [x] compact tensor backend を追加し、Q4_0 の token embeddings / output weights
       に加えて transformer layer の主要 attention / FFN weight を eager F32
       展開せずに compact model map から扱えるようにする。
-- [ ] 既知未対応 architecture の runtime 実装を追加し、診断 blocker から
+- [x] 既知未対応 architecture の runtime 実装を追加し、診断 blocker から
       supported path へ移せるモデルを増やす。
 - [ ] 実機 FPGA runtime への delegation 境界を実装し、fallback 状態だけでなく
       FPGA backend 実行結果を検証できるようにする。
